@@ -1,44 +1,37 @@
 // src/middleware.ts
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+// Các route public không cần đăng nhập
+const publicRoutes = ['/', '/login', '/register'];
 
 export function middleware(request: NextRequest) {
-  // TẠM THỜI COMMENT HẾT ĐỂ TEST
-  // const token = request.cookies.get('token')?.value
-  // const path = request.nextUrl.pathname
+  const token = request.cookies.get('access_token')?.value;
+  const path = request.nextUrl.pathname;
 
-  // // Public routes - không cần đăng nhập
-  // const publicRoutes = ['/', '/login', '/register']
-  // if (publicRoutes.includes(path)) {
-  //   return NextResponse.next()
-  // }
+  // Kiểm tra nếu đã đăng nhập và cố gắng vào trang chủ
+  if (token && (path === '/' || path === '/login' || path === '/register')) {
+    // Lấy user role từ cookie hoặc localStorage
+    // Tạm thời chuyển đến dashboard
+    return NextResponse.redirect(new URL('/student/dashboard', request.url));
+  }
 
-  // // Kiểm tra token
-  // if (!token) {
-  //   return NextResponse.redirect(new URL('/login', request.url))
-  // }
+  // Kiểm tra nếu chưa đăng nhập và vào route cần xác thực
+  if (!token && !publicRoutes.includes(path) && !path.startsWith('/_next')) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
 
-  // const userRole = getUserRole(token)
-
-  // // Admin routes - chỉ admin mới vào được
-  // if (path.startsWith('/admin')) {
-  //   if (userRole !== 'admin') {
-  //     return NextResponse.redirect(new URL('/dashboard', request.url))
-  //   }
-  // }
-
-  // // Student routes - học viên hoặc admin đều vào được
-  // if (path.startsWith('/student')) {
-  //   if (userRole !== 'student' && userRole !== 'admin') {
-  //     return NextResponse.redirect(new URL('/', request.url))
-  //   }
-  // }
-
-  return NextResponse.next()
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
-}
+};

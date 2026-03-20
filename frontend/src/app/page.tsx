@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Leaf,
@@ -14,27 +15,84 @@ import {
   Bot,
   Sparkles,
   Award,
-  BookOpen,
-  Headphones,
   MessageSquare,
-  CheckCircle,
   Zap,
+  AlertCircle,
 } from "lucide-react";
+import { authService } from "@/services/authService";
 
 export default function HomePage() {
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(isLogin ? "Đăng nhập" : "Đăng ký", { email, password, name });
+    setError("");
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        // Đăng nhập
+        const response = await authService.login({ email, password });
+        
+        if (response.success) {
+          // Lưu token và thông tin user
+          authService.saveTokens(response.data.accessToken, response.data.refreshToken);
+          authService.saveUser(response.data.user);
+          
+          // Chuyển hướng theo role
+          if (response.data.user.role === "admin") {
+            router.push("/admin/dashboard");
+          } else {
+            router.push("/student/dashboard");
+          }
+        }
+      } else {
+        // Đăng ký
+        const response = await authService.register({ name, email, password });
+        
+        if (response.success) {
+          // Sau khi đăng ký thành công, tự động đăng nhập
+          const loginResponse = await authService.login({ email, password });
+          
+          if (loginResponse.success) {
+            authService.saveTokens(loginResponse.data.accessToken, loginResponse.data.refreshToken);
+            authService.saveUser(loginResponse.data.user);
+            
+            if (loginResponse.data.user.role === "admin") {
+              router.push("/admin/dashboard");
+            } else {
+              router.push("/student/dashboard");
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      
+      // Xử lý các loại lỗi từ backend
+      if (err.statusCode === 401) {
+        setError("Email hoặc mật khẩu không đúng");
+      } else if (err.statusCode === 403) {
+        setError("Tài khoản tạm thời bị khóa. Vui lòng thử lại sau");
+      } else if (err.statusCode === 409 && err.message.includes("Email already registered")) {
+        setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
+      } else {
+        setError(err.message || "Có lỗi xảy ra. Vui lòng thử lại");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-      {/* Header */}
+      {/* Header giữ nguyên */}
       <header className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-emerald-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -94,7 +152,7 @@ export default function HomePage() {
       <main className="pt-24 pb-16 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left side - Hero Content */}
+            {/* Left side - Hero Content (giữ nguyên) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -180,10 +238,21 @@ export default function HomePage() {
                   </p>
                 </div>
 
+                {/* Error Message */}
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                )}
+
                 {/* Toggle Buttons */}
                 <div className="flex bg-emerald-50 rounded-2xl p-1 mb-8">
                   <button
-                    onClick={() => setIsLogin(true)}
+                    onClick={() => {
+                      setIsLogin(true);
+                      setError("");
+                    }}
                     className={`flex-1 py-3 rounded-xl font-medium transition-all ${
                       isLogin
                         ? "bg-white text-emerald-700 shadow-md"
@@ -196,7 +265,10 @@ export default function HomePage() {
                     </div>
                   </button>
                   <button
-                    onClick={() => setIsLogin(false)}
+                    onClick={() => {
+                      setIsLogin(false);
+                      setError("");
+                    }}
                     className={`flex-1 py-3 rounded-xl font-medium transition-all ${
                       !isLogin
                         ? "bg-white text-emerald-700 shadow-md"
@@ -227,6 +299,7 @@ export default function HomePage() {
                           onChange={(e) => setName(e.target.value)}
                           className="w-full pl-12 pr-4 py-4 bg-emerald-50 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-emerald-800 placeholder-emerald-400"
                           required={!isLogin}
+                          disabled={loading}
                         />
                       </div>
                     </motion.div>
@@ -241,6 +314,7 @@ export default function HomePage() {
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full pl-12 pr-4 py-4 bg-emerald-50 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-emerald-800 placeholder-emerald-400"
                       required
+                      disabled={loading}
                     />
                   </div>
 
@@ -253,6 +327,7 @@ export default function HomePage() {
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full pl-12 pr-4 py-4 bg-emerald-50 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-emerald-800 placeholder-emerald-400"
                       required
+                      disabled={loading}
                     />
                   </div>
 
@@ -269,10 +344,17 @@ export default function HomePage() {
 
                   <button
                     type="submit"
-                    className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all transform hover:scale-[1.02] flex items-center justify-center space-x-2 group"
+                    disabled={loading}
+                    className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all transform hover:scale-[1.02] flex items-center justify-center space-x-2 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    <span>{isLogin ? "Đăng nhập" : "Tạo tài khoản"}</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span>{isLogin ? "Đăng nhập" : "Tạo tài khoản"}</span>
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
                   </button>
                 </form>
 
@@ -288,9 +370,8 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Social Login - với màu chuẩn */}
+                {/* Social Login */}
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Google - màu chuẩn #4285F4 */}
                   <button className="py-3 px-4 bg-white rounded-xl text-[#4285F4] font-medium hover:bg-blue-50 transition-colors border border-gray-200 flex items-center justify-center space-x-2">
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path
@@ -313,7 +394,6 @@ export default function HomePage() {
                     <span>Google</span>
                   </button>
 
-                  {/* Facebook - màu chuẩn #1877F2 */}
                   <button className="py-3 px-4 bg-[#1877F2] rounded-xl text-white font-medium hover:bg-[#166FE5] transition-colors flex items-center justify-center space-x-2">
                     <svg className="w-5 h-5" fill="white" viewBox="0 0 24 24">
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
