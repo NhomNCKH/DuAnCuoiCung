@@ -19,7 +19,7 @@ import {
   Zap,
   AlertCircle,
 } from "lucide-react";
-import { api } from "@/services/api"; // Dùng file api.ts có sẵn
+import { api } from "@/services/api";
 
 export default function HomePage() {
   const router = useRouter();
@@ -37,16 +37,19 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   try {
     if (isLogin) {
-      // Đăng nhập - dùng any để tránh lỗi type
+      // Đăng nhập
       const response: any = await api.auth.login({ email, password });
       
-      console.log("Login response:", response);
+      console.log("=== FULL RESPONSE ===", response);
+      console.log("response.data:", response.data);
       
-      if (response.statusCode === 200 && response.data) {
-        const { user, accessToken, refreshToken } = response.data;
+      if (response.statusCode === 200) {
+        const user = response.data?.user || response.data?.data?.user;
+        const accessToken = response.data?.accessToken || response.data?.data?.accessToken;
+        const refreshToken = response.data?.refreshToken || response.data?.data?.refreshToken;
         
-        console.log("User:", user);
-        console.log("Access token:", accessToken);
+        console.log("Extracted user:", user);
+        console.log("Extracted accessToken:", accessToken);
         
         if (user && accessToken) {
           localStorage.setItem('accessToken', accessToken);
@@ -74,12 +77,18 @@ const handleSubmit = async (e: React.FormEvent) => {
         const loginResponse: any = await api.auth.login({ email, password });
         
         if (loginResponse.statusCode === 200 && loginResponse.data) {
-          const { user, accessToken, refreshToken } = loginResponse.data;
+          const user = loginResponse.data.user || loginResponse.data.data?.user;
+          const accessToken = loginResponse.data.accessToken || loginResponse.data.data?.accessToken;
+          const refreshToken = loginResponse.data.refreshToken || loginResponse.data.data?.refreshToken;
           
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', refreshToken);
-          localStorage.setItem('user', JSON.stringify(user));
-          router.push("/student/dashboard");
+          if (user && accessToken) {
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('refreshToken', refreshToken);
+            localStorage.setItem('user', JSON.stringify(user));
+            router.push("/student/dashboard");
+          } else {
+            setError("Đăng nhập sau đăng ký thất bại");
+          }
         } else {
           setError(loginResponse.message || "Đăng nhập sau đăng ký thất bại");
         }
@@ -93,21 +102,20 @@ const handleSubmit = async (e: React.FormEvent) => {
     if (err.statusCode === 400) {
       setError("Email hoặc mật khẩu không đúng");
     } else if (err.statusCode === 403) {
-      setError("Tài khoản tạm thời bị khóa");
+      setError("Tài khoản tạm thời bị khóa. Vui lòng thử lại sau");
     } else if (err.statusCode === 409) {
-      setError("Email đã được đăng ký");
+      setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
     } else {
-      setError(err.message || "Có lỗi xảy ra");
+      setError(err.message || "Có lỗi xảy ra. Vui lòng thử lại");
     }
   } finally {
     setLoading(false);
   }
 };
 
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-      {/* Header giữ nguyên */}
+      {/* Header */}
       <header className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-emerald-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
