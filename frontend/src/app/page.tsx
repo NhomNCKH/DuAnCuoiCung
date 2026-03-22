@@ -15,57 +15,103 @@ import {
   Bot,
   Sparkles,
   Award,
-  BookOpen,
-  Headphones,
   MessageSquare,
-  CheckCircle,
   Zap,
+  AlertCircle,
 } from "lucide-react";
-import { useAuth } from '@/contexts/AuthContext';
+import { api } from "@/services/api";
 
 export default function HomePage() {
-  const { login, register } = useAuth();
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
-    setSuccess("");
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      if (isLogin) {
-        const result = await login({ email, password });
-        if (result.success) {
-          router.push('/dashboard');
+  try {
+    if (isLogin) {
+      // Đăng nhập
+      const response: any = await api.auth.login({ email, password });
+      
+      console.log("=== FULL RESPONSE ===", response);
+      console.log("response.data:", response.data);
+      
+      if (response.statusCode === 200) {
+        const user = response.data?.user || response.data?.data?.user;
+        const accessToken = response.data?.accessToken || response.data?.data?.accessToken;
+        const refreshToken = response.data?.refreshToken || response.data?.data?.refreshToken;
+        
+        console.log("Extracted user:", user);
+        console.log("Extracted accessToken:", accessToken);
+        
+        if (user && accessToken) {
+          localStorage.setItem('accessToken', accessToken);
+          localStorage.setItem('refreshToken', refreshToken);
+          localStorage.setItem('user', JSON.stringify(user));
+          
+          if (user.role === "admin") {
+            router.push("/admin/dashboard");
+          } else {
+            router.push("/student/dashboard");
+          }
         } else {
-          setError(result.message);
+          setError("Dữ liệu đăng nhập không hợp lệ");
         }
       } else {
-        const result = await register({ name, email, password });
-        if (result.success) {
-          setSuccess(result.message);
-          setTimeout(() => {
-            setIsLogin(true);
-            setSuccess("");
-          }, 2000);
-        } else {
-          setError(result.message);
-        }
+        setError(response.message || "Đăng nhập thất bại");
       }
-    } catch (err) {
-      setError('Có lỗi xảy ra. Vui lòng thử lại.');
-    } finally {
-      setIsLoading(false);
+    } else {
+      // Đăng ký
+      const response: any = await api.auth.register({ name, email, password });
+      
+      console.log("Register response:", response);
+      
+      if (response.statusCode === 200) {
+        const loginResponse: any = await api.auth.login({ email, password });
+        
+        if (loginResponse.statusCode === 200 && loginResponse.data) {
+          const user = loginResponse.data.user || loginResponse.data.data?.user;
+          const accessToken = loginResponse.data.accessToken || loginResponse.data.data?.accessToken;
+          const refreshToken = loginResponse.data.refreshToken || loginResponse.data.data?.refreshToken;
+          
+          if (user && accessToken) {
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('refreshToken', refreshToken);
+            localStorage.setItem('user', JSON.stringify(user));
+            router.push("/student/dashboard");
+          } else {
+            setError("Đăng nhập sau đăng ký thất bại");
+          }
+        } else {
+          setError(loginResponse.message || "Đăng nhập sau đăng ký thất bại");
+        }
+      } else {
+        setError(response.message || "Đăng ký thất bại");
+      }
     }
-  };
+  } catch (err: any) {
+    console.error("Auth error:", err);
+    
+    if (err.statusCode === 400) {
+      setError("Email hoặc mật khẩu không đúng");
+    } else if (err.statusCode === 403) {
+      setError("Tài khoản tạm thời bị khóa. Vui lòng thử lại sau");
+    } else if (err.statusCode === 409) {
+      setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
+    } else {
+      setError(err.message || "Có lỗi xảy ra. Vui lòng thử lại");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
@@ -215,10 +261,21 @@ export default function HomePage() {
                   </p>
                 </div>
 
+                {/* Error Message */}
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                )}
+
                 {/* Toggle Buttons */}
                 <div className="flex bg-emerald-50 rounded-2xl p-1 mb-8">
                   <button
-                    onClick={() => setIsLogin(true)}
+                    onClick={() => {
+                      setIsLogin(true);
+                      setError("");
+                    }}
                     className={`flex-1 py-3 rounded-xl font-medium transition-all ${
                       isLogin
                         ? "bg-white text-emerald-700 shadow-md"
@@ -231,7 +288,10 @@ export default function HomePage() {
                     </div>
                   </button>
                   <button
-                    onClick={() => setIsLogin(false)}
+                    onClick={() => {
+                      setIsLogin(false);
+                      setError("");
+                    }}
                     className={`flex-1 py-3 rounded-xl font-medium transition-all ${
                       !isLogin
                         ? "bg-white text-emerald-700 shadow-md"
@@ -244,18 +304,6 @@ export default function HomePage() {
                     </div>
                   </button>
                 </div>
-
-                {/* Error/Success Messages */}
-                {error && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
-                    {error}
-                  </div>
-                )}
-                {success && (
-                  <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-600 rounded-lg text-sm">
-                    {success}
-                  </div>
-                )}
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -274,6 +322,7 @@ export default function HomePage() {
                           onChange={(e) => setName(e.target.value)}
                           className="w-full pl-12 pr-4 py-4 bg-emerald-50 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-emerald-800 placeholder-emerald-400"
                           required={!isLogin}
+                          disabled={loading}
                         />
                       </div>
                     </motion.div>
@@ -288,6 +337,7 @@ export default function HomePage() {
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full pl-12 pr-4 py-4 bg-emerald-50 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-emerald-800 placeholder-emerald-400"
                       required
+                      disabled={loading}
                     />
                   </div>
 
@@ -300,6 +350,7 @@ export default function HomePage() {
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full pl-12 pr-4 py-4 bg-emerald-50 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-emerald-800 placeholder-emerald-400"
                       required
+                      disabled={loading}
                     />
                   </div>
 
@@ -316,16 +367,17 @@ export default function HomePage() {
 
                   <button
                     type="submit"
-                    disabled={isLoading}
-                    className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all transform hover:scale-[1.02] flex items-center justify-center space-x-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={loading}
+                    className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all transform hover:scale-[1.02] flex items-center justify-center space-x-2 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    <span>
-                      {isLoading 
-                        ? (isLogin ? "Đang đăng nhập..." : "Đang đăng ký...") 
-                        : (isLogin ? "Đăng nhập" : "Tạo tài khoản")
-                      }
-                    </span>
-                    {!isLoading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span>{isLogin ? "Đăng nhập" : "Tạo tài khoản"}</span>
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
                   </button>
                 </form>
 
@@ -341,9 +393,8 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Social Login - với màu chuẩn */}
+                {/* Social Login */}
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Google - màu chuẩn #4285F4 */}
                   <button className="py-3 px-4 bg-white rounded-xl text-[#4285F4] font-medium hover:bg-blue-50 transition-colors border border-gray-200 flex items-center justify-center space-x-2">
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path
@@ -366,7 +417,6 @@ export default function HomePage() {
                     <span>Google</span>
                   </button>
 
-                  {/* Facebook - màu chuẩn #1877F2 */}
                   <button className="py-3 px-4 bg-[#1877F2] rounded-xl text-white font-medium hover:bg-[#166FE5] transition-colors flex items-center justify-center space-x-2">
                     <svg className="w-5 h-5" fill="white" viewBox="0 0 24 24">
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />

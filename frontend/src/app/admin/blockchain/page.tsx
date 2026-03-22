@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 'use client';
 
 export default function BlockchainPage() {
@@ -11,6 +12,13 @@ export default function BlockchainPage() {
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
         <p className="text-gray-500">Tính năng blockchain đang được phát triển...</p>
       </div>
+=======
+export default function BlockchainPage() {
+  return (
+    <div>
+      <h1>Blockchain Management</h1>
+      <p>Quản lý blockchain và smart contracts sẽ được hiển thị ở đây.</p>
+>>>>>>> alpha
     </div>
   );
 }

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 'use client';
 
 export default function CertificatesPage() {
@@ -11,6 +12,13 @@ export default function CertificatesPage() {
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
         <p className="text-gray-500">Danh sách chứng chỉ đang được tải...</p>
       </div>
+=======
+export default function CertificatesPage() {
+  return (
+    <div>
+      <h1>Certificate Management</h1>
+      <p>Quản lý chứng chỉ sẽ được hiển thị ở đây.</p>
+>>>>>>> alpha
     </div>
   );
 }

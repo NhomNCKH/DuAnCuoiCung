@@ -4,20 +4,19 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
 import { 
   LayoutDashboard, 
-  Users, 
+  BookOpen, 
+  Mic, 
   Award, 
-  Shield, 
-  BarChart3, 
-  Settings, 
-  LogOut, 
-  Leaf, 
-  Blocks 
+  User, 
+  LogOut,
+  GraduationCap,
+  Shield
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
-export default function AdminLayout({
+export default function StudentLayout({
   children,
 }: {
   children: React.ReactNode
@@ -31,13 +30,14 @@ export default function AdminLayout({
     if (!loading && !isAuthenticated) {
       router.push('/');
     }
-    if (!loading && user && user.role !== 'admin') {
-      router.push('/student/dashboard');
+    // Nếu đã đăng nhập nhưng không phải học viên (có thể là admin)
+    if (!loading && user && user.role !== 'learner') {
+      router.push('/admin/dashboard');
     }
   }, [loading, isAuthenticated, user, router]);
 
   // Nếu là trang welcome, không hiển thị layout
-  if (pathname === '/admin') {
+  if (pathname === '/student') {
     return <>{children}</>;
   }
 
@@ -50,19 +50,17 @@ export default function AdminLayout({
     );
   }
 
-  // Nếu chưa xác thực hoặc không phải admin, không hiển thị gì
-  if (!isAuthenticated || user?.role !== 'admin') {
+  // Nếu chưa xác thực hoặc không phải học viên, không hiển thị gì
+  if (!isAuthenticated || user?.role !== 'learner') {
     return null;
   }
-
+  
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
-    { icon: Users, label: 'Quản lý học viên', href: '/admin/students' },
-    { icon: Award, label: 'Chứng chỉ', href: '/admin/certificates' },
-    { icon: Blocks, label: 'Blockchain', href: '/admin/blockchain' },
-    { icon: BarChart3, label: 'Thống kê', href: '/admin/analytics' },
-    { icon: Shield, label: 'Bảo mật', href: '/admin/security' },
-    { icon: Settings, label: 'Cấu hình', href: '/admin/settings' },
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/student/dashboard' },
+    { icon: BookOpen, label: 'Bài học', href: '/student/lessons' },
+    { icon: Mic, label: 'Luyện nói AI', href: '/student/practice' },
+    { icon: Award, label: 'Chứng chỉ', href: '/student/certificates' },
+    { icon: User, label: 'Hồ sơ', href: '/student/profile' },
   ];
 
   const handleLogout = async () => {
@@ -71,14 +69,15 @@ export default function AdminLayout({
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
-      {/* Sidebar */}
+      {/* Sidebar - LUÔN HIỆN */}
       <div style={{ 
         width: '256px', 
         background: 'linear-gradient(to bottom, #065f46, #115e59)',
         color: 'white',
         position: 'fixed',
         height: '100vh',
-        padding: '24px'
+        padding: '24px',
+        zIndex: 40
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
           <div style={{ 
@@ -90,15 +89,15 @@ export default function AdminLayout({
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <Leaf size={24} color="white" />
+            <GraduationCap size={24} color="white" />
           </div>
           <div>
             <div style={{ fontSize: '20px', fontWeight: 'bold' }}>EduChain</div>
-            <div style={{ fontSize: '12px', color: '#a7f3d0' }}>Admin Panel</div>
+            <div style={{ fontSize: '12px', color: '#a7f3d0' }}>Học viên</div>
           </div>
         </div>
 
-        {/* Hiển thị thông tin admin */}
+        {/* Hiển thị tên user */}
         <div style={{
           padding: '12px 16px',
           marginBottom: '24px',
@@ -107,7 +106,7 @@ export default function AdminLayout({
           fontSize: '14px'
         }}>
           <div style={{ color: '#d1fae5' }}>Xin chào,</div>
-          <div style={{ fontWeight: 'bold' }}>{user?.name || 'Admin'}</div>
+          <div style={{ fontWeight: 'bold' }}>{user?.name || 'Học viên'}</div>
           <div style={{ fontSize: '12px', color: '#a7f3d0', marginTop: '4px' }}>
             {user?.email}
           </div>
@@ -172,9 +171,8 @@ export default function AdminLayout({
 
       {/* Main content */}
       <div style={{ marginLeft: '256px', width: '100%' }}>
-        {/* Header */}
-        <header style={{ 
-          background: 'white', 
+        <header style={{
+          background: 'white',
           borderBottom: '1px solid #e5e7eb',
           padding: '16px 24px',
           position: 'sticky',
@@ -187,16 +185,16 @@ export default function AdminLayout({
             </h2>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
                 gap: '8px',
                 padding: '6px 12px',
                 background: '#d1fae5',
                 borderRadius: '9999px'
               }}>
                 <Shield size={16} color="#047857" />
-                <span style={{ fontSize: '12px', fontWeight: '500', color: '#047857' }}>Admin</span>
+                <span style={{ fontSize: '12px', fontWeight: '500', color: '#047857' }}>Học viên</span>
               </div>
               
               <div style={{
@@ -210,13 +208,12 @@ export default function AdminLayout({
                 color: 'white',
                 fontWeight: 'bold'
               }}>
-                {user?.name?.charAt(0) || 'A'}
+                {user?.name?.charAt(0) || 'HV'}
               </div>
             </div>
           </div>
         </header>
 
-        {/* Content */}
         <div style={{ padding: '24px' }}>
           {children}
         </div>

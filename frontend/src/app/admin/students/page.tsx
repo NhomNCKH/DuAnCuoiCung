@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 'use client';
 
 export default function StudentsPage() {
@@ -11,6 +12,13 @@ export default function StudentsPage() {
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
         <p className="text-gray-500">Danh sách học viên đang được tải...</p>
       </div>
+=======
+export default function StudentsManagementPage() {
+  return (
+    <div>
+      <h1>Student Management</h1>
+      <p>Quản lý học viên sẽ được hiển thị ở đây.</p>
+>>>>>>> alpha
     </div>
   );
 }
