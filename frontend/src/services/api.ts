@@ -59,6 +59,8 @@ export interface UserProfile {
 // Helper function to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('accessToken');
+  console.log("TOKEN:", token); 
+
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` })
@@ -129,16 +131,16 @@ export const api = {
     },
 
     // Upload avatar
-    async uploadAvatar(file: File): Promise<ApiResponse> {
+    async uploadAvatar(file: File, token?: string): Promise<ApiResponse> {
       const formData = new FormData();
-      formData.append("file", file); // ⚠️ đúng key theo swagger
-
-      const token = localStorage.getItem("accessToken");
-
+      formData.append("file", file);
+      
+      const accessToken = token || localStorage.getItem('accessToken');
+      
       const response = await fetch(`${API_BASE_URL}/auth/me/avatar`, {
         method: "POST",
         headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
+          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
         },
         body: formData,
       });
@@ -146,13 +148,21 @@ export const api = {
       return response.json();
     },
 
-    // Lấy avatar
-    async getAvatar(): Promise<ApiResponse<{ avatarUrl: string }>> {
+     async confirmAvatarUpload(data: { s3Key: string }): Promise<ApiResponse> {
+      const response = await fetch(`${API_BASE_URL}/auth/me/avatar/s3`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      return response.json();
+    },
+    
+    // Lấy avatar URL (có thể trả về presigned URL)
+    async getAvatar(): Promise<ApiResponse<{ avatarUrl: string; s3Key?: string }>> {
       const response = await fetch(`${API_BASE_URL}/auth/me/avatar`, {
         method: "GET",
         headers: getAuthHeaders(),
       });
-
       return response.json();
     },
   },

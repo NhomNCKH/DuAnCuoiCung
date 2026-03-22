@@ -24,14 +24,13 @@ export default function StudentLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-    const { user, isAuthenticated, loading, logout } = useAuth();
-    const [avatarUrl, setAvatarUrl] = useState("");
+    const { user, isAuthenticated, loading, logout } = useAuth();    
   // Nếu là trang welcome, không hiển thị layout
   if (pathname === '/student') {
     return <>{children}</>;
   }
 
-  // Kiểm tra xác thực
+  // Kiểm tra xác thưc  
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/');
@@ -42,25 +41,25 @@ export default function StudentLayout({
     }
   }, [loading, isAuthenticated, user, router]);
 
-  useEffect(() => {
-  const fetchAvatar = async () => {
-    try {
-      const res = await api.auth.getAvatar();
-      console.log("AVATAR:", res);
-      console.log("AVATAR FULL:", res);
-console.log("AVATAR DATA:", res.data);
-console.log("AVATAR URL:", res.data?.avatarUrl);
-// console.log("S3 KEY:", res.data?.s3Key);
-      setAvatarUrl(res.data.avatarUrl);
-    } catch (err) {
-      console.log("Không có avatar");
-    }
-  };
+    const [avatarUrl, setAvatarUrl] = useState("");
+    useEffect(() => {
+    const fetchAvatar = async () => {
+        try {
+        const res = await api.auth.getAvatar();
+        console.log("AVATAR:", res);
 
-  if (isAuthenticated) {
-    fetchAvatar();
-  }
-}, [isAuthenticated]);
+        if (res.statusCode === 200 && res.data?.avatarUrl) {
+            setAvatarUrl(res.data.avatarUrl);
+        }
+        } catch (err) {
+        console.error("Lỗi avatar:", err);
+        }
+    };
+
+    if (isAuthenticated) {
+        fetchAvatar();
+    }
+    }, [isAuthenticated]);
 
   // Hiển thị loading
   if (loading) {

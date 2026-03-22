@@ -29,96 +29,107 @@ export default function HomePage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [avatar, setAvatar] = useState(null);
+  const [avatar, setAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+  // Hàm xử lý khi chọn file avatar
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatar(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
 
-  try {
-    if (isLogin) {
-      // Đăng nhập
-      const response: any = await api.auth.login({ email, password });
-      
-      console.log("=== FULL RESPONSE ===", response);
-      console.log("response.data:", response.data);
-      
-      if (response.statusCode === 200) {
-        const user = response.data?.user || response.data?.data?.user;
-        const accessToken = response.data?.accessToken || response.data?.data?.accessToken;
-        const refreshToken = response.data?.refreshToken || response.data?.data?.refreshToken;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        // Đăng nhập
+        const response: any = await api.auth.login({ email, password });
         
-        console.log("Extracted user:", user);
-        console.log("Extracted accessToken:", accessToken);
-        
-        if (user && accessToken) {
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', refreshToken);
-          localStorage.setItem('user', JSON.stringify(user));
+        if (response.statusCode === 200) {
+          const user = response.data?.user || response.data?.data?.user;
+          const accessToken = response.data?.accessToken || response.data?.data?.accessToken;
+          const refreshToken = response.data?.refreshToken || response.data?.data?.refreshToken;
           
-          if (user.role === "admin") {
-            router.push("/admin/dashboard");
+          if (user && accessToken) {
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('refreshToken', refreshToken);
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            if (user.role === "admin") {
+              router.push("/admin/dashboard");
+            } else {
+              router.push("/student/dashboard");
+            }
           } else {
-            router.push("/student/dashboard");
+            setError("Dữ liệu đăng nhập không hợp lệ");
           }
         } else {
-          setError("Dữ liệu đăng nhập không hợp lệ");
+          setError(response.message || "Đăng nhập thất bại");
         }
       } else {
-        setError(response.message || "Đăng nhập thất bại");
-      }
-    } else {
-      // Đăng ký
-      const response: any = await api.auth.register({ name, email, password });
+        // Đăng ký
+        const response: any = await api.auth.register({ name, email, password });
 
-      if (response.statusCode === 200) {
-        // Đăng nhập lại
-        const loginResponse: any = await api.auth.login({ email, password });
+        if (response.statusCode === 200) {
+          // Đăng nhập lại
+          const loginResponse: any = await api.auth.login({ email, password });
 
-        if (loginResponse.statusCode === 200 && loginResponse.data) {
-          const user =
-            loginResponse.data.user || loginResponse.data.data?.user;
-          const accessToken =
-            loginResponse.data.accessToken ||
-            loginResponse.data.data?.accessToken;
+          if (loginResponse.statusCode === 200 && loginResponse.data) {
+            const user = loginResponse.data.user || loginResponse.data.data?.user;
+            const accessToken = loginResponse.data.accessToken || loginResponse.data.data?.accessToken;
+            const refreshToken = loginResponse.data.refreshToken || loginResponse.data.data?.refreshToken;
 
-          if (user && accessToken) {
-            localStorage.setItem("accessToken", accessToken);
+            if (user && accessToken) {
+              localStorage.setItem("accessToken", accessToken);
+              localStorage.setItem("refreshToken", refreshToken);
+              localStorage.setItem("user", JSON.stringify(user));
 
-            // 🔥 UPLOAD AVATAR (chỗ quan trọng)
-            if (avatar) {
-              const formData = new FormData();
-              formData.append("file", avatar);
+              // Upload avatar nếu có
+              if (avatar) {
+                try {
+                  const uploadResponse = await api.auth.uploadAvatar(avatar, accessToken);
+                  if (uploadResponse.statusCode === 201 && uploadResponse.data) {
+                    const updatedUser = { ...user, avatarUrl: uploadResponse.data.avatarUrl };
+                    localStorage.setItem("user", JSON.stringify(updatedUser));
+                  }
+                } catch (uploadError) {
+                  console.error("Upload avatar failed:", uploadError);
+                }
+              }
 
-              await api.auth.uploadAvatar(formData, accessToken);
+              router.push("/student/dashboard");
+            } else {
+              setError("Đăng nhập sau đăng ký thất bại");
             }
-
-            router.push("/student/dashboard");
           } else {
-            setError("Đăng nhập sau đăng ký thất bại");
+            setError(loginResponse.message || "Đăng nhập sau đăng ký thất bại");
           }
+        } else {
+          setError(response.message || "Đăng ký thất bại");
         }
-      } else {
-        setError(response.message || "Đăng ký thất bại");
       }
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      
+      if (err.statusCode === 400) {
+        setError("Email hoặc mật khẩu không đúng");
+      } else if (err.statusCode === 403) {
+        setError("Tài khoản tạm thời bị khóa. Vui lòng thử lại sau");
+      } else if (err.statusCode === 409) {
+        setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
+      } else {
+        setError(err.message || "Có lỗi xảy ra. Vui lòng thử lại");
+      }
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    console.error("Auth error:", err);
-    
-    if (err.statusCode === 400) {
-      setError("Email hoặc mật khẩu không đúng");
-    } else if (err.statusCode === 403) {
-      setError("Tài khoản tạm thời bị khóa. Vui lòng thử lại sau");
-    } else if (err.statusCode === 409) {
-      setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
-    } else {
-      setError(err.message || "Có lỗi xảy ra. Vui lòng thử lại");
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
@@ -345,16 +356,16 @@ const handleSubmit = async (e: React.FormEvent) => {
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => setAvatar(e.target.files[0])}
+                          onChange={handleAvatarChange}
                           className="w-full py-3 px-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-500 file:text-white hover:file:bg-emerald-600"
                           disabled={loading}
                         />
-                        {avatar && (
-                          <div className="flex justify-center">
+                        {avatarPreview && (
+                          <div className="flex justify-center mt-3">
                             <img
-                              src={URL.createObjectURL(avatar)}
+                              src={avatarPreview}
                               alt="preview"
-                              className="w-20 h-20 rounded-full object-cover border-2 border-emerald-400"
+                              className="w-20 h-20 rounded-full object-cover border-2 border-emerald-400 shadow-md"
                             />
                           </div>
                         )}
