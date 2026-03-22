@@ -1,0 +1,7 @@
+# Ignore files and folders for Vercel deployment
+node_modules
+.git
+.next
+.env.local
+*.log
+.DS_Store

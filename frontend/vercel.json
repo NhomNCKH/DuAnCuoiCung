@@ -1,0 +1,16 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
+  "github": {
+    "autoDeployment": false
+  },
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ]
+}
