@@ -25,12 +25,7 @@ export default function StudentLayout({
   const router = useRouter();
   const { user, isAuthenticated, loading, logout } = useAuth();
 
-  // Nếu là trang welcome, không hiển thị layout
-  if (pathname === '/student') {
-    return <>{children}</>;
-  }
-
-  // Kiểm tra xác thực
+  // Kiểm tra xác thực - LUÔN GỌI useEffect TRƯỚC
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/');
@@ -40,6 +35,11 @@ export default function StudentLayout({
       router.push('/admin/dashboard');
     }
   }, [loading, isAuthenticated, user, router]);
+
+  // Nếu là trang welcome, không hiển thị layout
+  if (pathname === '/student') {
+    return <>{children}</>;
+  }
 
   // Hiển thị loading
   if (loading) {
