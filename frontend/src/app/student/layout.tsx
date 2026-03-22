@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { api } from '@/services/api';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -23,8 +24,8 @@ export default function StudentLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, loading, logout } = useAuth();
-
+    const { user, isAuthenticated, loading, logout } = useAuth();
+    const [avatarUrl, setAvatarUrl] = useState("");
   // Nếu là trang welcome, không hiển thị layout
   if (pathname === '/student') {
     return <>{children}</>;
@@ -40,6 +41,26 @@ export default function StudentLayout({
       router.push('/admin/dashboard');
     }
   }, [loading, isAuthenticated, user, router]);
+
+  useEffect(() => {
+  const fetchAvatar = async () => {
+    try {
+      const res = await api.auth.getAvatar();
+      console.log("AVATAR:", res);
+      console.log("AVATAR FULL:", res);
+console.log("AVATAR DATA:", res.data);
+console.log("AVATAR URL:", res.data?.avatarUrl);
+// console.log("S3 KEY:", res.data?.s3Key);
+      setAvatarUrl(res.data.avatarUrl);
+    } catch (err) {
+      console.log("Không có avatar");
+    }
+  };
+
+  if (isAuthenticated) {
+    fetchAvatar();
+  }
+}, [isAuthenticated]);
 
   // Hiển thị loading
   if (loading) {
@@ -99,17 +120,28 @@ export default function StudentLayout({
 
         {/* Hiển thị tên user */}
         <div style={{
-          padding: '12px 16px',
-          marginBottom: '24px',
-          background: 'rgba(255,255,255,0.1)',
-          borderRadius: '12px',
-          fontSize: '14px'
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
         }}>
-          <div style={{ color: '#d1fae5' }}>Xin chào,</div>
-          <div style={{ fontWeight: 'bold' }}>{user?.name || 'Học viên'}</div>
-          <div style={{ fontSize: '12px', color: '#a7f3d0', marginTop: '4px' }}>
+        <img
+            src={avatarUrl || "https://via.placeholder.com/100"}
+            style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            objectFit: 'cover',
+            border: '2px solid white'
+            }}
+        />
+
+        <div>
+            <div style={{ color: '#d1fae5' }}>Xin chào,</div>
+            <div style={{ fontWeight: 'bold' }}>{user?.name}</div>
+            <div style={{ fontSize: '12px', color: '#a7f3d0' }}>
             {user?.email}
-          </div>
+            </div>
+        </div>
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -185,6 +217,17 @@ export default function StudentLayout({
             </h2>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <img
+                    src={avatarUrl || "https://via.placeholder.com/100"}
+                    alt="avatar"
+                    style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '2px solid #10b981'
+                    }}
+                />
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -196,20 +239,7 @@ export default function StudentLayout({
                 <Shield size={16} color="#047857" />
                 <span style={{ fontSize: '12px', fontWeight: '500', color: '#047857' }}>Học viên</span>
               </div>
-              
-              <div style={{
-                width: '32px',
-                height: '32px',
-                background: '#059669',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold'
-              }}>
-                {user?.name?.charAt(0) || 'HV'}
-              </div>
+                            
             </div>
           </div>
         </header>

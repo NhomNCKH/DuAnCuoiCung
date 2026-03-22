@@ -29,6 +29,7 @@ export default function HomePage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [avatar, setAvatar] = useState(null);
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -70,27 +71,33 @@ const handleSubmit = async (e: React.FormEvent) => {
     } else {
       // Đăng ký
       const response: any = await api.auth.register({ name, email, password });
-      
-      console.log("Register response:", response);
-      
+
       if (response.statusCode === 200) {
+        // Đăng nhập lại
         const loginResponse: any = await api.auth.login({ email, password });
-        
+
         if (loginResponse.statusCode === 200 && loginResponse.data) {
-          const user = loginResponse.data.user || loginResponse.data.data?.user;
-          const accessToken = loginResponse.data.accessToken || loginResponse.data.data?.accessToken;
-          const refreshToken = loginResponse.data.refreshToken || loginResponse.data.data?.refreshToken;
-          
+          const user =
+            loginResponse.data.user || loginResponse.data.data?.user;
+          const accessToken =
+            loginResponse.data.accessToken ||
+            loginResponse.data.data?.accessToken;
+
           if (user && accessToken) {
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('refreshToken', refreshToken);
-            localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem("accessToken", accessToken);
+
+            // 🔥 UPLOAD AVATAR (chỗ quan trọng)
+            if (avatar) {
+              const formData = new FormData();
+              formData.append("file", avatar);
+
+              await api.auth.uploadAvatar(formData, accessToken);
+            }
+
             router.push("/student/dashboard");
           } else {
             setError("Đăng nhập sau đăng ký thất bại");
           }
-        } else {
-          setError(loginResponse.message || "Đăng nhập sau đăng ký thất bại");
         }
       } else {
         setError(response.message || "Đăng ký thất bại");
@@ -324,6 +331,33 @@ const handleSubmit = async (e: React.FormEvent) => {
                           required={!isLogin}
                           disabled={loading}
                         />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {!isLogin && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setAvatar(e.target.files[0])}
+                          className="w-full py-3 px-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-500 file:text-white hover:file:bg-emerald-600"
+                          disabled={loading}
+                        />
+                        {avatar && (
+                          <div className="flex justify-center">
+                            <img
+                              src={URL.createObjectURL(avatar)}
+                              alt="preview"
+                              className="w-20 h-20 rounded-full object-cover border-2 border-emerald-400"
+                            />
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}

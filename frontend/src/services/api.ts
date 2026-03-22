@@ -126,7 +126,35 @@ export const api = {
         headers: getAuthHeaders()
       });
       return response.json();
-    }
+    },
+
+    // Upload avatar
+    async uploadAvatar(file: File): Promise<ApiResponse> {
+      const formData = new FormData();
+      formData.append("file", file); // ⚠️ đúng key theo swagger
+
+      const token = localStorage.getItem("accessToken");
+
+      const response = await fetch(`${API_BASE_URL}/auth/me/avatar`, {
+        method: "POST",
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+
+      return response.json();
+    },
+
+    // Lấy avatar
+    async getAvatar(): Promise<ApiResponse<{ avatarUrl: string }>> {
+      const response = await fetch(`${API_BASE_URL}/auth/me/avatar`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+
+      return response.json();
+    },
   },
             
   // Media endpoints
@@ -150,3 +178,4 @@ export const api = {
     }
   }
 };
+
