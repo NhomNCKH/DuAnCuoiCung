@@ -23,7 +23,7 @@ import {
   Quote,
 } from "lucide-react";
 import Link from "next/link";
-import { api } from "@/services/api";
+import { apiClient } from "@/lib/api-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response: any = await api.auth.login({ email, password });
+      const response: any = await apiClient.auth.login({ email, password });
 
       if (response.statusCode === 200) {
         const user = response.data?.user || response.data?.data?.user;

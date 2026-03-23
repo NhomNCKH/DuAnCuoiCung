@@ -1,4 +1,3 @@
-// app/student/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -23,7 +22,10 @@ import {
   Trophy,
 } from "lucide-react";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/lib/hooks";
+import { WelcomeHeader } from "@/components/ui/WelcomeHeader";
+import { StudentStatCard } from "@/components/ui/StudentStatCard";
+import { InfoCard } from "@/components/ui/InfoCard";
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -112,11 +114,7 @@ export default function StudentDashboard() {
   return (
     <div className="p-6 lg:p-8">
       {/* Welcome Section */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
+      <div className="mb-8">
         <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-6 text-white">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
@@ -128,7 +126,7 @@ export default function StudentDashboard() {
                 {user?.name || "Học viên"}!
               </h1>
               <p className="text-emerald-100">
-                Hôm nay bạn có {stats.totalLessons - stats.totalLessons * 0.65} bài học chưa hoàn thành.
+                Hôm nay bạn có {stats.totalLessons - Math.floor(stats.totalLessons * 0.65)} bài học chưa hoàn thành.
                 Hãy tiếp tục duy trì đà học tập nhé! 🔥
               </p>
             </div>
@@ -138,7 +136,7 @@ export default function StudentDashboard() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Stats Grid */}
       <motion.div
@@ -147,71 +145,47 @@ export default function StudentDashboard() {
         animate="show"
         className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
       >
-        <motion.div variants={item} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-100">
-          <div className="flex items-center justify-between mb-2">
-            <BookOpen className="w-8 h-8 text-emerald-500" />
-            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-              Đã học
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-gray-800">{stats.totalLessons}</div>
-          <div className="text-sm text-gray-500">bài học</div>
-          <div className="mt-2 text-xs text-emerald-600">{stats.totalHours} giờ học</div>
-        </motion.div>
-
-        <motion.div variants={item} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-100">
-          <div className="flex items-center justify-between mb-2">
-            <Target className="w-8 h-8 text-emerald-500" />
-            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-              Mục tiêu
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-gray-800">{stats.toeicScore}</div>
-          <div className="text-sm text-gray-500">điểm TOEIC</div>
-          <div className="mt-2 text-xs text-emerald-600">Mục tiêu: 900+</div>
-        </motion.div>
-
-        <motion.div variants={item} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-100">
-          <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="w-8 h-8 text-emerald-500" />
-            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-              Xếp hạng
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-gray-800">#{stats.rank}</div>
-          <div className="text-sm text-gray-500">trong 5,000+ học viên</div>
-          <div className="mt-2 text-xs text-emerald-600">Top 25%</div>
-        </motion.div>
-
-        <motion.div variants={item} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-100">
-          <div className="flex items-center justify-between mb-2">
-            <Activity className="w-8 h-8 text-emerald-500" />
-            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-              Độ chăm chỉ
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-gray-800">{stats.streak}</div>
-          <div className="text-sm text-gray-500">ngày liên tiếp</div>
-          <div className="mt-2 text-xs text-emerald-600">🔥 Đang nóng</div>
-        </motion.div>
+        <StudentStatCard
+          icon={BookOpen}
+          label="bài học"
+          value={stats.totalLessons}
+          badge="Đã học"
+          subtitle={`${stats.totalHours} giờ học`}
+          index={0}
+        />
+        <StudentStatCard
+          icon={Target}
+          label="điểm TOEIC"
+          value={stats.toeicScore}
+          badge="Mục tiêu"
+          subtitle="Mục tiêu: 900+"
+          index={1}
+        />
+        <StudentStatCard
+          icon={TrendingUp}
+          label="trong 5,000+ học viên"
+          value={`#${stats.rank}`}
+          badge="Xếp hạng"
+          subtitle="Top 25%"
+          index={2}
+        />
+        <StudentStatCard
+          icon={Activity}
+          label="ngày liên tiếp"
+          value={stats.streak}
+          badge="Độ chăm chỉ"
+          subtitle="🔥 Đang nóng"
+          index={3}
+        />
       </motion.div>
 
       {/* Skills Progress */}
-      <motion.div
-        variants={item}
-        initial="hidden"
-        animate="show"
-        className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 mb-8"
+      <InfoCard
+        title="Tiến độ kỹ năng"
+        icon={Brain}
+        actionText="Xem chi tiết"
+        onAction={() => window.location.href = '/student/reading'}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <Brain className="w-5 h-5 text-emerald-500" />
-            Tiến độ kỹ năng
-          </h2>
-          <Link href="/student/reading" className="text-emerald-600 text-sm hover:underline flex items-center gap-1">
-            Xem chi tiết <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
         <div className="space-y-4">
           <div>
             <div className="flex justify-between mb-1">
@@ -241,26 +215,17 @@ export default function StudentDashboard() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </InfoCard>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-6 mb-8">
         {/* Recent Activities */}
-        <motion.div
-          variants={item}
-          initial="hidden"
-          animate="show"
-          className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-emerald-100"
+        <InfoCard
+          title="Hoạt động gần đây"
+          icon={Clock}
+          actionText="Xem tất cả"
+          onAction={() => window.location.href = '/student/mock-test'}
         >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-emerald-500" />
-              Hoạt động gần đây
-            </h2>
-            <Link href="/student/mock-test" className="text-emerald-600 text-sm hover:underline">
-              Xem tất cả
-            </Link>
-          </div>
-          <div className="space-y-3">
+          <div className="lg:col-span-2 space-y-3">
             {recentActivities.map((activity) => (
               <div key={activity.id} className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors">
                 <div className="flex items-center gap-3">
@@ -287,21 +252,15 @@ export default function StudentDashboard() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </InfoCard>
 
         {/* Right Column */}
         <div className="space-y-6">
           {/* Recommendations */}
-          <motion.div
-            variants={item}
-            initial="hidden"
-            animate="show"
-            className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100"
+          <InfoCard
+            title="Gợi ý học tập"
+            icon={Sparkles}
           >
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-emerald-500" />
-              <h2 className="text-lg font-bold text-gray-800">Gợi ý học tập</h2>
-            </div>
             <div className="space-y-3">
               {recommendations.map((rec, idx) => (
                 <div key={idx} className="p-3 border border-emerald-100 rounded-lg">
@@ -322,19 +281,13 @@ export default function StudentDashboard() {
                 </div>
               ))}
             </div>
-          </motion.div>
+          </InfoCard>
 
           {/* Upcoming Tests */}
-          <motion.div
-            variants={item}
-            initial="hidden"
-            animate="show"
-            className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100"
+          <InfoCard
+            title="Lịch thi thử"
+            icon={Calendar}
           >
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="w-5 h-5 text-emerald-500" />
-              <h2 className="text-lg font-bold text-gray-800">Lịch thi thử</h2>
-            </div>
             <div className="space-y-3">
               {upcomingTests.map((test, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
@@ -348,7 +301,7 @@ export default function StudentDashboard() {
                 </div>
               ))}
             </div>
-          </motion.div>
+          </InfoCard>
 
           {/* Achievement Badge */}
           <motion.div

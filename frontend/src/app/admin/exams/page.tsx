@@ -19,6 +19,8 @@ import {
   Play,
   BarChart3,
 } from "lucide-react";
+import { EnhancedStatCard } from "@/components/ui/EnhancedStatCard";
+import { InfoCard } from "@/components/ui/InfoCard";
 
 interface Exam {
   id: number;
@@ -108,52 +110,49 @@ export default function AdminExamsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">24</p>
-              <p className="text-sm text-gray-500">Tổng đề thi</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <Award className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">8</p>
-              <p className="text-sm text-gray-500">Full Test</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">16</p>
-              <p className="text-sm text-gray-500">Mini Test</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Users className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">5,234</p>
-              <p className="text-sm text-gray-500">Lượt thi</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 md:grid-cols-4 gap-4"
+      >
+        <EnhancedStatCard
+          icon={FileText}
+          label="Tổng đề thi"
+          value="24"
+          change="+3"
+          color="from-blue-500 to-blue-600"
+          bgColor="bg-white"
+          index={0}
+        />
+        <EnhancedStatCard
+          icon={Award}
+          label="Full Test"
+          value="8"
+          change="+1"
+          color="from-green-500 to-green-600"
+          bgColor="bg-white"
+          index={1}
+        />
+        <EnhancedStatCard
+          icon={BarChart3}
+          label="Mini Test"
+          value="16"
+          change="+2"
+          color="from-purple-500 to-purple-600"
+          bgColor="bg-white"
+          index={2}
+        />
+        <EnhancedStatCard
+          icon={Users}
+          label="Lượt thi"
+          value="5,234"
+          change="+234"
+          color="from-yellow-500 to-yellow-600"
+          bgColor="bg-white"
+          index={3}
+        />
+      </motion.div>
 
       {/* Filters */}
       <div className="bg-white rounded-xl p-4 border border-gray-100">

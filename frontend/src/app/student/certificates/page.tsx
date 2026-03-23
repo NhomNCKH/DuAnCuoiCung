@@ -15,6 +15,7 @@ import {
   QrCode,
 } from "lucide-react";
 import Link from "next/link";
+import { InfoCard } from "@/components/ui/InfoCard";
 
 export default function CertificatesPage() {
   const [certificates] = useState([
@@ -166,16 +167,10 @@ export default function CertificatesPage() {
       </motion.div>
 
       {/* Achievements Progress */}
-      <motion.div
-        variants={item}
-        initial="hidden"
-        animate="show"
-        className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 mb-8"
+      <InfoCard
+        title="Thành tích sắp đạt được"
+        icon={TrendingUp}
       >
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="w-5 h-5 text-emerald-500" />
-          <h2 className="text-lg font-bold text-gray-800">Thành tích sắp đạt được</h2>
-        </div>
         <div className="space-y-4">
           {achievements.map((achievement, idx) => (
             <div key={idx}>
@@ -194,7 +189,7 @@ export default function CertificatesPage() {
             </div>
           ))}
         </div>
-      </motion.div>
+      </InfoCard>
 
       {/* Verification Info */}
       <motion.div

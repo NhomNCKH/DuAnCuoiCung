@@ -28,7 +28,7 @@ import {
   Quote,
 } from "lucide-react";
 import Link from "next/link";
-import { api } from "@/services/api";
+import { apiClient } from "@/lib/api-client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -94,10 +94,10 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response: any = await api.auth.register({ name, email, password });
+      const response: any = await apiClient.auth.register({ name, email, password });
 
       if (response.statusCode === 200) {
-        const loginResponse: any = await api.auth.login({ email, password });
+        const loginResponse: any = await apiClient.auth.login({ email, password });
 
         if (loginResponse.statusCode === 200 && loginResponse.data) {
           const user = loginResponse.data.user || loginResponse.data.data?.user;
@@ -109,18 +109,7 @@ export default function RegisterPage() {
             localStorage.setItem("refreshToken", refreshToken);
             localStorage.setItem("user", JSON.stringify(user));
 
-            if (avatar) {
-              try {
-                const uploadResponse = await api.auth.uploadAvatar(avatar, accessToken);
-                if (uploadResponse.statusCode === 201 && uploadResponse.data) {
-                  const updatedUser = { ...user, avatarUrl: uploadResponse.data.avatarUrl };
-                  localStorage.setItem("user", JSON.stringify(updatedUser));
-                }
-              } catch (uploadError) {
-                console.error("Upload avatar failed:", uploadError);
-              }
-            }
-
+            // Avatar upload functionality removed for now
             router.push("/student/dashboard");
           } else {
             setError("Đăng nhập sau đăng ký thất bại");

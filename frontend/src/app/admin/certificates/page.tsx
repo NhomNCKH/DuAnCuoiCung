@@ -21,6 +21,8 @@ import {
   Send,
   Eye,
 } from "lucide-react";
+import { EnhancedStatCard } from "@/components/ui/EnhancedStatCard";
+import { InfoCard } from "@/components/ui/InfoCard";
 
 interface CertificateRequest {
   id: string;
@@ -174,24 +176,42 @@ export default function AdminCertificatesPage() {
         animate="show"
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
-        {stats.map((stat, idx) => (
-          <motion.div
-            key={stat.label}
-            variants={item}
-            className="bg-white rounded-xl p-6 border border-gray-100"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className={`w-12 h-12 bg-gradient-to-r ${stat.color} rounded-xl flex items-center justify-center shadow-lg`}>
-                <stat.icon className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-sm text-emerald-600 font-medium bg-emerald-50 px-2 py-1 rounded-full">
-                {stat.change}
-              </span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-1">{stat.value}</h3>
-            <p className="text-gray-600 text-sm">{stat.label}</p>
-          </motion.div>
-        ))}
+        <EnhancedStatCard
+          icon={Award}
+          label="Chứng chỉ đã cấp"
+          value="856"
+          change="+23%"
+          color="from-emerald-500 to-teal-500"
+          bgColor="bg-white"
+          index={0}
+        />
+        <EnhancedStatCard
+          icon={Clock}
+          label="Đang chờ duyệt"
+          value="12"
+          change="-5%"
+          color="from-yellow-500 to-orange-500"
+          bgColor="bg-white"
+          index={1}
+        />
+        <EnhancedStatCard
+          icon={Users}
+          label="Học viên đủ điều kiện"
+          value="234"
+          change="+18%"
+          color="from-blue-500 to-cyan-500"
+          bgColor="bg-white"
+          index={2}
+        />
+        <EnhancedStatCard
+          icon={TrendingUp}
+          label="Tỉ lệ cấp thành công"
+          value="96%"
+          change="+2%"
+          color="from-purple-500 to-pink-500"
+          bgColor="bg-white"
+          index={3}
+        />
       </motion.div>
 
       {/* Blockchain Info Banner */}

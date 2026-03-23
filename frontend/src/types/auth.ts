@@ -6,6 +6,13 @@ export interface User {
   role: 'admin' | 'learner' | 'instructor';
   status: 'active' | 'inactive' | 'banned';
   avatarUrl?: string;
+  phone?: string;
+  birthday?: string;
+  address?: string;
+  bio?: string;
+  linkedin?: string;
+  github?: string;
+  twitter?: string;
   createdAt?: string;
   updatedAt?: string;
 }

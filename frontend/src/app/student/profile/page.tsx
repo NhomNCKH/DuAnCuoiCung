@@ -26,12 +26,12 @@ import {
   Github,
   Twitter,
 } from "lucide-react";
-import { api } from "@/services/api";
-import { useAuth } from "@/hooks/useAuth";
+import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/lib/hooks";
 import { useAvatarUpload } from "@/hooks/useAvatarUpload";
 
 export default function StudentProfilePage() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { uploadAvatar, uploading: isUploading, progress, error: uploadError } = useAvatarUpload();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -94,7 +94,12 @@ export default function StudentProfilePage() {
 
     setMessage({ type: "", text: "" });
 
-    const newAvatarUrl = await uploadAvatar(file, user?.id);
+    if (!user?.id) {
+      setMessage({ type: 'error', text: 'Không tìm thấy thông tin người dùng' });
+      return;
+    }
+
+    const newAvatarUrl = await uploadAvatar(file, user.id);
     
     if (newAvatarUrl) {
       setAvatarUrl(newAvatarUrl);
