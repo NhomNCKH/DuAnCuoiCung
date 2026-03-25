@@ -1,11 +1,13 @@
 // src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { ACCESS_TOKEN_COOKIE, REFRESH_HINT_COOKIE } from '@/lib/auth-session';
 
 const publicRoutes = ['/', '/login', '/register'];
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get('accessToken')?.value;
+  const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+  const refreshHint = request.cookies.get(REFRESH_HINT_COOKIE)?.value;
   const path = request.nextUrl.pathname;
 
   // Bỏ qua static files và API routes
@@ -21,7 +23,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Chưa đăng nhập mà vào route cần auth → redirect login
-  if (!token && !publicRoutes.includes(path)) {
+  if (!token && !refreshHint && !publicRoutes.includes(path)) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', path);
     return NextResponse.redirect(loginUrl);

@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { getSignedMediaUrl } from '@/lib/media-url';
+
+interface UploadedAvatar {
+  avatarUrl: string | null;
+  s3Key: string | null;
+}
 
 export const useAvatarUpload = () => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const uploadAvatar = async (file: File): Promise<string | null> => {
+  const uploadAvatar = async (file: File): Promise<UploadedAvatar | null> => {
     setUploading(true);
     setProgress(0);
     setError(null);
@@ -45,8 +51,16 @@ export const useAvatarUpload = () => {
 
       setProgress(100);
 
-      const avatarUrl = (attachRes.data as any)?.avatarUrl as string | undefined;
-      return avatarUrl ?? null;
+      const attachedS3Key =
+        ((attachRes.data as any)?.s3Key as string | undefined) ?? s3Key;
+      const signedAvatarUrl = attachedS3Key
+        ? await getSignedMediaUrl(attachedS3Key)
+        : null;
+
+      return {
+        avatarUrl: signedAvatarUrl,
+        s3Key: attachedS3Key ?? null,
+      };
     } catch (err: any) {
       setError(err.message || 'Upload avatar that bai');
       return null;

@@ -2,6 +2,14 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
+import {
+  clearAuthSession,
+  getAccessTokenExpiresAt,
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  getStoredUser,
+  persistAuthSession,
+} from '@/lib/auth-session';
 import type { UserProfile, LoginData, RegisterData } from '@/types/api';
 
 interface AuthContextType {
@@ -24,73 +32,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      const rt = localStorage.getItem('refreshToken');
+      const rt = getStoredRefreshToken();
       if (rt) await apiClient.auth.logout({ refreshToken: rt });
     } catch {
       // ignore logout errors
     } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      // Xóa cookie
-      document.cookie = 'accessToken=; path=/; max-age=0';
+      clearAuthSession();
       setUser(null);
     }
   }, []);
 
   const refreshToken = useCallback(async (): Promise<boolean> => {
     try {
-      const rt = localStorage.getItem('refreshToken');
+      const rt = getStoredRefreshToken();
       if (!rt) return false;
 
       const res = await apiClient.auth.refreshToken({ refreshToken: rt });
-      // Thử lấy data từ res.data.data hoặc res.data tùy theo cấu trúc API
       const inner = res.data?.data || (res as any).data || res;
 
       if (inner?.accessToken) {
-        localStorage.setItem('accessToken', inner.accessToken);
-        localStorage.setItem('refreshToken', inner.refreshToken);
-        
-        // Cập nhật cookie để Middleware nhận diện được token mới
-        const maxAge = inner.expiresIn || 3600;
-        document.cookie = `accessToken=${inner.accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
-        
+        persistAuthSession(inner);
         return true;
       }
       return false;
     } catch {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      document.cookie = 'accessToken=; path=/; max-age=0';
+      clearAuthSession();
       setUser(null);
       return false;
     }
   }, []);
 
-  // Khôi phục user từ localStorage và kiểm tra session khi app khởi động
   useEffect(() => {
     const init = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
-        const storedUser = localStorage.getItem('user');
-        
-        if (token && storedUser) {
-          const parsedUser = JSON.parse(storedUser);
+        const token = getStoredAccessToken();
+        const rt = getStoredRefreshToken();
+        const storedUser = getStoredUser();
+        const parsedUser = storedUser ? JSON.parse(storedUser) as UserProfile : null;
+
+        if (parsedUser) {
           setUser(parsedUser);
-          
+        }
+
+        if (token || rt) {
+          const tokenExpiresAt = getAccessTokenExpiresAt();
+          const shouldRefreshFirst =
+            !token || !tokenExpiresAt || tokenExpiresAt <= Date.now() + 30_000;
+
+          if (shouldRefreshFirst) {
+            const refreshed = await refreshToken();
+            if (!refreshed) {
+              await logout();
+              return;
+            }
+          }
+
           try {
             const res = await apiClient.auth.getMe();
-            // getMe trả về JwtPayload trong data.data
             if (res.statusCode === 200 && res.data?.data) {
               const payload = res.data.data;
-              // Chuyển JwtPayload thành UserProfile (tối thiểu)
               const freshUser: UserProfile = {
-                ...parsedUser,
+                ...(parsedUser ?? {}),
                 id: payload.sub,
+                name: parsedUser?.name ?? '',
                 email: payload.email,
                 role: payload.role,
                 permissions: payload.permissions || [],
+                status: parsedUser?.status ?? 'active',
               };
               setUser(freshUser);
               localStorage.setItem('user', JSON.stringify(freshUser));
@@ -101,7 +109,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.warn('Auth verification failed, trying refresh...', verifyErr);
             const refreshed = await refreshToken();
             if (!refreshed) {
-              logout();
+              await logout();
+              return;
+            }
+
+            const retry = await apiClient.auth.getMe();
+            const payload = retry.data?.data;
+            if (retry.statusCode === 200 && payload) {
+              const freshUser: UserProfile = {
+                ...(parsedUser ?? {}),
+                id: payload.sub,
+                name: parsedUser?.name ?? '',
+                email: payload.email,
+                role: payload.role,
+                permissions: payload.permissions || [],
+                status: parsedUser?.status ?? 'active',
+              };
+              setUser(freshUser);
+              localStorage.setItem('user', JSON.stringify(freshUser));
+            } else {
+              await logout();
             }
           }
         } else {
@@ -117,22 +144,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     init();
   }, [refreshToken, logout]);
 
+  useEffect(() => {
+    const syncLogout = () => setUser(null);
+    window.addEventListener('auth:session-cleared', syncLogout);
+    return () => window.removeEventListener('auth:session-cleared', syncLogout);
+  }, []);
+
   const login = async (data: LoginData) => {
     setIsLoading(true);
     try {
       const res = await apiClient.auth.login(data);
 
-      // Thử lấy data từ res.data.data hoặc res.data tùy theo cấu trúc API
       const inner = res.data?.data || (res as any).data || res;
 
       if (inner?.accessToken) {
-        localStorage.setItem('accessToken', inner.accessToken);
-        localStorage.setItem('refreshToken', inner.refreshToken);
+        persistAuthSession(inner);
         localStorage.setItem('user', JSON.stringify(inner.user));
-        
-        const maxAge = inner.expiresIn || 3600;
-        document.cookie = `accessToken=${inner.accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
-        
         setUser(inner.user);
         return { success: true, message: res.data?.message || 'Đăng nhập thành công' };
       }

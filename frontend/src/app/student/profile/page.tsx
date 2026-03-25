@@ -29,6 +29,7 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUpload } from "@/hooks/useAvatarUpload";
+import { getSignedMediaUrl } from "@/lib/media-url";
 
 export default function StudentProfilePage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -61,6 +62,22 @@ export default function StudentProfilePage() {
 
   // Load user data
   useEffect(() => {
+    const loadAvatar = async () => {
+      try {
+        const avatarRes = await apiClient.auth.getAvatar();
+        const avatarData = avatarRes.data;
+        const signedAvatarUrl = avatarData?.s3Key
+          ? await getSignedMediaUrl(avatarData.s3Key)
+          : avatarData?.avatarUrl ?? "";
+
+        setAvatarUrl(signedAvatarUrl ?? "");
+        setAvatarPreview(signedAvatarUrl ?? "");
+      } catch {
+        setAvatarUrl("");
+        setAvatarPreview("");
+      }
+    };
+
     if (user) {
       setFormData({
         name: user.name || "",
@@ -73,8 +90,7 @@ export default function StudentProfilePage() {
         github: user.github || "",
         twitter: user.twitter || "",
       });
-      setAvatarUrl(user.avatarUrl || "");
-      setAvatarPreview(user.avatarUrl || "");
+      loadAvatar();
     }
   }, [user]);
 
@@ -94,13 +110,17 @@ export default function StudentProfilePage() {
 
     setMessage({ type: "", text: "" });
 
-    const newAvatarUrl = await uploadAvatar(file);
+    const uploadedAvatar = await uploadAvatar(file);
 
-    if (newAvatarUrl) {
-      setAvatarUrl(newAvatarUrl);
-      setAvatarPreview(newAvatarUrl);
+    if (uploadedAvatar?.avatarUrl) {
+      setAvatarUrl(uploadedAvatar.avatarUrl);
+      setAvatarPreview(uploadedAvatar.avatarUrl);
 
-      const updatedUser = { ...user, avatarUrl: newAvatarUrl };
+      const updatedUser = {
+        ...user,
+        avatarUrl: uploadedAvatar.avatarUrl,
+        avatarS3Key: uploadedAvatar.s3Key,
+      };
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
       setMessage({ type: 'success', text: 'Cập nhật ảnh đại diện thành công!' });

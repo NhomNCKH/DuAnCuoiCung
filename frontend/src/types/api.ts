@@ -40,6 +40,7 @@ export interface UserData {
   role: UserRole;
   status: UserStatus;
   avatarUrl?: string | null;
+  avatarS3Key?: string | null;
 }
 
 // ---- JWT payload từ GET /auth/me ----
@@ -120,6 +121,7 @@ export interface UserProfile {
   permissions?: string[];
   status: UserStatus;
   avatarUrl?: string | null;
+  avatarS3Key?: string | null;
   phone?: string;
   birthday?: string;
   address?: string;

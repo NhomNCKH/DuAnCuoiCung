@@ -13,6 +13,12 @@ import type {
   LogoutApiResponse,
   MeApiResponse,
 } from '@/types/api';
+import {
+  clearAuthSession,
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  persistAuthSession,
+} from '@/lib/auth-session';
 
 // Chọn base URL theo env
 function getBaseURL(): string {
@@ -32,22 +38,83 @@ function getHealthURL(): string {
 class ApiClient {
   readonly baseURL = getBaseURL();
   private healthURL = getHealthURL();
+  private refreshPromise: Promise<boolean> | null = null;
 
   private getAuthHeaders(): Record<string, string> {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const token = getStoredAccessToken();
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   }
 
+  private async tryRefreshToken(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    const refreshToken = getStoredRefreshToken();
+    if (!refreshToken) return false;
+
+    this.refreshPromise = (async () => {
+      const response = await fetch(`${this.baseURL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        clearAuthSession();
+        return false;
+      }
+
+      const data = await response.json();
+      const tokens = data?.data?.data || data?.data || data;
+
+      if (!tokens?.accessToken || !tokens?.refreshToken) {
+        clearAuthSession();
+        return false;
+      }
+
+      persistAuthSession(tokens);
+      return true;
+    })().finally(() => {
+      this.refreshPromise = null;
+    });
+
+    return this.refreshPromise;
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${this.baseURL}${endpoint}`;
+    const isRefreshRequest = endpoint === '/auth/refresh';
+    const headers = {
+      ...this.getAuthHeaders(),
+      ...(options.headers ?? {}),
+    };
 
-    const response = await fetch(url, {
-      headers: this.getAuthHeaders(),
-      ...options,
-    });
+    const execute = () =>
+      fetch(url, {
+        ...options,
+        headers,
+      });
+
+    let response = await execute();
+
+    if (response.status === 401 && !isRefreshRequest) {
+      const refreshed = await this.tryRefreshToken();
+      if (refreshed) {
+        response = await fetch(url, {
+          ...options,
+          headers: {
+            ...this.getAuthHeaders(),
+            ...(options.headers ?? {}),
+          },
+        });
+      }
+    }
 
     const data = await response.json();
 
@@ -91,7 +158,7 @@ class ApiClient {
      * Upload file ảnh trực tiếp, BE tự upload lên S3 và cập nhật DB
      */
     uploadAvatar: (file: File): Promise<ApiResponse<{ avatarUrl: string; s3Key: string }>> => {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      const token = getStoredAccessToken();
       const formData = new FormData();
       formData.append('file', file);
       return fetch(`${this.baseURL}/auth/me/avatar`, {
@@ -109,7 +176,7 @@ class ApiClient {
      * GET /auth/me/avatar
      * Lấy avatarUrl hiện tại của user
      */
-    getAvatar: (): Promise<ApiResponse<{ avatarUrl: string | null }>> =>
+    getAvatar: (): Promise<ApiResponse<{ avatarUrl: string | null; s3Key: string | null }>> =>
       this.request('/auth/me/avatar', { method: 'GET' }),
 
     /**

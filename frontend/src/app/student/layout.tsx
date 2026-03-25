@@ -30,6 +30,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { apiClient } from "@/lib/api-client";
+import { getSignedMediaUrl } from "@/lib/media-url";
 
 export default function StudentLayout({
   children,
@@ -51,10 +53,15 @@ export default function StudentLayout({
 
   useEffect(() => {
     const fetchAvatar = async () => {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setAvatarUrl(userData.avatarUrl || "");
+      try {
+        const response = await apiClient.auth.getAvatar();
+        const avatarData = response.data;
+        const signedAvatarUrl = avatarData?.s3Key
+          ? await getSignedMediaUrl(avatarData.s3Key)
+          : avatarData?.avatarUrl ?? "";
+        setAvatarUrl(signedAvatarUrl ?? "");
+      } catch {
+        setAvatarUrl("");
       }
     };
     if (isAuthenticated) {

@@ -8,6 +8,7 @@ import {
   ArrowRight, Info, Music, ImageIcon, Upload, Volume2,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { getSignedMediaUrl } from "@/lib/media-url";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface TagItem { id: string; category: string; code: string; label: string; description?: string; }
@@ -126,8 +127,8 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
   const existingTranscript = group?.assets?.find(a => a.kind === "transcript");
 
   const [media, setMedia] = useState<GroupMedia>({
-    audioFile: null, audioName: existingAudio?.storageKey.split("/").pop() ?? null, audioUrl: existingAudio?.publicUrl ?? undefined,
-    imageFile: null, imagePreview: existingImage?.publicUrl ?? null, imageUrl: existingImage?.publicUrl ?? undefined,
+    audioFile: null, audioName: existingAudio?.storageKey.split("/").pop() ?? null, audioUrl: undefined,
+    imageFile: null, imagePreview: null, imageUrl: undefined,
     uploading: null,
   });
 
@@ -142,6 +143,8 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
   const isReadingGroup = ["P6", "P7"].includes(form.part);
   const isP5 = form.part === "P5";
 
+  type UploadableAssetKind = "audio" | "image";
+
   // Số câu hỏi mặc định theo chuẩn TOEIC
   const qCountPerGroup: Record<string, number> = { P1: 1, P2: 1, P3: 3, P4: 3, P5: 1, P6: 4, P7: 3 };
   const isFixedQCount = ["P1", "P2", "P3", "P4", "P5", "P6"].includes(form.part);
@@ -151,6 +154,36 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
       handlePartChange(form.part);
     }
   }, [form.part]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSignedMediaUrls = async () => {
+      const [audioUrl, imageUrl] = await Promise.all([
+        existingAudio?.storageKey
+          ? getSignedMediaUrl(existingAudio.storageKey)
+          : Promise.resolve<string | null>(null),
+        existingImage?.storageKey
+          ? getSignedMediaUrl(existingImage.storageKey)
+          : Promise.resolve<string | null>(null),
+      ]);
+
+      if (cancelled) return;
+
+      setMedia((prev) => ({
+        ...prev,
+        audioUrl: prev.audioFile ? prev.audioUrl : audioUrl ?? undefined,
+        imageUrl: prev.imageFile ? prev.imageUrl : imageUrl ?? undefined,
+        imagePreview: prev.imageFile ? prev.imagePreview : imageUrl ?? null,
+      }));
+    };
+
+    loadSignedMediaUrls();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [existingAudio?.storageKey, existingImage?.storageKey]);
 
   const handlePartChange = (newPart: string) => {
     setForm(prev => ({...prev, part: newPart}));
@@ -169,17 +202,54 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
     setQuestions(newQs);
   };
 
-  const uploadFile = async (file: File) => {
-    try {
-      const payload = { fileName: file.name, contentType: file.type, category: `question-bank/${form.part}` };
-      const res = await apiClient.media.getPresignedUploadUrl(payload);
-      const innerData = (res as any).data;
-      const signedPutUrl = innerData?.signedPutUrl;
-      const s3Key = innerData?.s3Key;
-      if (!signedPutUrl) throw new Error("Không lấy được URL tải lên");
-      await fetch(signedPutUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      return { storageKey: s3Key, mimeType: file.type };
-    } catch (error: any) { throw error; }
+  const getUploadTarget = async (file: File, kind: UploadableAssetKind) => {
+    if (group?.id) {
+      const response = await apiClient.admin.questionBank.presignAsset(group.id, {
+        kind,
+        fileName: file.name,
+        contentType: file.type,
+      });
+      return response.data as { signedPutUrl?: string; s3Key?: string };
+    }
+
+    const response = await apiClient.media.getPresignedUploadUrl({
+      fileName: file.name,
+      contentType: file.type,
+      category: `question-bank-${(form.part || "general").toLowerCase()}-${kind}`,
+    });
+
+    return response.data as { signedPutUrl?: string; s3Key?: string };
+  };
+
+  const uploadFile = async (
+    file: File,
+    kind: UploadableAssetKind,
+    sortOrder: number,
+  ) => {
+    const target = await getUploadTarget(file, kind);
+    const signedPutUrl = target?.signedPutUrl;
+    const s3Key = target?.s3Key;
+
+    if (!signedPutUrl || !s3Key) {
+      throw new Error("Không lấy được URL tải lên");
+    }
+
+    const s3Res = await fetch(signedPutUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": file.type },
+    });
+
+    if (!s3Res.ok) {
+      throw new Error(`Tải file ${kind} lên S3 thất bại`);
+    }
+
+    return {
+      kind,
+      storageKey: s3Key,
+      mimeType: file.type,
+      sortOrder,
+    };
   };
 
   const addQuestion = () => {
@@ -217,16 +287,18 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
       const allAssets: any[] = [];
       if (media.audioFile) {
         setMedia(prev => ({ ...prev, uploading: "audio" }));
-        const a = await uploadFile(media.audioFile);
-        allAssets.push({ kind: "audio", ...a, sortOrder: 0 });
+        const uploadedAudio = await uploadFile(media.audioFile, "audio", 0);
+        allAssets.push(uploadedAudio);
+        setMedia(prev => ({ ...prev, uploading: null }));
       } else if (media.audioUrl && existingAudio) {
         allAssets.push({ kind: "audio", storageKey: existingAudio.storageKey, mimeType: existingAudio.mimeType, sortOrder: 0 });
       }
 
       if (media.imageFile) {
         setMedia(prev => ({ ...prev, uploading: "image" }));
-        const a = await uploadFile(media.imageFile);
-        allAssets.push({ kind: "image", ...a, sortOrder: 1 });
+        const uploadedImage = await uploadFile(media.imageFile, "image", 1);
+        allAssets.push(uploadedImage);
+        setMedia(prev => ({ ...prev, uploading: null }));
       } else if (media.imageUrl && existingImage) {
         allAssets.push({ kind: "image", storageKey: existingImage.storageKey, mimeType: existingImage.mimeType, sortOrder: 1 });
       }
@@ -248,7 +320,10 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
     } catch (e: any) {
       setMedia(prev => ({ ...prev, uploading: null }));
       setErr(Array.isArray(e.message) ? e.message.join(", ") : (e.message || "Lưu thất bại"));
-    } finally { setSaving(false); }
+    } finally {
+      setMedia(prev => ({ ...prev, uploading: null }));
+      setSaving(false);
+    }
   };
 
   return (
