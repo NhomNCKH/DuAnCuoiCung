@@ -9,7 +9,7 @@ export default function AdminWelcomePage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -21,33 +21,33 @@ export default function AdminWelcomePage() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-          className="w-24 h-24 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl"
+          className="w-24 h-24 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl"
         >
           <Leaf className="w-12 h-12 text-white" />
         </motion.div>
 
         {/* Title */}
-        <h1 className="text-4xl md:text-5xl font-bold text-emerald-900 mb-4">
+        <h1 className="text-4xl md:text-5xl font-bold text-blue-900 mb-4">
           Chào mừng Admin
         </h1>
         
-        <p className="text-xl text-emerald-700 mb-8">
+        <p className="text-xl text-blue-700 mb-8">
           Bạn đã đăng nhập vào hệ thống quản trị EduChain
         </p>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-4 mb-12">
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-lg">
-            <div className="text-2xl font-bold text-emerald-600">1,234</div>
-            <div className="text-sm text-emerald-800">Học viên</div>
+            <div className="text-2xl font-bold text-blue-600">1,234</div>
+            <div className="text-sm text-blue-800">Học viên</div>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-lg">
-            <div className="text-2xl font-bold text-emerald-600">856</div>
-            <div className="text-sm text-emerald-800">Chứng chỉ</div>
+            <div className="text-2xl font-bold text-blue-600">856</div>
+            <div className="text-sm text-blue-800">Chứng chỉ</div>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-lg">
-            <div className="text-2xl font-bold text-emerald-600">12.5k</div>
-            <div className="text-sm text-emerald-800">Bài luyện</div>
+            <div className="text-2xl font-bold text-blue-600">12.5k</div>
+            <div className="text-sm text-blue-800">Bài luyện</div>
           </div>
         </div>
 
@@ -57,13 +57,13 @@ export default function AdminWelcomePage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => router.push('/admin/dashboard')}
-            className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg flex items-center justify-center space-x-2 mx-auto"
+            className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg flex items-center justify-center space-x-2 mx-auto"
           >
             <span>Đi đến Dashboard</span>
             <ArrowRight className="w-5 h-5" />
           </motion.button>
 
-          <div className="flex items-center justify-center space-x-2 text-sm text-emerald-600">
+          <div className="flex items-center justify-center space-x-2 text-sm text-blue-600">
             <Shield className="w-4 h-4" />
             <span>Blockchain Secured Admin Panel</span>
           </div>

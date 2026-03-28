@@ -27,9 +27,9 @@ export function ExamStats({ stats }: ExamStatsProps) {
       icon: CheckCircle,
       label: "Đã xuất bản",
       value: stats?.published || 0,
-      color: "text-emerald-600",
-      bgColor: "bg-emerald-50",
-      borderColor: "border-emerald-100",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-100",
       desc: "Học sinh có thể truy cập",
     },
     {

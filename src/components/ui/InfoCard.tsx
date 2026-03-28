@@ -21,17 +21,17 @@ export function InfoCard({ title, icon: Icon, children, actionText, onAction }: 
       variants={item}
       initial="hidden"
       animate="show"
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"
+      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
     >
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <Icon className="w-5 h-5 text-emerald-500" />
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+          <Icon className="w-5 h-5 text-blue-600" />
           {title}
         </h2>
         {actionText && onAction && (
           <button 
             onClick={onAction}
-            className="text-emerald-600 text-sm hover:underline"
+            className="text-sm text-blue-700 hover:underline"
           >
             {actionText}
           </button>

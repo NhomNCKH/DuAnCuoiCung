@@ -89,7 +89,7 @@ export function CreateExamModal({ onClose, onSuccess }: Props) {
                 value={form.code}
                 onChange={e => setForm({ ...form, code: e.target.value })}
                 placeholder="VD: TOEIC-2024-01"
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-emerald-500 outline-none transition-all"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-blue-500 outline-none transition-all"
               />
             </div>
             <div className="space-y-1">
@@ -98,7 +98,7 @@ export function CreateExamModal({ onClose, onSuccess }: Props) {
                 value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })}
                 placeholder="VD: Đề thi thử tháng 1"
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-emerald-500 outline-none transition-all"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-blue-500 outline-none transition-all"
               />
             </div>
           </div>
@@ -108,8 +108,8 @@ export function CreateExamModal({ onClose, onSuccess }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {MODES.map(m => (
                 <button key={m.value} type="button" onClick={() => setForm({ ...form, mode: m.value })}
-                  className={`p-3 rounded-lg border-2 text-left transition-all ${form.mode === m.value ? "border-emerald-500 bg-emerald-50" : "border-gray-100 hover:border-emerald-200 bg-white"}`}>
-                  <p className={`text-sm font-bold ${form.mode === m.value ? "text-emerald-700" : "text-gray-700"}`}>{m.label}</p>
+                  className={`p-3 rounded-lg border-2 text-left transition-all ${form.mode === m.value ? "border-blue-500 bg-blue-50" : "border-gray-100 hover:border-blue-200 bg-white"}`}>
+                  <p className={`text-sm font-bold ${form.mode === m.value ? "text-blue-700" : "text-gray-700"}`}>{m.label}</p>
                   <p className="text-[10px] text-gray-400 font-medium leading-tight mt-1">{m.desc}</p>
                 </button>
               ))}
@@ -123,7 +123,7 @@ export function CreateExamModal({ onClose, onSuccess }: Props) {
                 type="number" min={1}
                 value={form.totalDurationSec || ""}
                 onChange={e => setForm({ ...form, totalDurationSec: e.target.value ? Math.max(1, parseInt(e.target.value)) : 0 })}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-emerald-500 outline-none transition-all"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-blue-500 outline-none transition-all"
               />
               {form.totalDurationSec > 0 && <p className="text-[10px] text-gray-400 font-medium">{Math.floor(form.totalDurationSec / 60)} phút</p>}
             </div>
@@ -133,23 +133,23 @@ export function CreateExamModal({ onClose, onSuccess }: Props) {
                 type="number" min={1}
                 value={form.totalQuestions || ""}
                 onChange={e => setForm({ ...form, totalQuestions: e.target.value ? Math.max(1, parseInt(e.target.value)) : 0 })}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-emerald-500 outline-none transition-all"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-blue-500 outline-none transition-all"
               />
             </div>
           </div>
 
           <div className="space-y-1">
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Hướng dẫn</label>
-            <textarea value={form.instructions} onChange={e => setForm({ ...form, instructions: e.target.value })} rows={2} placeholder="Nhập hướng dẫn..." className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-emerald-500 outline-none transition-all" />
+            <textarea value={form.instructions} onChange={e => setForm({ ...form, instructions: e.target.value })} rows={2} placeholder="Nhập hướng dẫn..." className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-blue-500 outline-none transition-all" />
           </div>
 
           <div className="flex gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
             <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
-              <input type="checkbox" checked={form.shuffleQuestionOrder} onChange={e => setForm({ ...form, shuffleQuestionOrder: e.target.checked })} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+              <input type="checkbox" checked={form.shuffleQuestionOrder} onChange={e => setForm({ ...form, shuffleQuestionOrder: e.target.checked })} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
               Xáo trộn câu hỏi
             </label>
             <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
-              <input type="checkbox" checked={form.shuffleOptionOrder} onChange={e => setForm({ ...form, shuffleOptionOrder: e.target.checked })} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+              <input type="checkbox" checked={form.shuffleOptionOrder} onChange={e => setForm({ ...form, shuffleOptionOrder: e.target.checked })} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
               Xáo trộn đáp án
             </label>
           </div>
@@ -157,7 +157,7 @@ export function CreateExamModal({ onClose, onSuccess }: Props) {
 
         <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all">Hủy</button>
-          <button type="submit" onClick={handleSubmit} disabled={saving} className="flex-[2] py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm transition-all">
+          <button type="submit" onClick={handleSubmit} disabled={saving} className="flex-[2] py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm transition-all">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Tạo & Tiếp tục
           </button>

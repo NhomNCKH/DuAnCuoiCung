@@ -14,7 +14,7 @@ export function Input({
   className = '', 
   ...props 
 }: InputProps) {
-  const baseClasses = 'w-full py-4 bg-emerald-50 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-emerald-800 placeholder-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses = 'w-full py-4 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-slate-800 placeholder-slate-400 disabled:opacity-50 disabled:cursor-not-allowed';
   
   const inputClasses = Icon 
     ? `${baseClasses} pl-12 pr-4` 
@@ -29,7 +29,7 @@ export function Input({
       )}
       <div className="relative">
         {Icon && (
-          <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
+          <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
         )}
         <input
           className={`${inputClasses} ${className}`}

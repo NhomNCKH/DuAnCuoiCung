@@ -1,6 +1,7 @@
 // app/admin/exams/components/sections/SectionForm.tsx
 import { useState } from "react";
 import { X, Plus } from "lucide-react";
+import { SharedDropdown } from "@/components/ui/shared-dropdown";
 
 interface SectionFormProps {
   onClose: () => void;
@@ -38,21 +39,21 @@ export function SectionForm({ onClose, onSave }: SectionFormProps) {
           
           <div>
             <label className="block text-sm font-medium mb-1">Loại</label>
-            <select
-              className="w-full px-3 py-2 border rounded-lg"
+            <SharedDropdown
               value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-            >
-              <option value="reading">Reading</option>
-              <option value="writing">Writing</option>
-            </select>
+              onChange={(value) => setFormData({ ...formData, type: value })}
+              options={[
+                { value: "reading", label: "Reading" },
+                { value: "writing", label: "Writing" },
+              ]}
+            />
           </div>
           
           <div className="flex justify-end gap-2 pt-4">
             <button onClick={onClose} className="px-4 py-2 border rounded-lg">
               Hủy
             </button>
-            <button onClick={() => onSave(formData)} className="px-4 py-2 bg-emerald-500 text-white rounded-lg">
+            <button onClick={() => onSave(formData)} className="px-4 py-2 bg-blue-500 text-white rounded-lg">
               Thêm
             </button>
           </div>

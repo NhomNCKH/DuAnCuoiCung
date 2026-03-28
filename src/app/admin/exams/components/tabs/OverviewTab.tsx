@@ -43,7 +43,7 @@ export function OverviewTab({ template }: { template: ExamTemplate }) {
       {/* Basic info */}
       <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
         <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-          <FileText className="w-4 h-4 text-emerald-500" />
+          <FileText className="w-4 h-4 text-blue-500" />
           Thông tin cơ bản
         </h4>
         <div className="space-y-2 text-sm">
@@ -67,7 +67,7 @@ export function OverviewTab({ template }: { template: ExamTemplate }) {
       {/* Dates */}
       <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
         <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-emerald-500" />
+          <Calendar className="w-4 h-4 text-blue-500" />
           Thời gian
         </h4>
         <div className="space-y-2 text-sm">

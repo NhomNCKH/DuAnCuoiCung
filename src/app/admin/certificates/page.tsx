@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { EnhancedStatCard } from "@/components/ui/EnhancedStatCard";
 import { InfoCard } from "@/components/ui/InfoCard";
+import { SharedDropdown } from "@/components/ui/shared-dropdown";
+import { SharedTable, SharedTableBody, SharedTableHead } from "@/components/ui/shared-table";
 
 interface CertificateRequest {
   id: string;
@@ -91,7 +93,7 @@ export default function AdminCertificatesPage() {
       label: "Chứng chỉ đã cấp",
       value: "856",
       change: "+23%",
-      color: "from-emerald-500 to-teal-500",
+      color: "from-blue-500 to-indigo-600",
     },
     {
       icon: Clock,
@@ -163,7 +165,7 @@ export default function AdminCertificatesPage() {
           <h1 className="text-2xl font-bold text-gray-800">Cấp chứng chỉ</h1>
           <p className="text-gray-600">Quản lý và cấp chứng chỉ Blockchain cho học viên</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg hover:shadow-lg transition-all">
+        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-all">
           <Send className="w-4 h-4" />
           <span>Cấp hàng loạt</span>
         </button>
@@ -181,7 +183,7 @@ export default function AdminCertificatesPage() {
           label="Chứng chỉ đã cấp"
           value="856"
           change="+23%"
-          color="from-emerald-500 to-teal-500"
+          color="from-blue-500 to-indigo-600"
           bgColor="bg-white"
           index={0}
         />
@@ -219,14 +221,14 @@ export default function AdminCertificatesPage() {
         variants={item}
         initial="hidden"
         animate="show"
-        className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-6 text-white"
+        className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white"
       >
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <Shield className="w-10 h-10" />
             <div>
               <h3 className="text-lg font-bold mb-1">Blockchain Certificate System</h3>
-              <p className="text-emerald-100 text-sm">
+              <p className="text-blue-100 text-sm">
                 Tất cả chứng chỉ được lưu trữ trên Blockchain, đảm bảo tính xác thực và không thể làm giả
               </p>
             </div>
@@ -249,20 +251,21 @@ export default function AdminCertificatesPage() {
                 placeholder="Tìm kiếm theo tên học viên..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
           </div>
-          <select
+          <SharedDropdown
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="pending">Chờ duyệt</option>
-            <option value="approved">Đã cấp</option>
-            <option value="rejected">Từ chối</option>
-          </select>
+            onChange={setSelectedStatus}
+            className="min-w-[170px]"
+            options={[
+              { value: "all", label: "Tất cả trạng thái" },
+              { value: "pending", label: "Chờ duyệt" },
+              { value: "approved", label: "Đã cấp" },
+              { value: "rejected", label: "Từ chối" },
+            ]}
+          />
         </div>
       </div>
 
@@ -274,8 +277,8 @@ export default function AdminCertificatesPage() {
         className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
       >
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
+          <SharedTable>
+            <SharedTableHead>
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Học viên
@@ -299,8 +302,8 @@ export default function AdminCertificatesPage() {
                   Thao tác
                 </th>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
+            </SharedTableHead>
+            <SharedTableBody>
               {requests.map((request, idx) => (
                 <motion.tr
                   key={request.id}
@@ -318,7 +321,7 @@ export default function AdminCertificatesPage() {
                     <p className="text-xs text-gray-500">ID: {request.id}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="font-bold text-emerald-600">{request.score}</span>
+                    <span className="font-bold text-blue-700">{request.score}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -373,8 +376,8 @@ export default function AdminCertificatesPage() {
                   </td>
                 </motion.tr>
               ))}
-            </tbody>
-           </table>
+            </SharedTableBody>
+           </SharedTable>
         </div>
       </motion.div>
 

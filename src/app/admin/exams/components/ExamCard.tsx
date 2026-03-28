@@ -77,7 +77,7 @@ export function ExamCard({ template, onSelect, onDuplicate, onPublish }: ExamCar
           </div>
         </div>
         <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-          <button onClick={() => onSelect(template)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+          <button onClick={() => onSelect(template)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
             <Eye className="w-4 h-4" /><span>Chi tiet</span>
           </button>
           <button onClick={() => onDuplicate(template.id)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">

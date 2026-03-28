@@ -1,7 +1,7 @@
 // app/admin/exams/components/sections/ItemList.tsx
 "use client";
 import { ExamItem } from "../../types";
-import { Trash2 } from "lucide-react";
+import { ActionIcon } from "@/components/ui/action-icons";
 
 interface ItemListProps {
   sectionId: string;
@@ -34,7 +34,7 @@ export function ItemList({ items, onDeleteItem }: ItemListProps) {
           )}
           {onDeleteItem && (
             <button onClick={() => onDeleteItem(item.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400">
-              <Trash2 className="w-4 h-4" />
+              <ActionIcon action="delete" className="w-4 h-4" />
             </button>
           )}
         </div>

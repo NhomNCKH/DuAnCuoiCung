@@ -57,8 +57,8 @@ export default function AdminDashboard() {
       value: "856",
       change: "+23%",
       trend: "up",
-      color: "from-emerald-500 to-teal-600",
-      bgColor: "bg-emerald-50/50",
+      color: "from-blue-500 to-indigo-600",
+      bgColor: "bg-blue-50/50",
     },
     {
       icon: BookOpen,
@@ -102,7 +102,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="p-6 lg:p-10 max-w-[1600px] mx-auto space-y-10 bg-[#f8fafc] min-h-screen">
+    <div className="admin-dashboard-page p-6 lg:p-10 max-w-[1600px] mx-auto space-y-10 bg-[#f8fafc] min-h-screen">
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
@@ -144,7 +144,7 @@ export default function AdminDashboard() {
                 <stat.icon className={`w-6 h-6 text-transparent bg-clip-text bg-gradient-to-br ${stat.color}`} />
               </div>
               <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
-                stat.trend === 'up' ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'
+                stat.trend === 'up' ? 'text-blue-600 bg-blue-50' : 'text-rose-600 bg-rose-50'
               }`}>
                 {stat.change}
               </div>
@@ -209,11 +209,11 @@ export default function AdminDashboard() {
         <div className="space-y-10">
           {/* System Status Sidebar */}
           <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-slate-200 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all duration-700" />
+            <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-700" />
             <div className="relative z-10 space-y-8">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/5">
-                  <Database className="w-5 h-5 text-emerald-400" />
+                  <Database className="w-5 h-5 text-blue-400" />
                 </div>
                 <h3 className="font-black tracking-tight text-lg">Hạ tầng</h3>
               </div>
@@ -227,13 +227,13 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Node Status</p>
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                      <div className="w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                       <span className="text-sm font-bold">Online</span>
                     </div>
                   </div>
                   <div>
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Latency</p>
-                    <span className="text-sm font-bold text-emerald-400">24ms</span>
+                    <span className="text-sm font-bold text-blue-400">24ms</span>
                   </div>
                 </div>
               </div>

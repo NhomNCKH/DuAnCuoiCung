@@ -4,10 +4,10 @@ import { Loader2 } from 'lucide-react';
 import { ButtonVariant } from '@/types/ui';
 
 const buttonVariants = {
-  primary: 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600',
-  secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
-  outline: 'border border-emerald-500 text-emerald-500 hover:bg-emerald-50',
-  ghost: 'text-emerald-600 hover:bg-emerald-50',
+  primary: 'bg-blue-700 text-white hover:bg-blue-800',
+  secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200',
+  outline: 'border border-blue-600 text-blue-700 hover:bg-blue-50',
+  ghost: 'text-blue-700 hover:bg-blue-50',
   danger: 'bg-red-500 text-white hover:bg-red-600'
 };
 
@@ -27,7 +27,7 @@ export function Button({
   className,
   ...props 
 }: ButtonVariant & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'onClick'>) {
-  const baseClasses = 'inline-flex items-center justify-center rounded-xl font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses = 'inline-flex items-center justify-center rounded-xl font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   
   const classes = `${baseClasses} ${buttonVariants[variant]} ${buttonSizes[size]} ${className || ''}`;
 

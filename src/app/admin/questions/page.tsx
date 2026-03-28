@@ -1,14 +1,19 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Tag, Plus, Search, Edit, Trash2, Loader2, AlertCircle, X,
+  Tag, Search, Loader2, AlertCircle, X,
   CheckCircle, Send, ThumbsUp, ThumbsDown, Archive, Globe,
   ChevronDown, Layers, FileText, BookOpen, Eye, RefreshCw,
-  ArrowRight, Info, Music, ImageIcon, Upload, Volume2,
+  ArrowRight, Info, Music, ImageIcon, Upload, Volume2, FileUp,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { getSignedMediaUrl } from "@/lib/media-url";
+import { AdminConfirmDialog } from "@/components/admin";
+import { useToast } from "@/hooks/useToast";
+import { ActionIcon } from "@/components/ui/action-icons";
+import { SharedDropdown } from "@/components/ui/shared-dropdown";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface TagItem { id: string; category: string; code: string; label: string; description?: string; }
@@ -20,6 +25,15 @@ interface QuestionGroup {
   questions?: { id: string; questionNo: number; prompt: string; answerKey: string; options: { optionKey: string; content: string; isCorrect: boolean }[] }[];
   reviews?: { id: string; action: string; comment?: string; createdAt: string; createdBy?: any }[];
 }
+
+type WorkflowStats = {
+  tagCount: number;
+  totalGroups: number;
+  inReview: number;
+  approved: number;
+  published: number;
+  archived: number;
+};
 
 const PARTS = ["P1","P2","P3","P4","P5","P6","P7"];
 const LEVELS = ["easy","medium","hard","expert"];
@@ -33,7 +47,15 @@ const STATUS_COLOR: Record<string,string> = {
 const LEVEL_COLOR: Record<string,string> = { easy:"bg-green-100 text-green-700", medium:"bg-yellow-100 text-yellow-700", hard:"bg-red-100 text-red-700", expert:"bg-purple-100 text-purple-700" };
 
 // ─── Tag Modal ────────────────────────────────────────────────────────────────
-function TagModal({ tag, onClose, onSaved }: { tag?: TagItem; onClose: () => void; onSaved: () => void }) {
+function TagModal({
+  tag,
+  onClose,
+  onSaved,
+}: {
+  tag?: TagItem;
+  onClose: () => void;
+  onSaved: (mode: "create" | "update") => void;
+}) {
   const [form, setForm] = useState({ category: tag?.category ?? "", code: tag?.code ?? "", label: tag?.label ?? "", description: tag?.description ?? "" });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -42,9 +64,13 @@ function TagModal({ tag, onClose, onSaved }: { tag?: TagItem; onClose: () => voi
     if (!form.category || !form.code || !form.label) { setErr("Vui lòng điền đầy đủ thông tin bắt buộc"); return; }
     setSaving(true); setErr("");
     try {
-      if (tag) await apiClient.admin.questionBank.updateTag(tag.id, form);
-      else await apiClient.admin.questionBank.createTag(form);
-      onSaved();
+      if (tag) {
+        await apiClient.admin.questionBank.updateTag(tag.id, form);
+        onSaved("update");
+      } else {
+        await apiClient.admin.questionBank.createTag(form);
+        onSaved("create");
+      }
     } catch (e: any) { setErr(e.message || "Lưu thất bại"); }
     finally { setSaving(false); }
   };
@@ -64,24 +90,24 @@ function TagModal({ tag, onClose, onSaved }: { tag?: TagItem; onClose: () => voi
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Category *</label>
-              <input value={form.category} onChange={e=>setForm({...form,category:e.target.value})} placeholder="grammar" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              <input value={form.category} onChange={e=>setForm({...form,category:e.target.value})} placeholder="grammar" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Code * <span className="text-gray-400 font-normal">(unique)</span></label>
-              <input value={form.code} onChange={e=>setForm({...form,code:e.target.value})} placeholder="grammar:tense" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              <input value={form.code} onChange={e=>setForm({...form,code:e.target.value})} placeholder="grammar:tense" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Label * <span className="text-gray-400 font-normal">(tên hiển thị)</span></label>
-            <input value={form.label} onChange={e=>setForm({...form,label:e.target.value})} placeholder="Tense" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+            <input value={form.label} onChange={e=>setForm({...form,label:e.target.value})} placeholder="Tense" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Mô tả</label>
-            <input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Mô tả ngắn..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+            <input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Mô tả ngắn..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-200 rounded-lg text-gray-700 text-sm hover:bg-gray-50">Hủy</button>
-            <button type="submit" disabled={saving} className="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2">
+            <button type="submit" disabled={saving} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}Lưu
             </button>
           </div>
@@ -101,7 +127,17 @@ const emptyMedia = (): GroupMedia => ({ audioFile:null, audioName:null, imageFil
 
 
 // ─── Create/Edit Question Group Modal (Single-Page) ──────────────────────────
-function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: QuestionGroup; tags: TagItem[]; onClose: () => void; onSaved: () => void }) {
+function QuestionGroupModal({
+  group,
+  tags,
+  onClose,
+  onSaved,
+}: {
+  group?: QuestionGroup;
+  tags: TagItem[];
+  onClose: () => void;
+  onSaved: (mode: "create" | "update") => void;
+}) {
   const [form, setForm] = useState({
     code: group?.code ?? "", title: group?.title ?? "",
     part: group?.part ?? "", level: group?.level ?? "medium",
@@ -133,6 +169,7 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
   });
 
   const [transcript, setTranscript] = useState(existingTranscript?.contentText ?? "");
+  const [tagKeyword, setTagKeyword] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -142,6 +179,15 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
   const isP34 = ["P3", "P4"].includes(form.part);
   const isReadingGroup = ["P6", "P7"].includes(form.part);
   const isP5 = form.part === "P5";
+  const filteredTags = tags.filter((t) => {
+    if (!tagKeyword.trim()) return true;
+    const keyword = tagKeyword.toLowerCase();
+    return (
+      t.label.toLowerCase().includes(keyword) ||
+      t.code.toLowerCase().includes(keyword) ||
+      t.category.toLowerCase().includes(keyword)
+    );
+  });
 
   type UploadableAssetKind = "audio" | "image";
 
@@ -234,15 +280,30 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
       throw new Error("Không lấy được URL tải lên");
     }
 
-    const s3Res = await fetch(signedPutUrl, {
-      method: "PUT",
-      body: file,
-      headers: { "Content-Type": file.type },
-    });
+    const uploadWithFallback = async () => {
+      try {
+        const s3Res = await fetch(signedPutUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
+        if (!s3Res.ok) throw new Error(`Direct upload failed: ${s3Res.status}`);
+      } catch {
+        const formData = new FormData();
+        formData.append("signedPutUrl", signedPutUrl);
+        formData.append("contentType", file.type || "application/octet-stream");
+        formData.append("file", file);
+        const proxyRes = await fetch("/api/s3-upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!proxyRes.ok) {
+          throw new Error(`Tải file ${kind} lên S3 thất bại`);
+        }
+      }
+    };
 
-    if (!s3Res.ok) {
-      throw new Error(`Tải file ${kind} lên S3 thất bại`);
-    }
+    await uploadWithFallback();
 
     return {
       kind,
@@ -314,9 +375,13 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
         assets: allAssets,
       };
 
-      if (group) await apiClient.admin.questionBank.updateQuestionGroup(group.id, payload);
-      else await apiClient.admin.questionBank.createQuestionGroup(payload);
-      onSaved();
+      if (group) {
+        await apiClient.admin.questionBank.updateQuestionGroup(group.id, payload);
+        onSaved("update");
+      } else {
+        await apiClient.admin.questionBank.createQuestionGroup(payload);
+        onSaved("create");
+      }
     } catch (e: any) {
       setMedia(prev => ({ ...prev, uploading: null }));
       setErr(Array.isArray(e.message) ? e.message.join(", ") : (e.message || "Lưu thất bại"));
@@ -328,13 +393,13 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="question-bank-modal-surface bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200">
         <div className="p-5 border-b border-gray-100 flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-800">{group ? "Sửa nhóm câu hỏi" : "Tạo nhóm câu hỏi mới"}</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
 
-        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-gray-50/50">
+        <div className="question-bank-modal-body flex-1 overflow-hidden flex flex-col lg:flex-row bg-slate-50/80">
           {/* Left Column: Context & Media (Fixed or scrollable separately if needed, but let's keep it simple first) */}
           <div className="w-full lg:w-5/12 border-r border-gray-100 overflow-y-auto p-6 space-y-6">
             {err && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm flex items-center gap-2"><AlertCircle className="w-4 h-4" />{err}</div>}
@@ -348,25 +413,71 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Part *</label>
-                    <select value={form.part} onChange={e => handlePartChange(e.target.value)} className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-emerald-500">
-                      <option value="" disabled>-- Chọn Part --</option>
-                      {PARTS.map(p => <option key={p} value={p}>Part {p.replace("P", "")}</option>)}
-                    </select>
+                    <SharedDropdown
+                      value={form.part}
+                      onChange={handlePartChange}
+                      options={[
+                        { value: "", label: "-- Chọn Part --" },
+                        ...PARTS.map((p) => ({ value: p, label: `Part ${p.replace("P", "")}` })),
+                      ]}
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Độ khó</label>
-                    <select value={form.level} onChange={e => setForm({ ...form, level: e.target.value })} className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-emerald-500">
-                      {LEVELS.map(l => <option key={l} value={l} className="capitalize">{l}</option>)}
-                    </select>
+                    <SharedDropdown
+                      value={form.level}
+                      onChange={(value) => setForm({ ...form, level: value })}
+                      options={LEVELS.map((l) => ({
+                        value: l,
+                        label: l.charAt(0).toUpperCase() + l.slice(1),
+                      }))}
+                    />
                   </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Mã (Code) *</label>
-                  <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: QB-P1-001" className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-emerald-500" />
+                  <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: QB-P1-001" className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-500" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Tiêu đề nhóm *</label>
-                  <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Part 1 - Photos 01" className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-emerald-500" />
+                  <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Part 1 - Photos 01" className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Tags</label>
+                  <input
+                    value={tagKeyword}
+                    onChange={(e) => setTagKeyword(e.target.value)}
+                    placeholder="Tìm tag theo code/label..."
+                    className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-500"
+                  />
+                  <div className="mt-2 max-h-28 overflow-y-auto rounded border border-gray-100 bg-gray-50 p-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {filteredTags.slice(0, 40).map((tag) => {
+                        const selected = form.tagCodes.includes(tag.code);
+                        return (
+                          <button
+                            type="button"
+                            key={tag.id}
+                            onClick={() =>
+                              setForm((prev) => ({
+                                ...prev,
+                                tagCodes: selected
+                                  ? prev.tagCodes.filter((code: string) => code !== tag.code)
+                                  : [...prev.tagCodes, tag.code],
+                              }))
+                            }
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                              selected
+                                ? "border-blue-300 bg-blue-50 text-blue-700"
+                                : "border-gray-200 bg-white text-gray-600 hover:border-blue-200"
+                            }`}
+                          >
+                            {tag.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -433,7 +544,7 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
             )}
 
             <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase flex items-center gap-2">
+              <label className="text-[10px] font-bold text-gray-500 mb-2 uppercase flex items-center gap-2">
                 <FileText className="w-3 h-3" /> Giải thích chung
               </label>
               <textarea value={form.explanation} onChange={e => setForm({ ...form, explanation: e.target.value })} rows={3} placeholder="Giải thích cho đáp án..." className="w-full px-3 py-2 border border-gray-100 bg-gray-50 rounded text-xs outline-none" />
@@ -447,7 +558,7 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                   <Layers className="w-3 h-3" /> Danh sách câu hỏi ({questions.length})
                 </h3>
-                <p className="text-[9px] text-emerald-600 font-bold mt-0.5 italic">
+                <p className="text-[9px] text-blue-600 font-bold mt-0.5 italic">
                   {form.part === "P1" && "P1: 1 Ảnh + Audio = 1 Câu"}
                   {form.part === "P2" && "P2: 1 Audio = 1 Câu (3 đáp án)"}
                   {form.part === "P3" && "P3: 1 Hội thoại = 3 Câu"}
@@ -458,12 +569,25 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
                 </p>
               </div>
               {!isFixedQCount && (
-                <button onClick={addQuestion} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-lg flex items-center gap-1 hover:bg-emerald-100 transition-colors">
-                  <Plus className="w-3 h-3" /> Thêm câu hỏi
+                <button onClick={addQuestion} className="px-3 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg flex items-center gap-1 hover:bg-blue-100 transition-colors">
+                  <ActionIcon action="add" className="w-3 h-3" /> Thêm câu hỏi
                 </button>
               )}
             </div>
 
+            {questions.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-white/90 px-6 py-10 text-center">
+                <BookOpen className="mx-auto mb-2 h-8 w-8 text-gray-400" />
+                <p className="text-sm font-semibold text-gray-700">
+                  {form.part ? "Chưa có câu hỏi trong nhóm này" : "Chọn Part để khởi tạo bộ câu hỏi mẫu"}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {form.part
+                    ? "Bạn có thể thêm thủ công hoặc đổi Part để tự tạo theo chuẩn TOEIC."
+                    : "Hệ thống sẽ tự dựng cấu trúc câu hỏi phù hợp từng Part để bạn chỉnh sửa nhanh."}
+                </p>
+              </div>
+            ) : (
             <div className="space-y-4">
               {questions.map((q, qIdx) => (
                 <div key={qIdx} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-3 relative group/q">
@@ -473,21 +597,21 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
                       Câu hỏi {q.questionNo}
                     </span>
                     {!isFixedQCount && questions.length > 2 && (
-                      <button onClick={() => removeQuestion(qIdx)} className="text-red-300 hover:text-red-500 opacity-0 group-hover/q:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => removeQuestion(qIdx)} className="text-red-300 hover:text-red-500 opacity-0 group-hover/q:opacity-100 transition-opacity"><ActionIcon action="delete" className="w-3.5 h-3.5" /></button>
                     )}
                   </div>
 
                   {!isP2 && (
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Nội dung câu hỏi (Prompt)</label>
-                      <input value={q.prompt} onChange={e => updateQuestion(qIdx, "prompt", e.target.value)} placeholder="VD: What is the main topic?" className="w-full px-3 py-1.5 border border-gray-100 bg-gray-50 rounded text-xs outline-none focus:border-emerald-300" />
+                      <input value={q.prompt} onChange={e => updateQuestion(qIdx, "prompt", e.target.value)} placeholder="VD: What is the main topic?" className="w-full px-3 py-1.5 border border-gray-100 bg-gray-50 rounded text-xs outline-none focus:border-blue-300" />
                     </div>
                   )}
 
                   <div className={`grid grid-cols-1 ${isP2 ? "md:grid-cols-3" : "md:grid-cols-2"} gap-2`}>
                     {q.options.filter(o => !isP2 || o.optionKey !== "D").map((o, oIdx) => (
-                      <div key={o.optionKey} className={`flex items-center gap-2 p-2 rounded border transition-all ${o.isCorrect ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400" : "bg-white border-gray-100 hover:border-gray-300"}`}>
-                        <button onClick={() => updateOption(qIdx, oIdx, "isCorrect", true)} className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${o.isCorrect ? "bg-emerald-500 border-emerald-500 shadow-sm shadow-emerald-200" : "border-gray-300 bg-white"}`}>
+                      <div key={o.optionKey} className={`flex items-center gap-2 p-2 rounded border transition-all ${o.isCorrect ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400" : "bg-white border-gray-100 hover:border-gray-300"}`}>
+                        <button onClick={() => updateOption(qIdx, oIdx, "isCorrect", true)} className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${o.isCorrect ? "bg-blue-500 border-blue-500 shadow-sm shadow-blue-200" : "border-gray-300 bg-white"}`}>
                           {o.isCorrect && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </button>
                         <span className="text-[10px] font-bold text-gray-400 w-3">{o.optionKey}</span>
@@ -502,6 +626,7 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
 
@@ -509,7 +634,7 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
           <p className="text-[10px] text-gray-400 font-medium italic flex items-center gap-1"><Info className="w-3 h-3"/> </p>
           <div className="flex gap-3">
             <button onClick={onClose} className="px-5 py-2 text-xs font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">Hủy</button>
-            <button onClick={handleSubmit} disabled={saving} className="px-8 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 shadow-sm shadow-emerald-100">
+            <button onClick={handleSubmit} disabled={saving} className="px-8 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 shadow-sm shadow-blue-100">
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
               {saving ? "Đang lưu..." : (group ? "Cập nhật nhóm" : "Tạo nhóm ngay")}
             </button>
@@ -524,7 +649,7 @@ function QuestionGroupModal({ group, tags, onClose, onSaved }: { group?: Questio
 function ReviewModal({ action, onConfirm, onClose }: { action: string; onConfirm: (comment: string) => void; onClose: () => void }) {
   const [comment, setComment] = useState("");
   const label = action === "approve" ? "Phê duyệt" : action === "reject" ? "Từ chối" : action === "publish" ? "Xuất bản" : "Gửi duyệt";
-  const color = action === "approve" ? "bg-emerald-600" : action === "reject" ? "bg-red-600" : "bg-blue-600";
+  const color = action === "approve" ? "bg-blue-600" : action === "reject" ? "bg-red-600" : "bg-indigo-600";
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
@@ -541,7 +666,7 @@ function ReviewModal({ action, onConfirm, onClose }: { action: string; onConfirm
               onChange={e => setComment(e.target.value)}
               placeholder="Nhập nội dung nhận xét..."
               rows={4}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 outline-none"
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"
             />
           </div>
         </div>
@@ -563,7 +688,7 @@ function ActionMenu({ group, onAction, loading }: { group: QuestionGroup; onActi
     { key: "submit-review", label: "Gửi duyệt", icon: <Send className="w-3.5 h-3.5" />, show: group.status === "draft" },
     { key: "approve", label: "Phê duyệt", icon: <ThumbsUp className="w-3.5 h-3.5" />, show: group.status === "in_review", color: "text-purple-600" },
     { key: "reject", label: "Từ chối", icon: <ThumbsDown className="w-3.5 h-3.5" />, show: group.status === "in_review", color: "text-red-600" },
-    { key: "publish", label: "Xuất bản", icon: <Globe className="w-3.5 h-3.5" />, show: group.status === "approved", color: "text-emerald-600" },
+    { key: "publish", label: "Xuất bản", icon: <Globe className="w-3.5 h-3.5" />, show: group.status === "approved", color: "text-blue-600" },
     { key: "archive", label: "Lưu trữ", icon: <Archive className="w-3.5 h-3.5" />, show: ["published", "approved"].includes(group.status), color: "text-gray-500" },
   ].filter(a => a.show);
 
@@ -610,12 +735,15 @@ function ActionMenu({ group, onAction, loading }: { group: QuestionGroup; onActi
 }
 
 // ─── Tags Tab ─────────────────────────────────────────────────────────────────
-function TagsTab() {
+function TagsTab({ onDataChanged }: { onDataChanged?: () => void }) {
+  const { notify } = useToast();
   const [tags, setTags] = useState<TagItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
   const [modal, setModal] = useState<{open:boolean;tag?:TagItem}>({open:false});
   const [search, setSearch] = useState("");
+  const [tagToDelete, setTagToDelete] = useState<TagItem | null>(null);
+  const [deletingTag, setDeletingTag] = useState(false);
 
   const fetchTags = useCallback(async()=>{
     setLoading(true); setError(null);
@@ -628,10 +756,28 @@ function TagsTab() {
 
   useEffect(()=>{fetchTags();},[fetchTags]);
 
-  const handleDelete = async(id:string)=>{
-    if(!confirm("Xóa tag này?")) return;
-    try{ await apiClient.admin.questionBank.deleteTag(id); setTags(p=>p.filter(t=>t.id!==id)); }
-    catch(e:any){alert(e.message||"Xóa thất bại");}
+  const handleDelete = async () => {
+    if (!tagToDelete) return;
+    setDeletingTag(true);
+    try {
+      await apiClient.admin.questionBank.deleteTag(tagToDelete.id);
+      setTags((prev) => prev.filter((t) => t.id !== tagToDelete.id));
+      notify({
+        title: "Xóa tag thành công",
+        message: `Tag "${tagToDelete.label}" đã được xóa.`,
+        variant: "success",
+      });
+      onDataChanged?.();
+      setTagToDelete(null);
+    } catch (e: any) {
+      notify({
+        title: "Xóa tag thất bại",
+        message: e.message || "Không thể xóa tag.",
+        variant: "error",
+      });
+    } finally {
+      setDeletingTag(false);
+    }
   };
 
   const filtered = tags.filter(t=>
@@ -651,18 +797,18 @@ function TagsTab() {
       <div className="flex items-center gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"/>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm tag..." className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm tag..." className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"/>
         </div>
         <button onClick={fetchTags} className="p-2 hover:bg-gray-100 rounded-lg"><RefreshCw className="w-4 h-4 text-gray-500"/></button>
-        <button onClick={()=>setModal({open:true})} className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">
-          <Plus className="w-4 h-4"/>Tạo tag
-        </button>
+        <button onClick={()=>setModal({open:true})} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+          <ActionIcon action="add" className="w-4 h-4"/>Tạo tag
+        </button> 
       </div>
 
       {error && <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"><AlertCircle className="w-4 h-4"/>{error}<button onClick={fetchTags} className="ml-auto underline">Thử lại</button></div>}
 
       {loading ? (
-        <div className="flex justify-center py-10"><Loader2 className="w-7 h-7 text-emerald-500 animate-spin"/></div>
+        <div className="flex justify-center py-10"><Loader2 className="w-7 h-7 text-blue-500 animate-spin"/></div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <Tag className="w-10 h-10 mx-auto mb-2 text-gray-300"/>
@@ -685,8 +831,8 @@ function TagsTab() {
                       {tag.description && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{tag.description}</p>}
                     </div>
                     <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={()=>setModal({open:true,tag})} className="p-1.5 hover:bg-blue-50 rounded-lg"><Edit className="w-3.5 h-3.5 text-blue-500"/></button>
-                      <button onClick={()=>handleDelete(tag.id)} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5 text-red-500"/></button>
+                      <button onClick={()=>setModal({open:true,tag})} className="p-1.5 hover:bg-blue-50 rounded-lg"><ActionIcon action="edit" className="w-3.5 h-3.5 text-blue-500"/></button>
+                      <button onClick={() => setTagToDelete(tag)} className="p-1.5 hover:bg-red-50 rounded-lg"><ActionIcon action="delete" className="w-3.5 h-3.5 text-red-500"/></button>
                     </div>
                   </div>
                 ))}
@@ -696,35 +842,80 @@ function TagsTab() {
         </div>
       )}
       <AnimatePresence>
-        {modal.open && <TagModal tag={modal.tag} onClose={()=>setModal({open:false})} onSaved={()=>{setModal({open:false});fetchTags();}}/>}
+        {modal.open && (
+          <TagModal
+            tag={modal.tag}
+            onClose={() => setModal({ open: false })}
+            onSaved={(mode) => {
+              setModal({ open: false });
+              fetchTags();
+              notify({
+                title: mode === "create" ? "Tạo tag thành công" : "Cập nhật tag thành công",
+                message: mode === "create" ? "Tag mới đã được thêm vào hệ thống." : "Thông tin tag đã được cập nhật.",
+                variant: "success",
+              });
+              onDataChanged?.();
+            }}
+          />
+        )}
       </AnimatePresence>
+      <AdminConfirmDialog
+        open={!!tagToDelete}
+        title="Xóa tag này?"
+        description={
+          tagToDelete
+            ? `Tag "${tagToDelete.label}" sẽ bị xóa vĩnh viễn và không thể hoàn tác.`
+            : undefined
+        }
+        confirmLabel="Xóa"
+        cancelLabel="Hủy"
+        loading={deletingTag}
+        danger
+        onClose={() => {
+          if (!deletingTag) setTagToDelete(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
 
 // ─── Question Groups Tab ──────────────────────────────────────────────────────
-function QuestionGroupsTab({ tags }: { tags: TagItem[] }) {
+function QuestionGroupsTab({ tags, onDataChanged }: { tags: TagItem[]; onDataChanged?: () => void }) {
+  const { notify } = useToast();
   const [groups, setGroups] = useState<QuestionGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPart, setFilterPart] = useState("all");
   const [modal, setModal] = useState<{open:boolean;group?:QuestionGroup}>({open:false});
   const [actionLoading, setActionLoading] = useState<string|null>(null);
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkTagModalOpen, setBulkTagModalOpen] = useState(false);
+  const [bulkTagCodes, setBulkTagCodes] = useState<string[]>([]);
+  const [bulkTagSaving, setBulkTagSaving] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<QuestionGroup | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState(false);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search), 350);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
 
   const fetchGroups = useCallback(async()=>{
     setLoading(true); setError(null);
     try {
       const res = await apiClient.admin.questionBank.listQuestionGroups({
-        search: search||undefined, // Use search instead of keyword
+        keyword: debouncedSearch || undefined,
         status: filterStatus!=="all"?filterStatus:undefined,
         part: filterPart!=="all"?filterPart:undefined,
-        limit: 100 // Increased limit
+        limit: 100
       });
-      
-      // Correct extraction for NestJS interceptor pattern
+
       const resData = res.data as any;
       let items = [];
       if (Array.isArray(resData)) {
@@ -736,11 +927,10 @@ function QuestionGroupsTab({ tags }: { tags: TagItem[] }) {
       }
       setGroups(items);
     } catch(e:any){
-      console.error("DEBUG: Fetch groups error:", e);
       setError(e.message||"Không thể tải dữ liệu");
     }
     finally{setLoading(false);}
-  },[search,filterStatus,filterPart]);
+  },[debouncedSearch,filterStatus,filterPart]);
 
   useEffect(()=>{fetchGroups();},[fetchGroups]);
 
@@ -757,14 +947,128 @@ function QuestionGroupsTab({ tags }: { tags: TagItem[] }) {
       };
       if (fns[action]) await fns[action](id, payload);
       await fetchGroups();
-    } catch (e: any) { alert(e.message || `${action} thất bại`); }
+      const actionLabel: Record<string, string> = {
+        "submit-review": "Gửi duyệt",
+        approve: "Phê duyệt",
+        reject: "Từ chối",
+        publish: "Xuất bản",
+        archive: "Lưu trữ",
+      };
+      notify({
+        title: `${actionLabel[action] || "Cập nhật"} thành công`,
+        message: "Trạng thái nhóm câu hỏi đã được cập nhật.",
+        variant: "success",
+      });
+      onDataChanged?.();
+    } catch (e: any) {
+      notify({
+        title: "Thao tác thất bại",
+        message: e.message || `${action} thất bại`,
+        variant: "error",
+      });
+    }
     finally { setActionLoading(null); }
   };
 
-  const handleDelete = async(id:string)=>{
-    if(!confirm("Xóa nhóm câu hỏi này?")) return;
-    try{ await apiClient.admin.questionBank.deleteQuestionGroup(id); setGroups(p=>p.filter(g=>g.id!==id)); }
-    catch(e:any){alert(e.message||"Xóa thất bại");}
+  const handleDelete = async () => {
+    if (!groupToDelete) return;
+    setDeletingGroup(true);
+    try {
+      await apiClient.admin.questionBank.deleteQuestionGroup(groupToDelete.id);
+      setGroups((prev) => prev.filter((g) => g.id !== groupToDelete.id));
+      notify({
+        title: "Xóa nhóm câu hỏi thành công",
+        message: `Nhóm "${groupToDelete.title}" đã được xóa.`,
+        variant: "success",
+      });
+      onDataChanged?.();
+      setGroupToDelete(null);
+    } catch (e: any) {
+      notify({
+        title: "Xóa thất bại",
+        message: e.message || "Không thể xóa nhóm câu hỏi.",
+        variant: "error",
+      });
+    } finally {
+      setDeletingGroup(false);
+    }
+  };
+
+  const handleBulkStatus = async (status: "published" | "archived") => {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    try {
+      await apiClient.admin.questionBank.bulkStatus(ids, status);
+      await fetchGroups();
+      setSelected(new Set());
+      notify({
+        title: status === "published" ? "Xuất bản hàng loạt thành công" : "Lưu trữ hàng loạt thành công",
+        message: `Đã cập nhật ${ids.length} nhóm câu hỏi.`,
+        variant: "success",
+      });
+      onDataChanged?.();
+    } catch (e: any) {
+      notify({
+        title: "Thao tác hàng loạt thất bại",
+        message: e.message || "Không thể cập nhật trạng thái hàng loạt.",
+        variant: "error",
+      });
+    }
+  };
+
+  const handleBulkTag = async () => {
+    const ids = Array.from(selected);
+    if (!ids.length || bulkTagCodes.length === 0) return;
+    setBulkTagSaving(true);
+    try {
+      await apiClient.admin.questionBank.bulkTag(ids, bulkTagCodes);
+      await fetchGroups();
+      setBulkTagModalOpen(false);
+      setBulkTagCodes([]);
+      notify({
+        title: "Gắn tag hàng loạt thành công",
+        message: `Đã cập nhật ${ids.length} nhóm câu hỏi.`,
+        variant: "success",
+      });
+      onDataChanged?.();
+    } catch (e: any) {
+      notify({
+        title: "Gắn tag thất bại",
+        message: e.message || "Không thể gắn tag hàng loạt.",
+        variant: "error",
+      });
+    } finally {
+      setBulkTagSaving(false);
+    }
+  };
+
+  const openEditModal = async (group: QuestionGroup) => {
+    if (group.status === "published") {
+      notify({
+        title: "Không thể sửa nhóm đã xuất bản",
+        message: "Vui lòng chuyển trạng thái khác hoặc tạo bản sao trước khi chỉnh sửa.",
+        variant: "error",
+      });
+      return;
+    }
+
+    setLoadingDetailId(group.id);
+    try {
+      const res = await apiClient.admin.questionBank.getQuestionGroup(group.id);
+      const payload = (res.data as any)?.data ?? res.data;
+      setModal({ open: true, group: payload as QuestionGroup });
+    } catch (e: any) {
+      notify({
+        title: "Không tải được chi tiết nhóm",
+        message:
+          e?.statusCode === 403
+            ? "Bạn không có quyền mở chi tiết nhóm câu hỏi này."
+            : (e.message || "Vui lòng thử lại."),
+        variant: "error",
+      });
+    } finally {
+      setLoadingDetailId(null);
+    }
   };
 
   const toggleSelect = (id:string) => setSelected(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
@@ -798,28 +1102,46 @@ function QuestionGroupsTab({ tags }: { tags: TagItem[] }) {
       <div className="bg-white rounded-xl p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
         <div className="flex-1 min-w-[180px] relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"/>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm kiếm..." className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm kiếm..." className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"/>
         </div>
-        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
-          <option value="all">Tất cả trạng thái</option>
-          {STATUSES.map(s=><option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-        </select>
-        <select value={filterPart} onChange={e=>setFilterPart(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
-          <option value="all">Tất cả Part</option>
-          {PARTS.map(p=><option key={p} value={p}>Part {p.replace("P","")}</option>)}
-        </select>
+        <SharedDropdown
+          value={filterStatus}
+          onChange={setFilterStatus}
+          className="min-w-[170px]"
+          options={[
+            { value: "all", label: "Tất cả trạng thái" },
+            ...STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] })),
+          ]}
+        />
+        <SharedDropdown
+          value={filterPart}
+          onChange={setFilterPart}
+          className="min-w-[150px]"
+          options={[
+            { value: "all", label: "Tất cả Part" },
+            ...PARTS.map((p) => ({ value: p, label: `Part ${p.replace("P", "")}` })),
+          ]}
+        />
         <button onClick={fetchGroups} className="p-2 hover:bg-gray-100 rounded-lg" title="Làm mới"><RefreshCw className="w-4 h-4 text-gray-500"/></button>
-        <button onClick={()=>setModal({open:true})} className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">
-          <Plus className="w-4 h-4"/>Tạo nhóm
+        <button
+          onClick={() => setImportModalOpen(true)}
+          className="flex items-center gap-2 px-3 py-2 border border-blue-200 bg-blue-50 text-blue-700 text-sm rounded-lg hover:bg-blue-100"
+        >
+          <FileUp className="w-4 h-4" />
+          Import JSON
+        </button>
+        <button onClick={()=>setModal({open:true})} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+          <ActionIcon action="add" className="w-4 h-4"/>Tạo nhóm
         </button>
       </div>
 
       {/* Bulk actions */}
       {selected.size>0 && (
-        <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm flex-wrap">
-          <span className="text-emerald-700 font-medium">Đã chọn {selected.size} nhóm</span>
-          <button onClick={()=>apiClient.admin.questionBank.bulkStatus(Array.from(selected),"published").then(fetchGroups)} className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Xuất bản hàng loạt</button>
-          <button onClick={()=>apiClient.admin.questionBank.bulkStatus(Array.from(selected),"archived").then(fetchGroups)} className="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600">Lưu trữ hàng loạt</button>
+        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm flex-wrap">
+          <span className="text-blue-700 font-medium">Đã chọn {selected.size} nhóm</span>
+          <button onClick={() => setBulkTagModalOpen(true)} className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Gắn tag hàng loạt</button>
+          <button onClick={() => handleBulkStatus("published")} className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Xuất bản hàng loạt</button>
+          <button onClick={() => handleBulkStatus("archived")} className="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600">Lưu trữ hàng loạt</button>
           <button onClick={()=>setSelected(new Set())} className="ml-auto text-gray-500 hover:text-gray-700"><X className="w-4 h-4"/></button>
         </div>
       )}
@@ -827,7 +1149,7 @@ function QuestionGroupsTab({ tags }: { tags: TagItem[] }) {
       {error && <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"><AlertCircle className="w-4 h-4"/>{error}<button onClick={fetchGroups} className="ml-auto underline">Thử lại</button></div>}
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin"/></div>
+        <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-blue-500 animate-spin"/></div>
       ) : groups.length === 0 ? (
         <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-gray-100">
           <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300"/>
@@ -859,8 +1181,19 @@ function QuestionGroupsTab({ tags }: { tags: TagItem[] }) {
                 <span className={`hidden md:block w-24 text-center text-xs font-medium px-2 py-0.5 rounded-lg ${STATUS_COLOR[group.status]??"bg-gray-100 text-gray-600"}`}>{STATUS_LABEL[group.status]??group.status}</span>
                 <div className="flex items-center gap-1.5 w-36 justify-end flex-shrink-0">
                   <ActionMenu group={group} onAction={handleAction} loading={!!isActioning}/>
-                  <button onClick={()=>setModal({open:true,group})} className="p-1.5 hover:bg-blue-50 rounded-lg" title="Sửa"><Edit className="w-3.5 h-3.5 text-blue-500"/></button>
-                  <button onClick={()=>handleDelete(group.id)} className="p-1.5 hover:bg-red-50 rounded-lg" title="Xóa"><Trash2 className="w-3.5 h-3.5 text-red-500"/></button>
+                  <button
+                    onClick={() => openEditModal(group)}
+                    disabled={group.status === "published"}
+                    className={`p-1.5 rounded-lg ${group.status === "published" ? "cursor-not-allowed opacity-45" : "hover:bg-blue-50"}`}
+                    title={group.status === "published" ? "Nhóm đã xuất bản, không thể sửa trực tiếp" : "Sửa"}
+                  >
+                    {loadingDetailId === group.id ? (
+                      <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                    ) : (
+                      <ActionIcon action="edit" className="w-3.5 h-3.5 text-blue-500"/>
+                    )}
+                  </button>
+                  <button onClick={() => setGroupToDelete(group)} className="p-1.5 hover:bg-red-50 rounded-lg" title="Xóa"><ActionIcon action="delete" className="w-3.5 h-3.5 text-red-500"/></button>
                 </div>
               </motion.div>
             );
@@ -869,48 +1202,449 @@ function QuestionGroupsTab({ tags }: { tags: TagItem[] }) {
       )}
 
       <AnimatePresence>
-        {modal.open && <QuestionGroupModal group={modal.group} tags={tags} onClose={()=>setModal({open:false})} onSaved={()=>{setModal({open:false});fetchGroups();}}/>}
+        {modal.open && (
+          <QuestionGroupModal
+            group={modal.group}
+            tags={tags}
+            onClose={() => setModal({ open: false })}
+            onSaved={(mode) => {
+              setModal({ open: false });
+              fetchGroups();
+              notify({
+                title: mode === "create" ? "Tạo nhóm câu hỏi thành công" : "Cập nhật nhóm câu hỏi thành công",
+                message: mode === "create" ? "Nhóm câu hỏi mới đã được tạo." : "Nhóm câu hỏi đã được cập nhật.",
+                variant: "success",
+              });
+              onDataChanged?.();
+            }}
+          />
+        )}
       </AnimatePresence>
+      <AdminConfirmDialog
+        open={!!groupToDelete}
+        title="Xóa nhóm câu hỏi này?"
+        description={
+          groupToDelete
+            ? `Nhóm "${groupToDelete.title}" sẽ bị xóa vĩnh viễn.`
+            : undefined
+        }
+        confirmLabel="Xóa"
+        cancelLabel="Hủy"
+        loading={deletingGroup}
+        danger
+        onClose={() => {
+          if (!deletingGroup) setGroupToDelete(null);
+        }}
+        onConfirm={handleDelete}
+      />
+      <BulkTagModal
+        open={bulkTagModalOpen}
+        tags={tags}
+        selectedCodes={bulkTagCodes}
+        saving={bulkTagSaving}
+        onToggleCode={(code) =>
+          setBulkTagCodes((prev) =>
+            prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code]
+          )
+        }
+        onClose={() => {
+          if (bulkTagSaving) return;
+          setBulkTagModalOpen(false);
+          setBulkTagCodes([]);
+        }}
+        onConfirm={handleBulkTag}
+      />
+      <ImportQuestionGroupsModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImported={async () => {
+          await fetchGroups();
+          setSelected(new Set());
+          onDataChanged?.();
+        }}
+      />
+    </div>
+  );
+}
+
+function ImportQuestionGroupsModal({
+  open,
+  onClose,
+  onImported,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onImported: () => Promise<void> | void;
+}) {
+  const { notify } = useToast();
+  const [file, setFile] = useState<File | null>(null);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [preview, setPreview] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [committing, setCommitting] = useState(false);
+  const [err, setErr] = useState("");
+
+  const resetState = () => {
+    setFile(null);
+    setGroups([]);
+    setPreview(null);
+    setLoading(false);
+    setCommitting(false);
+    setErr("");
+  };
+
+  const handleClose = () => {
+    if (loading || committing) return;
+    resetState();
+    onClose();
+  };
+
+  const handlePreview = async () => {
+    if (!file) {
+      setErr("Vui lòng chọn file JSON để import");
+      return;
+    }
+
+    setErr("");
+    setLoading(true);
+    try {
+      const presign = await apiClient.admin.questionBank.presignImport({
+        contentType: file.type || "application/json",
+        fileName: file.name,
+      });
+      const presignData = (presign.data ?? {}) as { signedPutUrl?: string };
+      if (!presignData.signedPutUrl) {
+        throw new Error("Không lấy được signed URL cho file import");
+      }
+
+      const uploadImportWithFallback = async () => {
+        try {
+          const uploadRes = await fetch(presignData.signedPutUrl!, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type || "application/json" },
+          });
+          if (!uploadRes.ok) throw new Error(`Direct import upload failed: ${uploadRes.status}`);
+        } catch {
+          const formData = new FormData();
+          formData.append("signedPutUrl", presignData.signedPutUrl!);
+          formData.append("contentType", file.type || "application/json");
+          formData.append("file", file);
+          const proxyRes = await fetch("/api/s3-upload", {
+            method: "POST",
+            body: formData,
+          });
+          if (!proxyRes.ok) throw new Error("Upload file import lên S3 thất bại");
+        }
+      };
+
+      await uploadImportWithFallback();
+
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const parsedGroups = Array.isArray(parsed) ? parsed : parsed?.groups;
+      if (!Array.isArray(parsedGroups) || parsedGroups.length === 0) {
+        throw new Error("File JSON phải chứa mảng groups hợp lệ");
+      }
+
+      const previewRes = await apiClient.admin.questionBank.previewImport(parsedGroups);
+      setGroups(parsedGroups);
+      setPreview(previewRes.data);
+    } catch (e: any) {
+      setPreview(null);
+      setGroups([]);
+      setErr(e.message || "Preview import thất bại");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCommit = async () => {
+    if (!groups.length) return;
+    setCommitting(true);
+    setErr("");
+    try {
+      await apiClient.admin.questionBank.commitImport(groups, file?.name);
+      await onImported();
+      notify({
+        title: "Import thành công",
+        message: `Đã import ${groups.length} nhóm câu hỏi.`,
+        variant: "success",
+      });
+      handleClose();
+    } catch (e: any) {
+      setErr(e.message || "Commit import thất bại");
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-100 p-5">
+          <div>
+            <h3 className="text-base font-bold text-gray-800">Import nhóm câu hỏi (JSON)</h3>
+            <p className="mt-1 text-xs text-gray-500">FE xin sign URL từ BE và upload file trực tiếp lên S3 trước khi preview/commit.</p>
+          </div>
+          <button onClick={handleClose} className="rounded-lg p-1.5 hover:bg-gray-100">
+            <X className="h-4 w-4 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          {err && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle className="h-4 w-4" />
+              {err}
+            </div>
+          )}
+
+          <label className="block rounded-xl border-2 border-dashed border-gray-200 p-5 text-center hover:bg-gray-50">
+            <FileUp className="mx-auto h-6 w-6 text-gray-400" />
+            <p className="mt-2 text-sm font-medium text-gray-700">{file ? file.name : "Chọn file JSON để import"}</p>
+            <p className="text-xs text-gray-500">Chấp nhận dạng mảng `groups` hoặc object có trường `groups`.</p>
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const selectedFile = e.target.files?.[0] ?? null;
+                setFile(selectedFile);
+                setPreview(null);
+                setGroups([]);
+                setErr("");
+              }}
+            />
+          </label>
+
+          {preview && (
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm">
+              <div>
+                <p className="text-gray-500">Tổng nhóm</p>
+                <p className="text-lg font-bold text-gray-800">{preview.totalGroups ?? groups.length}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Hợp lệ</p>
+                <p className="text-lg font-bold text-green-600">{preview.validGroups ?? 0}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Lỗi</p>
+                <p className="text-lg font-bold text-red-600">{preview.invalidGroups ?? 0}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">File nguồn</p>
+                <p className="truncate text-sm font-medium text-gray-800">{file?.name}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50 px-5 py-4">
+          <button onClick={handleClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-white">
+            Hủy
+          </button>
+          <button
+            onClick={handlePreview}
+            disabled={!file || loading || committing}
+            className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+          >
+            {loading ? "Đang preview..." : "Preview"}
+          </button>
+          <button
+            onClick={handleCommit}
+            disabled={!preview || (preview.invalidGroups ?? 1) > 0 || loading || committing}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {committing ? "Đang import..." : "Commit import"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function BulkTagModal({
+  open,
+  tags,
+  selectedCodes,
+  saving,
+  onToggleCode,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  tags: TagItem[];
+  selectedCodes: string[];
+  saving: boolean;
+  onToggleCode: (code: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const [keyword, setKeyword] = useState("");
+
+  useEffect(() => {
+    if (!open) setKeyword("");
+  }, [open]);
+
+  if (!open) return null;
+
+  const filteredTags = tags.filter((tag) => {
+    if (!keyword.trim()) return true;
+    const value = keyword.toLowerCase();
+    return (
+      tag.label.toLowerCase().includes(value) ||
+      tag.code.toLowerCase().includes(value) ||
+      tag.category.toLowerCase().includes(value)
+    );
+  });
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-lg rounded-xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-100 p-5">
+          <h3 className="text-base font-bold text-gray-800">Gắn tag hàng loạt</h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-gray-100">
+            <X className="h-4 w-4 text-gray-500" />
+          </button>
+        </div>
+        <div className="space-y-3 p-5">
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="Tìm tag..."
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+          />
+          <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-2">
+            {filteredTags.map((tag) => {
+              const active = selectedCodes.includes(tag.code);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => onToggleCode(tag.code)}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                    active ? "bg-blue-100 text-blue-700" : "bg-white text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <span className="font-medium">{tag.label}</span>
+                  <span className="text-xs font-mono text-gray-500">{tag.code}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50 px-5 py-4">
+          <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-white">
+            Hủy
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={saving || selectedCodes.length === 0}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? "Đang gắn..." : "Gắn tag"}
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
 // ─── Workflow Banner ──────────────────────────────────────────────────────────
-function WorkflowBanner() {
-  const steps = [
-    { n: 1, label: "Tạo Tag", desc: "Phân loại", status: "completed" },
-    { n: 2, label: "Tạo nhóm", desc: "Soạn nội dung", status: "in_progress" },
-    { n: 3, label: "Review", desc: "Kiểm tra", status: "pending" },
-    { n: 4, label: "Xuất bản", desc: "Sử dụng", status: "pending" },
-  ];
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="max-w-xs">
-          <h3 className="text-xl font-bold text-gray-800">Quy trình quản lý</h3>
-        </div>
+function WorkflowBanner({ stats }: { stats: WorkflowStats }) {
+  const activeStep =
+    stats.tagCount === 0
+      ? 1
+      : stats.totalGroups === 0
+        ? 2
+        : stats.inReview > 0
+          ? 3
+          : stats.approved > 0 && stats.published === 0
+            ? 4
+            : 0;
 
-        <div className="flex-1 flex items-center justify-center gap-4 flex-wrap md:flex-nowrap">
-          {steps.map((s, i) => (
-            <div key={s.n} className="flex items-center gap-4">
-              <div className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                s.status === "in_progress" ? "bg-emerald-50 border-emerald-500" : "bg-gray-50 border-gray-100"
-              }`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                  s.status === "completed" ? "bg-emerald-500 text-white" :
-                  s.status === "in_progress" ? "bg-emerald-600 text-white" :
-                  "bg-white text-gray-300 border border-gray-200"
-                }`}>
-                  {s.status === "completed" ? <CheckCircle className="w-4 h-4" /> : s.n}
+  const steps = [
+    { n: 1, label: "Tạo Tag", desc: "Phân loại" },
+    { n: 2, label: "Tạo nhóm", desc: "Soạn nội dung" },
+    { n: 3, label: "Review", desc: "Kiểm tra" },
+    { n: 4, label: "Xuất bản", desc: "Sử dụng" },
+  ];
+
+  return (
+    <div className="workflow-banner-questions rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
+      <div className="flex items-center gap-2 overflow-x-auto">
+        <div className="flex min-w-[680px] flex-1 items-center gap-2">
+          {steps.map((s, i) => {
+            const step = i + 1;
+            const isCompleted =
+              step === 1
+                ? stats.tagCount > 0
+                : step === 2
+                  ? stats.totalGroups > 0
+                  : step === 3
+                    ? stats.approved + stats.published + stats.archived > 0
+                    : stats.published > 0;
+            const isActive = step === activeStep;
+
+            return (
+              <div key={s.n} className="flex flex-1 items-center gap-2">
+                <div
+                  className={`relative flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-lg border px-2.5 py-1.5 transition-colors ${
+                    isCompleted
+                      ? "border-amber-300 bg-amber-50/80"
+                      : isActive
+                        ? "border-amber-400 bg-white shadow-sm"
+                        : "border-gray-200 bg-gray-50"
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-amber-100/40 to-transparent"
+                      animate={{ x: ["-120%", "120%"] }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                    />
+                  )}
+                  <div
+                    className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full font-bold text-[11px] ${
+                      isCompleted
+                        ? "bg-green-500 text-white"
+                        : isActive
+                          ? "bg-amber-400 text-slate-900"
+                          : "border border-gray-200 bg-white text-gray-400"
+                    }`}
+                  >
+                    {isCompleted ? <CheckCircle className="h-3.5 w-3.5" /> : s.n}
+                  </div>
+                  <div className="relative z-10 min-w-0">
+                    <p
+                      className={`truncate text-[11px] font-bold leading-tight ${
+                        isCompleted || isActive ? "text-amber-800" : "text-gray-700"
+                      }`}
+                    >
+                      {s.label}
+                    </p>
+                    <p className="truncate text-[10px] text-gray-400 leading-tight">{s.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className={`text-xs font-bold ${s.status === "in_progress" ? "text-emerald-700" : "text-gray-700"}`}>{s.label}</p>
-                  <p className="text-[10px] text-gray-400">{s.desc}</p>
-                </div>
+
+                {i < steps.length - 1 && (
+                  <div className="relative h-[2px] w-5 overflow-hidden rounded bg-gray-200">
+                    {step < activeStep - 1 && <div className="h-full w-full bg-amber-400" />}
+                    {step === activeStep - 1 && (
+                      <motion.div
+                        className="h-full w-1/2 bg-amber-400"
+                        animate={{ x: ["-120%", "220%"] }}
+                        transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
-              {i < steps.length - 1 && <ArrowRight className="hidden md:block w-4 h-4 text-gray-300" />}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -919,8 +1653,19 @@ function WorkflowBanner() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminQuestionsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"tags"|"groups">("tags");
   const [tags, setTags] = useState<TagItem[]>([]);
+  const [workflowStats, setWorkflowStats] = useState<WorkflowStats>({
+    tagCount: 0,
+    totalGroups: 0,
+    inReview: 0,
+    approved: 0,
+    published: 0,
+    archived: 0,
+  });
 
   const fetchTags = useCallback(async()=>{
     try {
@@ -931,32 +1676,82 @@ export default function AdminQuestionsPage() {
 
   useEffect(()=>{fetchTags();},[fetchTags]);
 
+  const fetchWorkflowStats = useCallback(async () => {
+    try {
+      const [tagsRes, groupsRes] = await Promise.all([
+        apiClient.admin.questionBank.listTags(),
+        apiClient.admin.questionBank.listQuestionGroups({ limit: 200 }),
+      ]);
+
+      const tagItems = Array.isArray(tagsRes.data) ? tagsRes.data : ((tagsRes.data as any)?.items ?? []);
+      const groupsData = groupsRes.data as any;
+      let groups: QuestionGroup[] = [];
+      if (Array.isArray(groupsData)) groups = groupsData as QuestionGroup[];
+      else if (Array.isArray(groupsData?.data)) groups = groupsData.data as QuestionGroup[];
+      else if (Array.isArray(groupsData?.items)) groups = groupsData.items as QuestionGroup[];
+
+      setWorkflowStats({
+        tagCount: tagItems.length,
+        totalGroups: groups.length,
+        inReview: groups.filter((g) => g.status === "in_review").length,
+        approved: groups.filter((g) => g.status === "approved").length,
+        published: groups.filter((g) => g.status === "published").length,
+        archived: groups.filter((g) => g.status === "archived").length,
+      });
+    } catch {
+      // Keep existing stats on transient API errors
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchWorkflowStats();
+  }, [fetchWorkflowStats]);
+
+  useEffect(() => {
+    const tabFromQuery = searchParams.get("tab");
+    setActiveTab(tabFromQuery === "groups" ? "groups" : "tags");
+  }, [searchParams]);
+
+  const handleChangeTab = (tab: "tags" | "groups") => {
+    setActiveTab(tab);
+    router.replace(`${pathname}?tab=${tab}`);
+  };
+
   const tabs = [
-    { id:"tags" as const, label:"Tags", icon:<Tag className="w-4 h-4"/>, desc:"Quản lý nhãn phân loại" },
+    { id:"tags" as const, label:"Tag", icon:<Tag className="w-4 h-4"/>, desc:"Quản lý nhãn phân loại" },
     { id:"groups" as const, label:"Nhóm câu hỏi", icon:<BookOpen className="w-4 h-4"/>, desc:"Ngân hàng câu hỏi" },
   ];
 
   return (
     <div className="space-y-5">
-     
-
-      {/* Workflow Banner */}
-      <WorkflowBanner/>
-
-      {/* Tabs */}
-      <div className="flex gap-2">
-        {tabs.map(tab=>(
-          <button key={tab.id} onClick={()=>setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab===tab.id?"bg-emerald-600 text-white shadow-sm":"bg-white text-gray-600 border border-gray-200 hover:border-emerald-300 hover:text-emerald-600"}`}>
-            {tab.icon}{tab.label}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex items-center gap-6 border-b border-gray-200/80">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleChangeTab(tab.id)}
+              className={`-mb-px inline-flex h-10 items-center gap-2 border-b-2 px-1 text-base font-semibold transition-colors ${
+                activeTab === tab.id
+                  ? "border-amber-400 text-amber-400"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="min-w-0 xl:ml-4 xl:flex-1">
+          <WorkflowBanner stats={workflowStats} />
+        </div>
       </div>
 
       {/* Tab Content */}
       <AnimatePresence mode="wait">
         <motion.div key={activeTab} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:0.15}}>
-          {activeTab==="tags" ? <TagsTab/> : <QuestionGroupsTab tags={tags}/>}
+          {activeTab==="tags"
+            ? <TagsTab onDataChanged={fetchWorkflowStats} />
+            : <QuestionGroupsTab tags={tags} onDataChanged={fetchWorkflowStats} />}
         </motion.div>
       </AnimatePresence>
     </div>

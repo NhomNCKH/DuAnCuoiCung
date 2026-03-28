@@ -22,16 +22,30 @@ import {
 
 // Chọn base URL theo env
 function getBaseURL(): string {
-  // Ưu tiên biến môi trường NEXT_PUBLIC_API_BASE_URL
-  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
-    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const localApiBase = process.env.NEXT_PUBLIC_LOCAL_API_BASE_URL;
+
+  // Ưu tiên biến môi trường chính thức
+  if (apiBase && apiBase.trim() !== '') {
+    return apiBase;
   }
-  // Mặc định kết nối server nếu không có cấu hình khác
+
+  // Khi chạy dev local, cho phép dùng biến local base URL
+  if (process.env.NODE_ENV !== 'production' && localApiBase && localApiBase.trim() !== '') {
+    return localApiBase;
+  }
+
+  // Fallback an toàn
   return 'http://144.91.104.237:3001/api/v1';
 }
 
 function getHealthURL(): string {
-  const base = process.env.NEXT_PUBLIC_API_URL || 'http://144.91.104.237:3001';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const localApiUrl = process.env.NEXT_PUBLIC_LOCAL_API_URL;
+  const base =
+    (apiUrl && apiUrl.trim() !== '' && apiUrl) ||
+    (process.env.NODE_ENV !== 'production' && localApiUrl && localApiUrl.trim() !== '' ? localApiUrl : '') ||
+    'http://144.91.104.237:3001';
   return `${base}/health`;
 }
 
@@ -234,14 +248,23 @@ class ApiClient {
       listQuestionGroups: (params?: {
         page?: number;
         limit?: number;
+        keyword?: string;
         search?: string;
         status?: string;
         part?: string;
       }): Promise<ApiResponse> => {
+        const keyword = params?.keyword ?? params?.search;
+        const queryParams = {
+          page: params?.page,
+          limit: params?.limit,
+          keyword,
+          status: params?.status,
+          part: params?.part,
+        };
         const qs = params
           ? '?' + new URLSearchParams(
               Object.fromEntries(
-                Object.entries(params)
+                Object.entries(queryParams)
                   .filter(([, v]) => v !== undefined && v !== '')
                   .map(([k, v]) => [k, String(v)])
               )
@@ -371,10 +394,28 @@ class ApiClient {
 
     // ---- Admin: RBAC (/admin/rbac/*) - chỉ SUPERADMIN ----
     rbac: {
-      listRoles: (): Promise<ApiResponse> =>
-        this.request('/admin/rbac/roles', { method: 'GET' }),
+      listRoles: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        isSystem?: boolean;
+        sort?: string;
+        order?: 'ASC' | 'DESC';
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword && params.keyword.trim() !== '') query.keyword = params.keyword.trim();
+          if (params.isSystem !== undefined) query.isSystem = String(params.isSystem);
+          if (params.sort) query.sort = params.sort;
+          if (params.order) query.order = params.order;
+        }
+        const qs = Object.keys(query).length > 0 ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/admin/rbac/roles${qs}`, { method: 'GET' });
+      },
 
-      createRole: (data: { name: string; description?: string }): Promise<ApiResponse> =>
+      createRole: (data: { code: string; name: string; description?: string }): Promise<ApiResponse> =>
         this.request('/admin/rbac/roles', { method: 'POST', body: JSON.stringify(data) }),
 
       updateRole: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
@@ -383,10 +424,28 @@ class ApiClient {
       deleteRole: (id: string): Promise<ApiResponse> =>
         this.request(`/admin/rbac/roles/${id}`, { method: 'DELETE' }),
 
-      listPermissions: (): Promise<ApiResponse> =>
-        this.request('/admin/rbac/permissions', { method: 'GET' }),
+      listPermissions: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        module?: string;
+        sort?: string;
+        order?: 'ASC' | 'DESC';
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword && params.keyword.trim() !== '') query.keyword = params.keyword.trim();
+          if (params.module && params.module.trim() !== '') query.module = params.module.trim();
+          if (params.sort) query.sort = params.sort;
+          if (params.order) query.order = params.order;
+        }
+        const qs = Object.keys(query).length > 0 ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/admin/rbac/permissions${qs}`, { method: 'GET' });
+      },
 
-      createPermission: (data: { name: string; description?: string }): Promise<ApiResponse> =>
+      createPermission: (data: { code: string; name: string; module?: string; description?: string }): Promise<ApiResponse> =>
         this.request('/admin/rbac/permissions', { method: 'POST', body: JSON.stringify(data) }),
 
       updatePermission: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
@@ -395,22 +454,60 @@ class ApiClient {
       deletePermission: (id: string): Promise<ApiResponse> =>
         this.request(`/admin/rbac/permissions/${id}`, { method: 'DELETE' }),
 
+      replaceRolePermissions: (roleId: string, permissions: string[]): Promise<ApiResponse> =>
+        this.request(`/admin/rbac/roles/${roleId}/permissions`, {
+          method: 'PATCH',
+          body: JSON.stringify({ permissions }),
+        }),
+
+      createUser: (data: {
+        name: string;
+        email: string;
+        password: string;
+        status?: string;
+      }): Promise<ApiResponse> =>
+        this.request('/admin/rbac/users', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+
+      updateUser: (
+        userId: string,
+        data: { name?: string; email?: string; status?: string; password?: string },
+      ): Promise<ApiResponse> =>
+        this.request(`/admin/rbac/users/${userId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        }),
+
+      deleteUser: (userId: string): Promise<ApiResponse> =>
+        this.request(`/admin/rbac/users/${userId}`, { method: 'DELETE' }),
+
       listUsers: (params?: {
         page?: number;
         limit?: number;
+        keyword?: string;
         search?: string;
         role?: string;
         status?: string;
+        sort?: string;
+        order?: 'ASC' | 'DESC';
       }): Promise<ApiResponse> => {
-        const qs = params
-          ? '?' + new URLSearchParams(
-              Object.fromEntries(
-                Object.entries(params)
-                  .filter(([, v]) => v !== undefined && v !== '' && v !== 'all')
-                  .map(([k, v]) => [k, String(v)])
-              )
-            ).toString()
-          : '';
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.role && params.role !== 'all') query.role = params.role;
+          if (params.status && params.status !== 'all') query.status = params.status;
+          if (params.sort) query.sort = params.sort;
+          if (params.order) query.order = params.order;
+
+          // BE expects `keyword`; keep `search` for backward compatibility in callers.
+          const keyword = params.keyword ?? params.search;
+          if (keyword && keyword.trim() !== '') query.keyword = keyword.trim();
+        }
+
+        const qs = Object.keys(query).length > 0 ? `?${new URLSearchParams(query).toString()}` : '';
         return this.request(`/admin/rbac/users${qs}`, { method: 'GET' });
       },
 

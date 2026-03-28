@@ -2,11 +2,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, Loader2, AlertCircle, CheckCircle, Plus, Trash2, Zap,
+  X, Loader2, AlertCircle, CheckCircle, Zap,
   Settings, Layers, Globe, Archive,
   RefreshCw, Info, Search, Tag, Clock, Eye,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { ActionIcon } from "@/components/ui/action-icons";
+import { SharedDropdown } from "@/components/ui/shared-dropdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ExamTemplate {
@@ -22,7 +24,7 @@ interface ValidationResult { valid: boolean; errors?: string[]; warnings?: strin
 
 const PARTS = ["P1","P2","P3","P4","P5","P6","P7"];
 const PART_LABEL: Record<string,string> = { P1:"Part 1 - Photos", P2:"Part 2 - Q&A", P3:"Part 3 - Conversations", P4:"Part 4 - Talks", P5:"Part 5 - Incomplete Sentences", P6:"Part 6 - Text Completion", P7:"Part 7 - Reading Comprehension" };
-const STATUS_COLOR: Record<string,string> = { draft:"bg-amber-100 text-amber-700 border border-amber-200", published:"bg-emerald-100 text-emerald-700 border border-emerald-200", archived:"bg-slate-100 text-slate-600 border border-slate-200" };
+const STATUS_COLOR: Record<string,string> = { draft:"bg-amber-100 text-amber-700 border border-amber-200", published:"bg-blue-100 text-blue-700 border border-blue-200", archived:"bg-slate-100 text-slate-600 border border-slate-200" };
 const STATUS_LABEL: Record<string,string> = { draft:"Nháp", published:"Đã xuất bản", archived:"Lưu trữ" };
 const MODE_LABEL: Record<string,string> = { practice:"Practice", mock_test:"Mock Test", official_exam:"Official Exam" };
 
@@ -102,7 +104,7 @@ function SectionsTab({ template, onRefresh }: { template: ExamTemplate; onRefres
       <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <Layers className="w-5 h-5 text-emerald-600" /> Cấu trúc đề thi
+            <Layers className="w-5 h-5 text-blue-600" /> Cấu trúc đề thi
           </h3>
           <p className="text-sm text-gray-500">Thiết kế các phần thi theo đúng format TOEIC</p>
         </div>
@@ -111,7 +113,7 @@ function SectionsTab({ template, onRefresh }: { template: ExamTemplate; onRefres
             <Zap className="w-4 h-4" /> Cấu trúc Chuẩn
           </button>
           <button onClick={addSection} className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors">
-            <Plus className="w-4 h-4" /> Thêm phần
+            <ActionIcon action="add" className="w-4 h-4" /> Thêm phần
           </button>
         </div>
       </div>
@@ -123,7 +125,7 @@ function SectionsTab({ template, onRefresh }: { template: ExamTemplate; onRefres
           </motion.div>
         )}
         {ok && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
             <CheckCircle className="w-4 h-4 flex-shrink-0" /> Đã lưu thành công!
           </motion.div>
         )}
@@ -136,7 +138,7 @@ function SectionsTab({ template, onRefresh }: { template: ExamTemplate; onRefres
           </div>
         ) : (
           sections.map((s, i) => (
-            <div key={i} className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:border-emerald-300 transition-all group">
+            <div key={i} className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:border-blue-300 transition-all group">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <span className="w-8 h-8 bg-gray-100 text-gray-700 rounded flex items-center justify-center font-bold text-sm">
@@ -145,16 +147,18 @@ function SectionsTab({ template, onRefresh }: { template: ExamTemplate; onRefres
                   <h4 className="font-bold text-gray-800">Phần {s.sectionOrder}: {PART_LABEL[s.part]}</h4>
                 </div>
                 <button onClick={() => removeSection(i)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
-                  <Trash2 className="w-4 h-4" />
+                  <ActionIcon action="delete" className="w-4 h-4" />
                 </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-500 uppercase">Chọn Part</label>
-                  <select value={s.part} onChange={e => update(i, "part", e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded text-sm focus:border-emerald-500 outline-none">
-                    {PARTS.map(p => <option key={p} value={p}>{p} — {PART_LABEL[p].split("-")[1].trim()}</option>)}
-                  </select>
+                  <SharedDropdown
+                    value={s.part}
+                    onChange={(value) => update(i, "part", value)}
+                    options={PARTS.map((p) => ({ value: p, label: `${p} — ${PART_LABEL[p].split("-")[1].trim()}` }))}
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-500 uppercase">Số nhóm</label>
@@ -177,9 +181,9 @@ function SectionsTab({ template, onRefresh }: { template: ExamTemplate; onRefres
       {sections.length > 0 && (
         <div className="pt-4 flex items-center justify-between border-t border-gray-100">
           <div className="text-sm text-gray-500">
-            Tổng cộng: <span className="font-bold text-gray-800">{sections.length} phần</span>, <span className="font-bold text-emerald-600">{sections.reduce((acc, s) => acc + s.expectedQuestionCount, 0)} câu hỏi</span>
+            Tổng cộng: <span className="font-bold text-gray-800">{sections.length} phần</span>, <span className="font-bold text-blue-600">{sections.reduce((acc, s) => acc + s.expectedQuestionCount, 0)} câu hỏi</span>
           </div>
-          <button onClick={handleSave} disabled={saving} className="px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2">
+          <button onClick={handleSave} disabled={saving} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
             Lưu cấu trúc
           </button>
@@ -242,7 +246,7 @@ function RulesTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
           <p className="text-sm text-gray-500">Thiết lập điều kiện để hệ thống tự động lấy câu hỏi</p>
         </div>
         <button onClick={addRule} className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors shadow-sm">
-          <Plus className="w-4 h-4" /> Thêm rule mới
+          <ActionIcon action="add" className="w-4 h-4" /> Thêm rule mới
         </button>
       </div>
 
@@ -253,7 +257,7 @@ function RulesTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
           </motion.div>
         )}
         {ok && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
             <CheckCircle className="w-4 h-4 flex-shrink-0" /> Đã lưu thành công!
           </motion.div>
         )}
@@ -275,7 +279,7 @@ function RulesTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
                   <h4 className="font-bold text-gray-800">Quy tắc cho {PART_LABEL[r.part]}</h4>
                 </div>
                 <button onClick={() => removeRule(i)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
-                  <Trash2 className="w-4 h-4" />
+                  <ActionIcon action="delete" className="w-4 h-4" />
                 </button>
               </div>
 
@@ -283,9 +287,11 @@ function RulesTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-500 uppercase">Áp dụng cho Part</label>
-                    <select value={r.part} onChange={e => update(i, "part", e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded text-sm focus:border-amber-500 outline-none">
-                      {PARTS.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
+                    <SharedDropdown
+                      value={r.part}
+                      onChange={(value) => update(i, "part", value)}
+                      options={PARTS.map((p) => ({ value: p, label: p }))}
+                    />
                   </div>
                   
                   <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
@@ -451,7 +457,7 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
           </motion.div>
         )}
         {ok && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
             <CheckCircle className="w-4 h-4 flex-shrink-0" />{ok}
           </motion.div>
         )}
@@ -476,18 +482,25 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
             <div className="space-y-3">
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-gray-500 uppercase">1. Chọn Section</label>
-                <select value={selectedSection} onChange={e => setSelectedSection(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded text-sm outline-none">
-                  <option value="">-- Chọn Section --</option>
-                  {sections.map(s => <option key={s.id} value={s.id}>Section {s.sectionOrder} ({s.part})</option>)}
-                </select>
+                <SharedDropdown
+                  value={selectedSection}
+                  onChange={setSelectedSection}
+                  options={[
+                    { value: "", label: "-- Chọn Section --" },
+                    ...sections.map((s) => ({
+                      value: s.id ?? "",
+                      label: `Section ${s.sectionOrder} (${s.part})`,
+                    })),
+                  ]}
+                />
               </div>
               
               <button 
                 disabled={!selectedSection}
                 onClick={() => setShowManualModal(true)}
-                className="w-full py-4 border-2 border-dashed border-gray-200 text-gray-400 rounded-lg text-sm font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                className="w-full py-4 border-2 border-dashed border-gray-200 text-gray-400 rounded-lg text-sm font-bold hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
               >
-                <Plus className="w-4 h-4" />
+                <ActionIcon action="add" className="w-4 h-4" />
                 <span>Chọn từ ngân hàng</span>
               </button>
             </div>
@@ -499,7 +512,7 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
               const validateTab = document.querySelector('[data-tab-id="validate"]');
               if (validateTab) (validateTab as HTMLButtonElement).click();
             }}
-            className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
           >
             <span>Tiếp tục Validate</span>
             <CheckCircle className="w-4 h-4" />
@@ -517,7 +530,7 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
                 <div className="flex items-center gap-2">
                   <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className={`h-full ${section.items.length === section.expectedGroupCount ? "bg-emerald-500" : "bg-amber-500"}`}
+                      className={`h-full ${section.items.length === section.expectedGroupCount ? "bg-blue-500" : "bg-amber-500"}`}
                       style={{ width: `${Math.min(100, (section.items.length / section.expectedGroupCount) * 100)}%` }}
                     />
                   </div>
@@ -532,7 +545,7 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
                   </div>
                 ) : (
                   section.items.map((item, idx) => (
-                    <div key={item.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded p-3 hover:border-emerald-500 transition-colors group">
+                    <div key={item.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded p-3 hover:border-blue-500 transition-colors group">
                       <span className="text-xs font-bold text-gray-300 w-4">{idx + 1}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -542,7 +555,7 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
                         <p className="text-[10px] font-mono text-gray-400">{item.questionGroup?.code}</p>
                       </div>
                       <button onClick={() => handleDeleteItem(item.id)} className="p-1 text-gray-300 hover:text-red-500 transition-colors">
-                        <Trash2 className="w-4 h-4" />
+                        <ActionIcon action="delete" className="w-4 h-4" />
                       </button>
                     </div>
                   ))
@@ -567,21 +580,26 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input 
                     placeholder="Tìm theo mã, tiêu đề..." 
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded text-sm focus:border-emerald-500 outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded text-sm focus:border-blue-500 outline-none transition-all"
                     value={manualSearch}
                     onChange={e => setManualManualSearch(e.target.value)}
                   />
                 </div>
-                <select value={manualPart} onChange={e => setManualPart(e.target.value)} className="px-3 py-2 bg-white border border-gray-200 rounded text-sm outline-none">
-                  <option value="all">Tất cả Part</option>
-                  {PARTS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <SharedDropdown
+                  value={manualPart}
+                  onChange={setManualPart}
+                  className="min-w-[150px]"
+                  options={[
+                    { value: "all", label: "Tất cả Part" },
+                    ...PARTS.map((p) => ({ value: p, label: p })),
+                  ]}
+                />
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50">
                 {loadingGroups ? (
                   <div className="flex flex-col items-center justify-center py-12 gap-2">
-                    <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                     <p className="text-sm text-gray-400">Đang tải...</p>
                   </div>
                 ) : publishedGroups.length === 0 ? (
@@ -589,7 +607,7 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
                     <p className="text-gray-400">Không tìm thấy kết quả</p>
                   </div>
                 ) : publishedGroups.map(g => (
-                  <div key={g.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded hover:border-emerald-500 transition-colors">
+                  <div key={g.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded hover:border-blue-500 transition-colors">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 rounded uppercase">{g.part}</span>
@@ -602,7 +620,7 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
                     </div>
                     <button 
                       onClick={() => handleAddManual(g.id)}
-                      className="px-4 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded hover:bg-emerald-700 transition-colors"
+                      className="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 transition-colors"
                     >
                       CHỌN
                     </button>
@@ -688,7 +706,7 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
           <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-6">
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-gray-800 flex items-center gap-2">
-                <Info className="w-5 h-5 text-emerald-600" /> Thông tin xuất bản
+                <Info className="w-5 h-5 text-blue-600" /> Thông tin xuất bản
               </h4>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase border ${STATUS_COLOR[template.status] ?? ""}`}>
                 {STATUS_LABEL[template.status] ?? template.status}
@@ -712,7 +730,7 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
             </div>
 
             <div className="space-y-2">
-              <button onClick={handleValidate} disabled={validating} className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+              <button onClick={handleValidate} disabled={validating} className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                 {validating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                 {result ? "Kiểm tra lại" : "Validate dữ liệu"}
               </button>
@@ -731,21 +749,21 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
                   const isComplete = actualCount === s.expectedGroupCount;
                   return (
                     <div key={s.id} className={`flex items-center justify-between p-3 rounded border ${
-                      isComplete ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-200"
+                      isComplete ? "bg-blue-50 border-blue-100" : "bg-red-50 border-red-200"
                     }`}>
                       <div className="flex items-center gap-2">
                         <span className={`w-6 h-6 rounded flex items-center justify-center font-bold text-[10px] ${
-                          isComplete ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+                          isComplete ? "bg-blue-600 text-white" : "bg-red-600 text-white"
                         }`}>
                           {s.sectionOrder}
                         </span>
                         <span className="text-xs font-bold text-gray-700">{PART_LABEL[s.part]}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold ${isComplete ? "text-emerald-600" : "text-red-600"}`}>
+                        <span className={`text-[10px] font-bold ${isComplete ? "text-blue-600" : "text-red-600"}`}>
                           {actualCount} / {s.expectedGroupCount}
                         </span>
-                        {isComplete ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> : <AlertCircle className="w-3.5 h-3.5 text-red-600" />}
+                        {isComplete ? <CheckCircle className="w-3.5 h-3.5 text-blue-600" /> : <AlertCircle className="w-3.5 h-3.5 text-red-600" />}
                       </div>
                     </div>
                   );
@@ -764,9 +782,9 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
           )}
 
           {result && (
-            <div className={`h-full rounded-lg p-6 border-2 flex flex-col ${result.valid ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+            <div className={`h-full rounded-lg p-6 border-2 flex flex-col ${result.valid ? "bg-blue-50 border-blue-200" : "bg-red-50 border-red-200"}`}>
               <div className="flex items-center gap-4 mb-6">
-                <div className={`p-3 rounded-lg ${result.valid ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}`}>
+                <div className={`p-3 rounded-lg ${result.valid ? "bg-blue-600 text-white" : "bg-red-600 text-white"}`}>
                   {result.valid ? <CheckCircle className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
                 </div>
                 <div>
@@ -789,7 +807,7 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
                   </div>
                 ))}
                 {result.valid && (
-                  <p className="text-sm text-emerald-800 font-bold text-center py-6">
+                  <p className="text-sm text-blue-800 font-bold text-center py-6">
                     Mẫu đề thi hợp lệ! Bạn có thể xuất bản ngay.
                   </p>
                 )}
@@ -798,7 +816,7 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
               {result.valid && (
                 <div className="mt-auto">
                   {template.status === "draft" && (
-                    <button onClick={handlePublish} disabled={publishing} className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold text-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                    <button onClick={handlePublish} disabled={publishing} className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
                       {publishing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Globe className="w-5 h-5" />}
                       XUẤT BẢN
                     </button>
@@ -909,14 +927,14 @@ export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "ov
                   data-tab-id={s.id}
                   onClick={() => setActiveTab(s.id as any)}
                   className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all border-2 ${
-                    activeTab === s.id ? "bg-emerald-600 border-emerald-600 text-white shadow-sm" :
+                    activeTab === s.id ? "bg-blue-600 border-blue-600 text-white shadow-sm" :
                     "bg-white border-gray-300 text-gray-500 hover:border-gray-400"
                   }`}
                 >
                   {s.n}
                 </button>
                 <span className={`text-[11px] font-bold ${
-                  activeTab === s.id ? "text-emerald-700" : "text-gray-500"
+                  activeTab === s.id ? "text-blue-700" : "text-gray-500"
                 }`}>
                   {s.label}
                 </span>
@@ -929,7 +947,7 @@ export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "ov
         <div className="flex-1 overflow-y-auto p-6 bg-white">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-32 gap-4">
-              <Loader2 className="w-12 h-12 text-emerald-500 animate-spin" />
+              <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
               <p className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Đang tải dữ liệu...</p>
             </div>
           ) : err ? (
@@ -958,7 +976,7 @@ export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "ov
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       {[
                         { label: "Tổng số câu", value: `${templateDetail.totalQuestions} Q`, icon: Layers, color: "text-blue-600", bg: "bg-blue-50" },
-                        { label: "Thời gian làm bài", value: `${Math.floor(templateDetail.totalDurationSec / 60)} phút`, icon: Clock, color: "text-emerald-600", bg: "bg-emerald-50" },
+                        { label: "Thời gian làm bài", value: `${Math.floor(templateDetail.totalDurationSec / 60)} phút`, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
                         { label: "Chế độ thi", value: MODE_LABEL[templateDetail.mode] ?? templateDetail.mode, icon: Globe, color: "text-purple-600", bg: "bg-purple-50" },
                         { label: "Trạng thái", value: STATUS_LABEL[templateDetail.status] ?? templateDetail.status, icon: Info, color: "text-amber-600", bg: "bg-amber-50" },
                       ].map(s => (
@@ -974,7 +992,7 @@ export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "ov
                     {templateDetail.instructions && (
                       <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <Info className="w-4 h-4 text-emerald-600" /> Hướng dẫn làm bài
+                          <Info className="w-4 h-4 text-blue-600" /> Hướng dẫn làm bài
                         </h4>
                         <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-100">
                           {templateDetail.instructions}
@@ -983,11 +1001,11 @@ export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "ov
                     )}
                     <div className="flex flex-wrap gap-4 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
                       <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-lg border border-gray-100">
-                        <div className={`w-2 h-2 rounded-full ${templateDetail.shuffleQuestionOrder ? "bg-emerald-500" : "bg-gray-300"}`} />
+                        <div className={`w-2 h-2 rounded-full ${templateDetail.shuffleQuestionOrder ? "bg-blue-500" : "bg-gray-300"}`} />
                         <span className="text-xs font-bold text-gray-600 uppercase">Xáo trộn câu hỏi: {templateDetail.shuffleQuestionOrder ? "Bật" : "Tắt"}</span>
                       </div>
                       <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-lg border border-gray-100">
-                        <div className={`w-2 h-2 rounded-full ${templateDetail.shuffleOptionOrder ? "bg-emerald-500" : "bg-gray-300"}`} />
+                        <div className={`w-2 h-2 rounded-full ${templateDetail.shuffleOptionOrder ? "bg-blue-500" : "bg-gray-300"}`} />
                         <span className="text-xs font-bold text-gray-600 uppercase">Xáo trộn đáp án: {templateDetail.shuffleOptionOrder ? "Bật" : "Tắt"}</span>
                       </div>
                     </div>
