@@ -22,6 +22,7 @@
 body {
   color: rgb(var(--text));
   background: rgb(var(--bg));
+  font-family: "Plus Jakarta Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   min-height: 100vh;
 }
 
