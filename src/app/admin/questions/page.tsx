@@ -244,6 +244,8 @@ function QuestionGroupModal({
   const isP34 = ["P3", "P4"].includes(form.part);
   const isReadingGroup = ["P6", "P7"].includes(form.part);
   const isP5 = form.part === "P5";
+  const supportsOptionalImage = isP34;
+  const showImageUpload = isP1 || supportsOptionalImage;
   const filteredTags = tags.filter((t) => {
     if (!tagKeyword.trim()) return true;
     const keyword = tagKeyword.toLowerCase();
@@ -295,6 +297,25 @@ function QuestionGroupModal({
       cancelled = true;
     };
   }, [existingAudio?.storageKey, existingImage?.storageKey]);
+
+  const handleImageSelected = (file?: File | null) => {
+    if (!file) return;
+    setMedia((prev) => ({
+      ...prev,
+      imageFile: file,
+      imagePreview: URL.createObjectURL(file),
+      imageUrl: undefined,
+    }));
+  };
+
+  const clearImageSelection = () => {
+    setMedia((prev) => ({
+      ...prev,
+      imageFile: null,
+      imagePreview: null,
+      imageUrl: undefined,
+    }));
+  };
 
   const handlePartChange = (newPart: string) => {
     setForm(prev => ({...prev, part: newPart}));
@@ -574,19 +595,32 @@ function QuestionGroupModal({
                     </div>
                   )}
 
-                  {isP1 && (
+                  {showImageUpload && (
                     <div className="space-y-2">
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase">Hình ảnh *</label>
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase">
+                          {isP1 ? "Hình ảnh *" : "Hình ảnh (Tùy chọn)"}
+                        </label>
+                        {supportsOptionalImage && (
+                          <span className="text-[10px] text-gray-400">
+                            Dùng khi câu hỏi cần biểu đồ, sơ đồ hoặc lịch trình
+                          </span>
+                        )}
+                      </div>
                       {media.imagePreview ? (
                         <div className="relative w-full">
                           <img src={media.imagePreview} alt="preview" className="rounded-lg border border-gray-100 max-h-40 w-full object-contain bg-gray-50" />
-                          <button onClick={() => setMedia({ ...media, imageFile: null, imagePreview: null })} className="absolute -top-2 -right-2 p-1 bg-white rounded-full shadow border border-gray-200 text-red-500"><X className="w-3.5 h-3.5" /></button>
+                          <button onClick={clearImageSelection} className="absolute -top-2 -right-2 p-1 bg-white rounded-full shadow border border-gray-200 text-red-500"><X className="w-3.5 h-3.5" /></button>
                         </div>
                       ) : (
                         <label className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                           <ImageIcon className="w-6 h-6 text-gray-300 mb-1" />
-                          <span className="text-[10px] text-gray-500">Chọn ảnh cho Part 1</span>
-                          <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setMedia({ ...media, imageFile: f, imagePreview: URL.createObjectURL(f) }); }} />
+                          <span className="text-[10px] text-gray-500 text-center px-4">
+                            {isP1
+                              ? "Chọn ảnh cho Part 1"
+                              : `Thêm ảnh minh họa cho ${form.part === "P3" ? "đoạn hội thoại" : "bài nói"} nếu cần`}
+                          </span>
+                          <input type="file" accept="image/*" className="hidden" onChange={e => handleImageSelected(e.target.files?.[0])} />
                         </label>
                       )}
                     </div>
@@ -627,8 +661,8 @@ function QuestionGroupModal({
                 <p className="text-[9px] text-blue-600 font-bold mt-0.5 italic">
                   {form.part === "P1" && "P1: 1 Ảnh + Audio = 1 Câu"}
                   {form.part === "P2" && "P2: 1 Audio = 1 Câu (3 đáp án)"}
-                  {form.part === "P3" && "P3: 1 Hội thoại = 3 Câu"}
-                  {form.part === "P4" && "P4: 1 Bài nói = 3 Câu"}
+                  {form.part === "P3" && "P3: 1 Hội thoại (+ ảnh nếu cần) = 3 Câu"}
+                  {form.part === "P4" && "P4: 1 Bài nói (+ ảnh nếu cần) = 3 Câu"}
                   {form.part === "P5" && "P5: 1 Câu lẻ"}
                   {form.part === "P6" && "P6: 1 Đoạn văn = 4 Câu"}
                   {form.part === "P7" && "P7: 1 Bài đọc = 2-5 Câu"}
