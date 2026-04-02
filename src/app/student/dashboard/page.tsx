@@ -1,9 +1,8 @@
-// app/student/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import ImageSlider from "@/components/User/ImageSlider";
 import Footer from "@/components/User/Footer";
 import {
@@ -24,7 +23,129 @@ import {
   MessageSquare,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
+  PartyPopper,
+  Gift,
+  Rocket,
 } from "lucide-react";
+
+// Component Particle (hạt pháo hoa)
+const Particle = ({ x, y, color, onComplete }: { x: number; y: number; color: string; onComplete: () => void }) => {
+  const angle = Math.random() * Math.PI * 2;
+  const velocity = 100 + Math.random() * 150;
+  const vx = Math.cos(angle) * velocity;
+  const vy = Math.sin(angle) * velocity;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+      animate={{ 
+        opacity: 0, 
+        scale: 0,
+        x: vx,
+        y: vy
+      }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
+      className="absolute pointer-events-none w-2 h-2 rounded-full"
+      style={{ left: x, top: y, backgroundColor: color }}
+    />
+  );
+};
+
+// Component Firework (pháo hoa)
+const Firework = ({ x, y, onComplete }: { x: number; y: number; onComplete: () => void }) => {
+  const colors = ["#ef4444", "#f59e0b", "#eab308", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#06b6d4"];
+  const particleCount = 30;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="absolute pointer-events-none" style={{ left: x, top: y }}>
+      {[...Array(particleCount)].map((_, i) => (
+        <Particle
+          key={i}
+          x={0}
+          y={0}
+          color={colors[Math.floor(Math.random() * colors.length)]}
+          onComplete={() => {}}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Component Confetti
+const Confetti = ({ onComplete }: { onComplete: () => void }) => {
+  const confettiCount = 80;
+  const colors = ["#ef4444", "#f59e0b", "#eab308", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"];
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      {[...Array(confettiCount)].map((_, i) => {
+        const startX = Math.random() * window.innerWidth;
+        const startY = -50;
+        const endX = (Math.random() - 0.5) * 400;
+        const endY = window.innerHeight + 100;
+        const rotation = Math.random() * 360;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        
+        return (
+          <motion.div
+            key={i}
+            initial={{ 
+              opacity: 1,
+              x: startX,
+              y: startY,
+              rotate: 0,
+            }}
+            animate={{ 
+              opacity: 0,
+              x: startX + endX,
+              y: endY,
+              rotate: rotation * 2,
+            }}
+            transition={{ duration: 1.5, ease: "easeOut", delay: Math.random() * 0.5 }}
+            className="absolute w-3 h-3 rounded-sm"
+            style={{ backgroundColor: color }}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+// Component Floating Star
+const FloatingStar = ({ delay, x, y }: { delay: number; x: string; y: string }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0 }}
+      animate={{ opacity: [0, 1, 0], scale: [0, 1, 0], y: [0, -50, -100] }}
+      transition={{ duration: 2, delay, repeat: Infinity, repeatDelay: 3 }}
+      className="absolute pointer-events-none"
+      style={{ left: x, top: y }}
+    >
+      <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+    </motion.div>
+  );
+};
 
 interface MockTest {
   id: string;
@@ -50,12 +171,23 @@ interface RecentActivity {
 
 export default function StudentDashboard() {
   const [mockTests, setMockTests] = useState<MockTest[]>([]);
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
-    [],
-  );
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const testsPerPage = 12; // 3 hàng x 4 cột = 12
+  const [showFireworks, setShowFireworks] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [fireworks, setFireworks] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [greetingIndex, setGreetingIndex] = useState(0);
+  const welcomeRef = useRef<HTMLDivElement>(null);
+  const testsPerPage = 12;
+
+  const greetings = [
+    "Chào mừng bạn quay trở lại! 🎉",
+    "Học tập chăm chỉ nào! 💪",
+    "Một ngày mới tràn đầy năng lượng! ⚡",
+    "Cùng chinh phục mục tiêu hôm nay! 🎯",
+  ];
+
 
   useEffect(() => {
     // practice test
@@ -222,7 +354,39 @@ export default function StudentDashboard() {
     setMockTests(mockTestsData);
     setRecentActivities(recentData);
     setSuggestions(suggestionsData);
+     // Kích hoạt hiệu ứng chào mừng
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 2000);
+
+    // Tạo pháo hoa
+    const interval = setInterval(() => {
+      if (welcomeRef.current) {
+        const rect = welcomeRef.current.getBoundingClientRect();
+        const x = rect.left + rect.width / 2 + (Math.random() - 0.5) * 200;
+        const y = rect.top + 50 + Math.random() * 100;
+        setFireworks(prev => [...prev, { id: Date.now(), x, y }]);
+      }
+    }, 800);
+
+    // Đổi greeting mỗi 5 giây
+    const greetingInterval = setInterval(() => {
+      setGreetingIndex(prev => (prev + 1) % greetings.length);
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(greetingInterval);
+    };
   }, []);
+
+  useEffect(() => {
+    const timers = fireworks.map(fw => {
+      return setTimeout(() => {
+        setFireworks(prev => prev.filter(f => f.id !== fw.id));
+      }, 1000);
+    });
+    return () => timers.forEach(timer => clearTimeout(timer));
+  }, [fireworks]);
 
   // Get current tests for pagination
   const indexOfLastTest = currentPage * testsPerPage;
@@ -290,29 +454,130 @@ export default function StudentDashboard() {
   ];
 
 return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-4">
-            <Sparkles className="w-4 h-4" />
-            Chào mừng bạn quay trở lại
-          </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-2">
-            Chào mừng trở lại! 👋
-          </h1>
-          <p className="text-slate-600 text-lg">
-            Hãy tiếp tục hành trình chinh phục tiếng Anh của bạn
-          </p>
-        </div>
+     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-x-hidden">
+      {/* Confetti Effect */}
+      <AnimatePresence>
+        {showConfetti && <Confetti onComplete={() => setShowConfetti(false)} />}
+      </AnimatePresence>
 
-<div className="mb-8 relative w-full aspect-[20/8] rounded-2xl overflow-hidden shadow-md">
-  <img
-    src="/imgUserLayout/posterlayout.jpg"
-    alt="Dashboard Illustration"
-    className="w-full h-full object-cover"
-  />
-</div>
+      {/* Fireworks Effects */}
+      <AnimatePresence>
+        {fireworks.map(fw => (
+          <Firework key={fw.id} x={fw.x} y={fw.y} onComplete={() => {}} />
+        ))}
+      </AnimatePresence>
+
+      {/* Floating Stars */}
+      <FloatingStar delay={0} x="10%" y="20%" />
+      <FloatingStar delay={1.5} x="85%" y="15%" />
+      <FloatingStar delay={3} x="20%" y="80%" />
+      <FloatingStar delay={4.5} x="75%" y="70%" />
+      <FloatingStar delay={2} x="50%" y="40%" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section với Animation */}
+        <motion.div
+          ref={welcomeRef}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
+          className="mb-8 relative"
+        >
+          {/* Animated Background */}
+          <motion.div
+            animate={{
+              background: [
+                "radial-gradient(circle at 20% 50%, rgba(59,130,246,0.1) 0%, transparent 50%)",
+                "radial-gradient(circle at 80% 50%, rgba(139,92,246,0.1) 0%, transparent 50%)",
+                "radial-gradient(circle at 20% 50%, rgba(59,130,246,0.1) 0%, transparent 50%)",
+              ]
+            }}
+            transition={{ duration: 3, repeat: Infinity }}
+            className="absolute inset-0 rounded-3xl -z-10"
+          />
+
+          {/* Welcome Badge với Animation */}
+          <motion.div
+            initial={{ x: -100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-5 py-2 rounded-full text-sm font-medium mb-4 shadow-lg"
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            >
+              <Sparkles className="w-4 h-4" />
+            </motion.div>
+            <span>✨ Chào mừng bạn quay trở lại ✨</span>
+          </motion.div>
+
+          {/* Title với Animation */}
+          <motion.div
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <h1 className="text-5xl lg:text-6xl font-bold mb-4">
+              <span className="bg-gradient-to-r from-slate-900 via-blue-800 to-indigo-700 bg-clip-text text-transparent">
+                Chào mừng trở lại!
+              </span>
+              <motion.span
+                animate={{ rotate: [0, 20, -20, 20, 0] }}
+                transition={{ duration: 0.5, delay: 0.8, repeat: 2 }}
+                className="inline-block ml-2"
+              >
+                👋
+              </motion.span>
+            </h1>
+          </motion.div>
+
+          {/* Greeting với Animation thay đổi */}
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={greetingIndex}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="text-slate-600 text-lg flex items-center gap-2"
+            >
+              <PartyPopper className="w-5 h-5 text-orange-500" />
+              {greetings[greetingIndex]}
+            </motion.p>
+          </AnimatePresence>
+
+          {/* Decorative Elements */}
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -top-5 -right-5 opacity-20"
+          >
+            <Rocket className="w-16 h-16 text-blue-500" />
+          </motion.div>
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            className="absolute bottom-0 left-10 opacity-20"
+          >
+            <Gift className="w-12 h-12 text-purple-500" />
+          </motion.div>
+        </motion.div>
+
+        {/* Poster Image với Animation */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className="mb-8 relative w-full aspect-[20/8] rounded-2xl overflow-hidden shadow-xl group"
+        >
+          <img
+            src="/imgUserLayout/posterlayout.jpg"
+            alt="Dashboard Illustration"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </motion.div>
 
         {/* Stats Cards - Cập nhật màu gradient */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

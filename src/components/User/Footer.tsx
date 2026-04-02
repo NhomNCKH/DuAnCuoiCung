@@ -35,8 +35,8 @@ export default function Footer() {
     ];
 
   const resourceLinks = [
-    { name: "Thư viện đề thi", href: "/student/mock-tests" },
-    { name: "Blog", href: "/blog" },
+    { name: "Thư viện đề thi", href: "/student/practicetest" },
+    { name: "Blog", href: "/pages/blog" },
     { name: "Tổng hợp tài liệu", href: "/resources" }
   ];
 
