@@ -62,17 +62,20 @@ export default function Footer() {
       <div className="px-6 py-12 md:px-12">
         {/* Logo và slogan */}
         <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-              <span className="text-2xl">🎓</span>
-            </div>
+        <div className="flex items-center justify-center gap-3 mb-4">
+            {/* Ảnh logo */}
+            <img 
+            src="/icon/icon_website.svg"  // Đường dẫn đến file ảnh logo
+            alt="TOEIC MASTER Logo"
+            className="w-30 h-12 object-contain"
+            />
             <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              EduChain
+            TOEIC MASTER
             </h2>
-          </div>
-          <p className="text-gray-600 text-lg font-medium">
+        </div>
+        <p className="text-gray-600 text-lg font-medium">
             LUYỆN ĐỀ ONLINE KHÔNG GIỚI HẠN
-          </p>
+        </p>
         </div>
 
         {/* Features Grid */}

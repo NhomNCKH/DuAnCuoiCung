@@ -159,12 +159,16 @@ export default function StudentLayout({
             {/* Logo */}
             <div className="flex items-center gap-2">
               <Link href="/student/dashboard" className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <GraduationCap className="w-5 h-5 text-white" />
-                </div>
+                {/* Ảnh logo */}
+                <img 
+                  src="/logo/logo_website.svg"  // Đường dẫn đến file ảnh logo
+                  alt="EduChain Logo"
+                  className="w-60 h-12.3 object-contain"
+                />
+                {/* Hoặc giữ text nếu muốn
                 <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   EduChain
-                </span>
+                </span> */}
               </Link>
             </div>
 
