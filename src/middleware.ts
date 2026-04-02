@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 import { ACCESS_TOKEN_COOKIE, REFRESH_HINT_COOKIE } from '@/lib/auth-session';
 
 const publicRoutes = ['/', '/login', '/register'];
+const publicFileRoutes = ['/slides', '/logo', '/icon'];
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -11,7 +12,9 @@ export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Bỏ qua static files và API routes
-  if (path.startsWith('/_next') || path.startsWith('/api')) {
+  if (path.startsWith('/_next') || 
+      (path.startsWith('/api')) || 
+      publicFileRoutes.some(route => path.startsWith(route)) ) {
     return NextResponse.next();
   }
 
