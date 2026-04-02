@@ -309,15 +309,9 @@ export default function HomePage() {
             <div className="flex items-center space-x-3">
               <Link
                 href="/login"
-                className="px-4 py-2 text-slate-700 hover:text-blue-600 font-medium transition-colors"
-              >
-                Đăng nhập
-              </Link>
-              <Link
-                href="/register"
                 className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all transform hover:scale-105"
               >
-                Đăng ký miễn phí
+                Đăng nhập ngay
               </Link>
             </div>
           </div>
