@@ -452,7 +452,7 @@ export default function HomePage() {
             <div className="flex items-center space-x-3">
               <ThemeToggle />
               <Link
-                href="/login"
+                href="/auth"
                 className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all transform hover:scale-105"
               >
                 Đăng nhập ngay

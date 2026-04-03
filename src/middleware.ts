@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { ACCESS_TOKEN_COOKIE, REFRESH_HINT_COOKIE } from '@/lib/auth-session';
 
-const publicRoutes = ['/', '/login', '/register'];
+const publicRoutes = ['/', '/login', '/register', '/auth' ];
 const publicFileRoutes = ['/slides', '/logo', '/icon'];
 
 export function middleware(request: NextRequest) {
