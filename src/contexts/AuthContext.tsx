@@ -91,12 +91,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const res = await apiClient.auth.getMe();
             if (res.statusCode === 200 && res.data?.data) {
               const payload = res.data.data;
+              const rolesFromJwt =
+                Array.isArray(payload.roles) && payload.roles.length > 0
+                  ? payload.roles
+                  : payload.role
+                    ? [payload.role]
+                    : parsedUser?.roles ?? [];
               const freshUser: UserProfile = {
                 ...(parsedUser ?? {}),
                 id: payload.sub,
                 name: parsedUser?.name ?? '',
                 email: payload.email,
                 role: payload.role,
+                roles: rolesFromJwt,
                 permissions: payload.permissions || [],
                 status: parsedUser?.status ?? 'active',
               };
@@ -116,12 +123,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const retry = await apiClient.auth.getMe();
             const payload = retry.data?.data;
             if (retry.statusCode === 200 && payload) {
+              const rolesFromJwt =
+                Array.isArray(payload.roles) && payload.roles.length > 0
+                  ? payload.roles
+                  : payload.role
+                    ? [payload.role]
+                    : parsedUser?.roles ?? [];
               const freshUser: UserProfile = {
                 ...(parsedUser ?? {}),
                 id: payload.sub,
                 name: parsedUser?.name ?? '',
                 email: payload.email,
                 role: payload.role,
+                roles: rolesFromJwt,
                 permissions: payload.permissions || [],
                 status: parsedUser?.status ?? 'active',
               };

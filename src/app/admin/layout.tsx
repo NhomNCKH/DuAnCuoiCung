@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/contexts/ThemeContext";
 
 type AdminMenuItem = {
   id: string;
@@ -41,10 +42,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [adminTheme, setAdminTheme] = useState<"light" | "dark">("light");
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ "user-management": true });
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -68,22 +69,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    const storedTheme = window.localStorage.getItem("admin-theme");
-    if (storedTheme === "light" || storedTheme === "dark") {
-      setAdminTheme(storedTheme);
-      return;
-    }
-    const preferDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setAdminTheme(preferDark ? "dark" : "light");
-  }, []);
-
-  const toggleAdminTheme = () => {
-    const nextTheme = adminTheme === "light" ? "dark" : "light";
-    setAdminTheme(nextTheme);
-    window.localStorage.setItem("admin-theme", nextTheme);
-  };
 
   const menuItems = useMemo(() => {
     const canAccess = (permission?: string) => {
@@ -235,7 +220,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className={`app-shell admin-theme ${adminTheme === "dark" ? "admin-dark" : "admin-light"}`}>
+    <div className={`app-shell admin-theme ${theme === "dark" ? "admin-dark" : "admin-light"}`}>
       <button
         onClick={() => setMobileMenuOpen(true)}
         className="fixed left-4 top-4 z-50 rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm lg:hidden"
@@ -263,7 +248,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="relative h-[80px] w-full overflow-hidden border-b border-blue-100">
             <div className="relative h-full w-full">
               <Image
-                src={adminTheme === "dark" ? "/logo/logo_website_dark.svg" : "/logo/logo_website.svg"}
+                src={theme === "dark" ? "/logo/logo_website_dark.svg" : "/logo/logo_website.svg"}
                 alt="TOEIC Master"
                 fill
                 sizes={sidebarCollapsed ? "76px" : "248px"}
@@ -297,10 +282,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       onClick={() => setExpandedMenus((prev) => ({ ...prev, [item.id]: !isExpanded }))}
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
                         hasActiveChild
-                          ? adminTheme === "dark"
+                          ? theme === "dark"
                             ? "bg-slate-800 text-amber-300"
                             : "bg-blue-50 text-blue-700"
-                          : adminTheme === "dark"
+                          : theme === "dark"
                             ? "text-slate-200 hover:bg-slate-800 hover:text-amber-300"
                             : "text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                       }`}
@@ -325,10 +310,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                               onClick={() => setMobileMenuOpen(false)}
                               className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-all ${
                                 childActive
-                                  ? adminTheme === "dark"
+                                  ? theme === "dark"
                                     ? "bg-amber-400 text-slate-900"
                                     : "bg-blue-600 text-white"
-                                  : adminTheme === "dark"
+                                  : theme === "dark"
                                     ? "text-slate-300 hover:bg-slate-800 hover:text-amber-300"
                                     : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"
                               }`}
@@ -351,10 +336,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
                     isActive
-                      ? adminTheme === "dark"
+                      ? theme === "dark"
                         ? "bg-amber-400 text-slate-900"
                         : "bg-blue-600 text-white"
-                      : adminTheme === "dark"
+                      : theme === "dark"
                         ? "text-slate-200 hover:bg-slate-800 hover:text-amber-300"
                         : "text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                   }`}
@@ -386,11 +371,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </h1>
             <div className="flex items-center gap-2">
               <button
-                onClick={toggleAdminTheme}
+                onClick={toggleTheme}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 transition-colors hover:bg-blue-100"
-                aria-label={adminTheme === "dark" ? "Chuyển sang light mode" : "Chuyển sang dark mode"}
+                aria-label={theme === "dark" ? "Chuyển sang light mode" : "Chuyển sang dark mode"}
               >
-                {adminTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
               <div className="relative" ref={profileMenuRef}>
               <button

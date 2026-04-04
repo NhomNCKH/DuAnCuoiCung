@@ -20,6 +20,8 @@ interface TagItem { id: string; category: string; code: string; label: string; d
 interface QuestionGroup {
   id: string; code: string; title: string; part: string; level: string;
   status: string; tagCodes?: string[]; createdAt: string;
+  /** Số câu (API danh sách — loadRelationCount) */
+  questionCount?: number;
   stem?: string; explanation?: string;
   assets?: { id: string; kind: string; storageKey: string; publicUrl: string; mimeType: string; sortOrder: number; contentText?: string }[];
   questions?: { id: string; questionNo: number; prompt: string; answerKey: string; options: { optionKey: string; content: string; isCorrect: boolean }[] }[];
@@ -193,11 +195,14 @@ const emptyMedia = (): GroupMedia => ({ audioFile:null, audioName:null, imageFil
 function QuestionGroupModal({
   group,
   tags,
+  readOnly = false,
   onClose,
   onSaved,
 }: {
   group?: QuestionGroup;
   tags: TagItem[];
+  /** true: chỉ xem (nhóm đã xuất bản / kiểm soát nội dung) */
+  readOnly?: boolean;
   onClose: () => void;
   onSaved: (mode: "create" | "update") => void;
 }) {
@@ -237,6 +242,7 @@ function QuestionGroupModal({
   const [tagKeyword, setTagKeyword] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const ro = readOnly;
 
   const isListening = ["P1", "P2", "P3", "P4"].includes(form.part);
   const isP1 = form.part === "P1";
@@ -423,6 +429,7 @@ function QuestionGroupModal({
     }));
 
   const handleSubmit = async () => {
+    if (ro) return;
     if (!form.part) { setErr("Vui lòng chọn Part"); return; }
     if (!form.code) { setErr("Vui lòng nhập Code"); return; }
     if (isListening && !media.audioFile && !media.audioUrl) { setErr("Vui lòng tải lên file Audio"); return; }
@@ -481,9 +488,16 @@ function QuestionGroupModal({
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="question-bank-modal-surface bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800">{group ? "Sửa nhóm câu hỏi" : "Tạo nhóm câu hỏi mới"}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-gray-800">
+              {ro ? "Chi tiết nhóm câu hỏi" : group ? "Sửa nhóm câu hỏi" : "Tạo nhóm câu hỏi mới"}
+            </h2>
+            {ro && (
+              <p className="mt-0.5 text-xs font-medium text-amber-700">Chế độ chỉ xem — nội dung đã xuất bản không chỉnh sửa tại đây.</p>
+            )}
+          </div>
+          <button type="button" onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg shrink-0"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
 
         <div className="question-bank-modal-body flex-1 overflow-hidden flex flex-col lg:flex-row bg-slate-50/80">
@@ -503,6 +517,7 @@ function QuestionGroupModal({
                     <SharedDropdown
                       value={form.part}
                       onChange={handlePartChange}
+                      disabled={ro}
                       options={[
                         { value: "", label: "-- Chọn Part --" },
                         ...PARTS.map((p) => ({ value: p, label: `Part ${p.replace("P", "")}` })),
@@ -514,6 +529,7 @@ function QuestionGroupModal({
                     <SharedDropdown
                       value={form.level}
                       onChange={(value) => setForm({ ...form, level: value })}
+                      disabled={ro}
                       options={LEVELS.map((l) => ({
                         value: l,
                         label: l.charAt(0).toUpperCase() + l.slice(1),
@@ -523,19 +539,20 @@ function QuestionGroupModal({
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Mã (Code) *</label>
-                  <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: QB-P1-001" className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-500" />
+                  <input readOnly={ro} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: QB-P1-001" className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-500 read-only:bg-gray-50 read-only:cursor-default" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Tiêu đề nhóm *</label>
-                  <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Part 1 - Photos 01" className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-500" />
+                  <input readOnly={ro} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Part 1 - Photos 01" className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-500 read-only:bg-gray-50 read-only:cursor-default" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Tags</label>
                   <input
+                    readOnly={ro}
                     value={tagKeyword}
                     onChange={(e) => setTagKeyword(e.target.value)}
                     placeholder="Tìm tag theo code/label..."
-                    className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-500"
+                    className="w-full px-3 py-1.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-500 read-only:bg-gray-50 read-only:cursor-default"
                   />
                   <div className="mt-2 max-h-28 overflow-y-auto rounded border border-gray-100 bg-gray-50 p-2">
                     <div className="flex flex-wrap gap-1.5">
@@ -545,7 +562,9 @@ function QuestionGroupModal({
                           <button
                             type="button"
                             key={tag.id}
+                            disabled={ro}
                             onClick={() =>
+                              !ro &&
                               setForm((prev) => ({
                                 ...prev,
                                 tagCodes: selected
@@ -553,7 +572,7 @@ function QuestionGroupModal({
                                   : [...prev.tagCodes, tag.code],
                               }))
                             }
-                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:cursor-default disabled:opacity-70 ${
                               selected
                                 ? "border-blue-300 bg-blue-50 text-blue-700"
                                 : "border-gray-200 bg-white text-gray-600 hover:border-blue-200"
@@ -583,14 +602,18 @@ function QuestionGroupModal({
                         <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
                           <Volume2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
                           <audio src={media.audioUrl} controls className="h-6 flex-1 scale-90 origin-left" />
-                          <button onClick={() => setMedia({ ...media, audioFile: null, audioUrl: undefined })} className="text-blue-400 hover:text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
+                          {!ro && (
+                            <button type="button" onClick={() => setMedia({ ...media, audioFile: null, audioUrl: undefined })} className="text-blue-400 hover:text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
+                          )}
                         </div>
-                      ) : (
+                      ) : !ro ? (
                         <label className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                           <Music className="w-6 h-6 text-gray-300 mb-1" />
                           <span className="text-[10px] text-gray-500 text-center px-4">Tải lên Audio cho {isP1 || isP2 ? "câu hỏi" : "đoạn hội thoại"}</span>
                           <input type="file" accept="audio/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setMedia({ ...media, audioFile: f, audioUrl: URL.createObjectURL(f) }); }} />
                         </label>
+                      ) : (
+                        <p className="py-4 text-center text-xs text-gray-400">Không có file audio.</p>
                       )}
                     </div>
                   )}
@@ -610,9 +633,11 @@ function QuestionGroupModal({
                       {media.imagePreview ? (
                         <div className="relative w-full">
                           <img src={media.imagePreview} alt="preview" className="rounded-lg border border-gray-100 max-h-40 w-full object-contain bg-gray-50" />
-                          <button onClick={clearImageSelection} className="absolute -top-2 -right-2 p-1 bg-white rounded-full shadow border border-gray-200 text-red-500"><X className="w-3.5 h-3.5" /></button>
+                          {!ro && (
+                            <button type="button" onClick={clearImageSelection} className="absolute -top-2 -right-2 p-1 bg-white rounded-full shadow border border-gray-200 text-red-500"><X className="w-3.5 h-3.5" /></button>
+                          )}
                         </div>
-                      ) : (
+                      ) : !ro ? (
                         <label className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                           <ImageIcon className="w-6 h-6 text-gray-300 mb-1" />
                           <span className="text-[10px] text-gray-500 text-center px-4">
@@ -622,6 +647,8 @@ function QuestionGroupModal({
                           </span>
                           <input type="file" accept="image/*" className="hidden" onChange={e => handleImageSelected(e.target.files?.[0])} />
                         </label>
+                      ) : (
+                        <p className="py-4 text-center text-xs text-gray-400">Không có hình đính kèm.</p>
                       )}
                     </div>
                   )}
@@ -629,14 +656,14 @@ function QuestionGroupModal({
                   {isP34 && (
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-gray-500 uppercase">Transcript</label>
-                      <textarea value={transcript} onChange={e => setTranscript(e.target.value)} rows={4} placeholder="Nội dung audio..." className="w-full px-3 py-2 border border-gray-100 bg-gray-50 rounded text-xs outline-none" />
+                      <textarea readOnly={ro} value={transcript} onChange={e => setTranscript(e.target.value)} rows={4} placeholder="Nội dung audio..." className="w-full px-3 py-2 border border-gray-100 bg-gray-50 rounded text-xs outline-none read-only:cursor-default" />
                     </div>
                   )}
 
                   {isReadingGroup && (
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-gray-500 uppercase">Đoạn văn (Passage) *</label>
-                      <textarea value={form.stem} onChange={e => setForm({ ...form, stem: e.target.value })} rows={10} placeholder="Nhập nội dung bài đọc..." className="w-full px-3 py-2 border border-gray-100 bg-gray-50 rounded text-xs outline-none" />
+                      <textarea readOnly={ro} value={form.stem} onChange={e => setForm({ ...form, stem: e.target.value })} rows={10} placeholder="Nhập nội dung bài đọc..." className="w-full px-3 py-2 border border-gray-100 bg-gray-50 rounded text-xs outline-none read-only:cursor-default" />
                     </div>
                   )}
                 </div>
@@ -647,7 +674,7 @@ function QuestionGroupModal({
               <label className="text-[10px] font-bold text-gray-500 mb-2 uppercase flex items-center gap-2">
                 <FileText className="w-3 h-3" /> Giải thích chung
               </label>
-              <textarea value={form.explanation} onChange={e => setForm({ ...form, explanation: e.target.value })} rows={3} placeholder="Giải thích cho đáp án..." className="w-full px-3 py-2 border border-gray-100 bg-gray-50 rounded text-xs outline-none" />
+              <textarea readOnly={ro} value={form.explanation} onChange={e => setForm({ ...form, explanation: e.target.value })} rows={3} placeholder="Giải thích cho đáp án..." className="w-full px-3 py-2 border border-gray-100 bg-gray-50 rounded text-xs outline-none read-only:cursor-default" />
             </div>
           </div>
 
@@ -668,8 +695,8 @@ function QuestionGroupModal({
                   {form.part === "P7" && "P7: 1 Bài đọc = 2-5 Câu"}
                 </p>
               </div>
-              {!isFixedQCount && (
-                <button onClick={addQuestion} className="px-3 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg flex items-center gap-1 hover:bg-blue-100 transition-colors">
+              {!isFixedQCount && !ro && (
+                <button type="button" onClick={addQuestion} className="px-3 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg flex items-center gap-1 hover:bg-blue-100 transition-colors">
                   <ActionIcon action="add" className="w-3 h-3" /> Thêm câu hỏi
                 </button>
               )}
@@ -696,27 +723,27 @@ function QuestionGroupModal({
                       <span className="w-5 h-5 bg-gray-800 text-white rounded-full flex items-center justify-center text-[10px]">{q.questionNo}</span>
                       Câu hỏi {q.questionNo}
                     </span>
-                    {!isFixedQCount && questions.length > 2 && (
-                      <button onClick={() => removeQuestion(qIdx)} className="text-red-300 hover:text-red-500 opacity-0 group-hover/q:opacity-100 transition-opacity"><ActionIcon action="delete" className="w-3.5 h-3.5" /></button>
+                    {!isFixedQCount && !ro && questions.length > 2 && (
+                      <button type="button" onClick={() => removeQuestion(qIdx)} className="text-red-300 hover:text-red-500 opacity-0 group-hover/q:opacity-100 transition-opacity"><ActionIcon action="delete" className="w-3.5 h-3.5" /></button>
                     )}
                   </div>
 
                   {!isP2 && (
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Nội dung câu hỏi (Prompt)</label>
-                      <input value={q.prompt} onChange={e => updateQuestion(qIdx, "prompt", e.target.value)} placeholder="VD: What is the main topic?" className="w-full px-3 py-1.5 border border-gray-100 bg-gray-50 rounded text-xs outline-none focus:border-blue-300" />
+                      <input readOnly={ro} value={q.prompt} onChange={e => updateQuestion(qIdx, "prompt", e.target.value)} placeholder="VD: What is the main topic?" className="w-full px-3 py-1.5 border border-gray-100 bg-gray-50 rounded text-xs outline-none focus:border-blue-300 read-only:cursor-default" />
                     </div>
                   )}
 
                   <div className={`grid grid-cols-1 ${isP2 ? "md:grid-cols-3" : "md:grid-cols-2"} gap-2`}>
                     {q.options.filter(o => !isP2 || o.optionKey !== "D").map((o, oIdx) => (
                       <div key={o.optionKey} className={`flex items-center gap-2 p-2 rounded border transition-all ${o.isCorrect ? "bg-blue-50 border-blue-400 ring-1 ring-blue-400" : "bg-white border-gray-100 hover:border-gray-300"}`}>
-                        <button onClick={() => updateOption(qIdx, oIdx, "isCorrect", true)} className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${o.isCorrect ? "bg-blue-500 border-blue-500 shadow-sm shadow-blue-200" : "border-gray-300 bg-white"}`}>
+                        <button type="button" disabled={ro} onClick={() => !ro && updateOption(qIdx, oIdx, "isCorrect", true)} className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 disabled:cursor-default ${o.isCorrect ? "bg-blue-500 border-blue-500 shadow-sm shadow-blue-200" : "border-gray-300 bg-white"}`}>
                           {o.isCorrect && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </button>
                         <span className="text-[10px] font-bold text-gray-400 w-3">{o.optionKey}</span>
                         {!isP2 ? (
-                          <input value={o.content} onChange={e => updateOption(qIdx, oIdx, "content", e.target.value)} placeholder={`Đáp án ${o.optionKey}`} className="flex-1 bg-transparent text-[11px] outline-none" />
+                          <input readOnly={ro} value={o.content} onChange={e => updateOption(qIdx, oIdx, "content", e.target.value)} placeholder={`Đáp án ${o.optionKey}`} className="flex-1 bg-transparent text-[11px] outline-none read-only:cursor-default" />
                         ) : (
                           <span className="text-[11px] text-gray-600 font-medium">Đáp án {o.optionKey}</span>
                         )}
@@ -733,11 +760,19 @@ function QuestionGroupModal({
         <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-white">
           <p className="text-[10px] text-gray-400 font-medium italic flex items-center gap-1"><Info className="w-3 h-3"/> </p>
           <div className="flex gap-3">
-            <button onClick={onClose} className="px-5 py-2 text-xs font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">Hủy</button>
-            <button onClick={handleSubmit} disabled={saving} className="px-8 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 shadow-sm shadow-blue-100">
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-              {saving ? "Đang lưu..." : (group ? "Cập nhật nhóm" : "Tạo nhóm ngay")}
-            </button>
+            {ro ? (
+              <button type="button" onClick={onClose} className="px-8 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors">
+                Đóng
+              </button>
+            ) : (
+              <>
+                <button type="button" onClick={onClose} className="px-5 py-2 text-xs font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">Hủy</button>
+                <button type="button" onClick={handleSubmit} disabled={saving} className="px-8 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 shadow-sm shadow-blue-100">
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                  {saving ? "Đang lưu..." : (group ? "Cập nhật nhóm" : "Tạo nhóm ngay")}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </motion.div>
@@ -991,6 +1026,15 @@ function QuestionGroupsTab({
   onDataChanged?: () => void;
 }) {
   const { notify } = useToast();
+  const { user } = useAuth();
+  const roleCodes =
+    user?.roles?.length && user.roles.length > 0
+      ? user.roles
+      : user?.role
+        ? [user.role]
+        : [];
+  const canEditPublishedAsSuperadmin =
+    user?.role === "superadmin" || roleCodes.includes("superadmin");
   const [groups, setGroups] = useState<QuestionGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
@@ -1005,7 +1049,11 @@ function QuestionGroupsTab({
     total: 0,
     totalPages: 1,
   });
-  const [modal, setModal] = useState<{open:boolean;group?:QuestionGroup}>({open:false});
+  const [modal, setModal] = useState<{
+    open: boolean;
+    group?: QuestionGroup;
+    readOnly?: boolean;
+  }>({ open: false });
   const [actionLoading, setActionLoading] = useState<string|null>(null);
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -1157,21 +1205,20 @@ function QuestionGroupsTab({
     }
   };
 
-  const openEditModal = async (group: QuestionGroup) => {
-    if (group.status === "published") {
-      notify({
-        title: "Không thể sửa nhóm đã xuất bản",
-        message: "Vui lòng chuyển trạng thái khác hoặc tạo bản sao trước khi chỉnh sửa.",
-        variant: "error",
-      });
-      return;
-    }
-
+  /** Đã xuất bản → chỉ xem; còn lại → sửa */
+  const openGroupDetailModal = async (
+    group: QuestionGroup,
+    mode: "view" | "edit",
+  ) => {
     setLoadingDetailId(group.id);
     try {
       const res = await apiClient.admin.questionBank.getQuestionGroup(group.id);
       const payload = (res.data as any)?.data ?? res.data;
-      setModal({ open: true, group: payload as QuestionGroup });
+      setModal({
+        open: true,
+        group: payload as QuestionGroup,
+        readOnly: mode === "view",
+      });
     } catch (e: any) {
       notify({
         title: "Không tải được chi tiết nhóm",
@@ -1253,7 +1300,7 @@ function QuestionGroupsTab({
           <FileUp className="w-4 h-4" />
           Import JSON
         </button>
-        <button onClick={()=>setModal({open:true})} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+        <button onClick={()=>setModal({ open: true, readOnly: false })} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
           <ActionIcon action="add" className="w-4 h-4"/>Tạo nhóm
         </button>
       </div>
@@ -1284,13 +1331,19 @@ function QuestionGroupsTab({
           <div className="hidden md:flex items-center gap-3 px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
             <input type="checkbox" checked={groups.length>0&&selected.size===groups.length} onChange={selectAll} className="rounded"/>
             <span className="flex-1">Tiêu đề / Code</span>
+            <span className="w-14 shrink-0 text-center">Số câu</span>
             <span className="w-16 text-center">Part</span>
             <span className="w-20 text-center">Độ khó</span>
             <span className="w-24 text-center">Trạng thái</span>
-            <span className="w-36 text-right">Thao tác</span>
+            <span className="w-40 text-right">Thao tác</span>
           </div>
           {groups.map(group=>{
             const isActioning = actionLoading?.startsWith(group.id);
+            const qCount =
+              typeof group.questionCount === "number"
+                ? group.questionCount
+                : group.questions?.length;
+            const isPublished = group.status === "published";
             return (
               <motion.div key={group.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}
                 className="bg-white rounded-xl px-4 py-3 border border-gray-100 hover:shadow-sm transition-shadow flex items-center gap-3">
@@ -1298,25 +1351,35 @@ function QuestionGroupsTab({
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-800 text-sm truncate">{group.title}</p>
                   <p className="text-xs text-gray-400 font-mono">{group.code}</p>
+                  <p className="mt-0.5 text-[11px] text-gray-500 md:hidden">
+                    {qCount != null ? `${qCount} câu` : "—"}
+                  </p>
                 </div>
+                <span className="hidden md:inline-flex w-14 shrink-0 justify-center text-xs font-bold tabular-nums text-slate-700 bg-slate-100 px-2 py-1 rounded-lg" title="Số câu trong nhóm">
+                  {qCount != null ? qCount : "—"}
+                </span>
                 <span className="hidden md:block w-16 text-center text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{group.part}</span>
                 <span className={`hidden md:block w-20 text-center text-xs font-medium px-2 py-1 rounded-full ${LEVEL_CLASS[group.level] ?? "qg-level qg-level--default"}`}>{group.level}</span>
                 <span className={`hidden md:block w-24 text-center text-xs font-medium px-2 py-1 rounded-full ${STATUS_CLASS[group.status] ?? "qg-status qg-status--default"}`}>{STATUS_LABEL[group.status] ?? group.status}</span>
-                <div className="flex items-center gap-1.5 w-36 justify-end flex-shrink-0">
+                <div className="flex items-center gap-1.5 w-40 justify-end flex-shrink-0">
                   <ActionMenu group={group} onAction={handleAction} loading={!!isActioning}/>
                   <button
-                    onClick={() => openEditModal(group)}
-                    disabled={group.status === "published"}
-                    className={`p-1.5 rounded-lg ${group.status === "published" ? "cursor-not-allowed opacity-45" : "hover:bg-blue-50"}`}
-                    title={group.status === "published" ? "Nhóm đã xuất bản, không thể sửa trực tiếp" : "Sửa"}
+                    type="button"
+                    onClick={() =>
+                      openGroupDetailModal(group, isPublished ? "view" : "edit")
+                    }
+                    className="p-1.5 rounded-lg hover:bg-blue-50"
+                    title={isPublished ? "Xem chi tiết (chỉ đọc)" : "Sửa nhóm"}
                   >
                     {loadingDetailId === group.id ? (
                       <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                    ) : isPublished ? (
+                      <Eye className="w-3.5 h-3.5 text-blue-600" aria-hidden />
                     ) : (
                       <ActionIcon action="edit" className="w-3.5 h-3.5 text-blue-500"/>
                     )}
                   </button>
-                  <button onClick={() => setGroupToDelete(group)} className="p-1.5 hover:bg-red-50 rounded-lg" title="Xóa"><ActionIcon action="delete" className="w-3.5 h-3.5 text-red-500"/></button>
+                  <button type="button" onClick={() => setGroupToDelete(group)} className="p-1.5 hover:bg-red-50 rounded-lg" title="Xóa"><ActionIcon action="delete" className="w-3.5 h-3.5 text-red-500"/></button>
                 </div>
               </motion.div>
             );
@@ -1340,6 +1403,7 @@ function QuestionGroupsTab({
           <QuestionGroupModal
             group={modal.group}
             tags={tags}
+            readOnly={modal.readOnly === true}
             onClose={() => setModal({ open: false })}
             onSaved={(mode) => {
               setModal({ open: false });
