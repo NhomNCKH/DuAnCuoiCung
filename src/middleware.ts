@@ -19,7 +19,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Nếu đã đăng nhập mà vào /login hoặc /register thì chuyển về trang dashboard tương ứng
-  // Vì middleware không truy cập được localStorage để biết role, ta cứ chuyển về /
+  // Vì middleware không truy cập được localStorage để biết role, ta cứ chuyển về //
   // hoặc một trang trung gian để FE xử lý tiếp.
   if (token && (path === '/login' || path === '/register' || path === '/auth')) {
     return NextResponse.redirect(new URL('/', request.url));
