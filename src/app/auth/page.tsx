@@ -157,7 +157,8 @@ export default function AuthPage() {
         if (loginRes.success) {
           router.push("/student/dashboard");
         } else {
-          router.push("/login");
+          setIsLogin(true);
+          setError("Đăng ký thành công. Vui lòng đăng nhập để tiếp tục");
         }
       } else {
         setError(response.message || "Đăng ký thất bại");

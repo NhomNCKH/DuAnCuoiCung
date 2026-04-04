@@ -42,16 +42,16 @@ export function DashboardLayout({
   // Authentication and role checks
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+      router.replace('/auth');
       return;
     }
     
     if (!isLoading && user && !allowedRoles.includes(user.role)) {
       // Redirect based on user role
       if (user.role === USER_ROLES.ADMIN) {
-        router.push('/admin/dashboard');
+        router.replace('/admin/dashboard');
       } else {
-        router.push('/student/dashboard');
+        router.replace('/student/dashboard');
       }
     }
   }, [isLoading, isAuthenticated, user, router, allowedRoles]);
@@ -72,6 +72,7 @@ export function DashboardLayout({
 
   const handleLogout = async () => {
     await logout();
+    router.replace('/auth');
   };
 
   const currentMenuItem = menuItems.find(item => item.href === pathname);

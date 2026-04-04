@@ -53,7 +53,7 @@ export default function StudentLayout({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace("/login");
+      router.replace("/auth");
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -134,7 +134,7 @@ export default function StudentLayout({
 
   const handleLogout = async () => {
     await logout();
-    router.push("/");
+    router.replace("/auth");
   };
 
   if (isLoading) {

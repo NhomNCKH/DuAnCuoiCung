@@ -51,9 +51,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        router.push("/login");
+        router.replace("/auth");
       } else if (user && !["admin", "superadmin", "org_admin"].includes(user.role)) {
-        router.push("/student/dashboard");
+        router.replace("/student/dashboard");
       }
     }
   }, [isAuthenticated, isLoading, router, user]);
@@ -216,7 +216,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleLogout = async () => {
     await logout();
     setProfileMenuOpen(false);
-    router.push("/");
+    router.replace("/auth");
   };
 
   const roleLabel =

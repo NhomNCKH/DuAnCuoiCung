@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { ACCESS_TOKEN_COOKIE, REFRESH_HINT_COOKIE } from '@/lib/auth-session';
 
-const publicRoutes = ['/', '/login', '/register', '/auth' ];
+const publicRoutes = ['/', '/login', '/register', '/auth'];
 const publicFileRoutes = ['/slides', '/logo', '/icon'];
 
 export function middleware(request: NextRequest) {
@@ -21,15 +21,15 @@ export function middleware(request: NextRequest) {
   // Nếu đã đăng nhập mà vào /login hoặc /register thì chuyển về trang dashboard tương ứng
   // Vì middleware không truy cập được localStorage để biết role, ta cứ chuyển về /
   // hoặc một trang trung gian để FE xử lý tiếp.
-  if (token && (path === '/login' || path === '/register')) {
+  if (token && (path === '/login' || path === '/register' || path === '/auth')) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
   // Chưa đăng nhập mà vào route cần auth → redirect login
   if (!token && !refreshHint && !publicRoutes.includes(path)) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', path);
-    return NextResponse.redirect(loginUrl);
+    const authUrl = new URL('/auth', request.url);
+    authUrl.searchParams.set('redirect', path);
+    return NextResponse.redirect(authUrl);
   }
 
   return NextResponse.next();

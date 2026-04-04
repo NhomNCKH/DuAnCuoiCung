@@ -264,7 +264,7 @@ const MockTestCard = ({ test, idx, router }: { test: any; idx: number; router: a
         if (token) {
           router.push(`/student/mock-test/${test.id}`);
         } else {
-          router.push("/login?redirect=/student/mock-test/" + test.id);
+          router.push("/auth?redirect=/student/mock-test/" + test.id);
         }
       }}
       className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
