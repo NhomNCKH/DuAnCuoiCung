@@ -1,9 +1,9 @@
 // app/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence, animate, useInView } from "framer-motion";
 import ThemeToggle from "@/components/User/ThemeToggle";
 import {
   BookOpen,
@@ -27,6 +27,46 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
+
+type CountUpNumberProps = {
+  end: number;
+  prefix?: string;
+  suffix?: string;
+  duration?: number;
+};
+
+const CountUpNumber = ({
+  end,
+  prefix = "",
+  suffix = "",
+  duration = 1.8,
+}: CountUpNumberProps) => {
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true, amount: 0.5 });
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    if (!isInView) return;
+
+    const controls = animate(0, end, {
+      duration,
+      ease: "easeOut",
+      onUpdate: (latest) => {
+        setDisplayValue(Math.round(latest));
+      },
+    });
+
+    return () => controls.stop();
+  }, [duration, end, isInView]);
+
+  return (
+    <span ref={ref} className="tabular-nums">
+      {prefix}
+      {displayValue.toLocaleString("en-US")}
+      {suffix}
+    </span>
+  );
+};
 
 // Image Slider Component
 const HeroSlider = () => {
@@ -170,7 +210,14 @@ const StatCard = ({ stat, idx }: { stat: any; idx: number }) => (
         <stat.icon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
       </div>
     </div>
-    <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">{stat.value}</div>
+    <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+      <CountUpNumber
+        end={stat.value}
+        prefix={stat.prefix}
+        suffix={stat.suffix}
+        duration={stat.duration}
+      />
+    </div>
     <div className="text-sm text-slate-500 dark:text-slate-400">{stat.label}</div>
   </motion.div>
 );
@@ -405,10 +452,10 @@ export default function HomePage() {
   ];
 
   const stats = [
-    { icon: Users, value: "50,000+", label: "Học viên" },
-    { icon: BookOpen, value: "2,000+", label: "Bài tập" },
-    { icon: Award, value: "98%", label: "Hài lòng" },
-    { icon: TrendingUp, value: "+150", label: "Điểm trung bình" },
+    { icon: Users, value: 50000, suffix: "+", label: "Học viên", duration: 2.1 },
+    { icon: BookOpen, value: 2000, suffix: "+", label: "Bài tập", duration: 1.8 },
+    { icon: Award, value: 98, suffix: "%", label: "Hài lòng", duration: 1.4 },
+    { icon: TrendingUp, value: 150, prefix: "+", label: "Điểm trung bình", duration: 1.6 },
   ];
 
   return (
@@ -519,7 +566,10 @@ export default function HomePage() {
                     ))}
                   </div>
                   <div className="text-sm text-slate-600 dark:text-slate-400">
-                    <span className="font-bold text-slate-800 dark:text-slate-200">10,000+</span> học viên đã tin dùng
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      <CountUpNumber end={10000} suffix="+" duration={1.8} />
+                    </span>{" "}
+                    học viên đã tin dùng
                   </div>
                 </div>
               </motion.div>
