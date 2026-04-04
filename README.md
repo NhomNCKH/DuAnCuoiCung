@@ -2,19 +2,32 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 ## Getting Started
 
-First, run the development server:
+First, install dependencies and run the development server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Environment setup
+
+This project is configured to run on both Windows and Mac/Linux without inline shell env syntax.
+
+```bash
+# Local backend
+npm run dev
+
+# Remote backend
+npm run dev:deploy
+```
+
+Files:
+
+- `.env`: local development values
+- `.env.development.remote`: remote backend values for `npm run dev:deploy`
+- `.env.production`: production build values
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
