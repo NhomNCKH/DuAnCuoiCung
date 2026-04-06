@@ -44,11 +44,12 @@ export interface UserData {
 }
 
 // ---- JWT payload từ GET /auth/me ----
-// BE trả về JWT payload: { sub, email, role, iat, exp }
+// BE: { sub, email, role, roles[], permissions?, iat, exp }
 export interface JwtPayload {
   sub: string;
   email: string;
   role: UserRole;
+  roles?: UserRole[];
   permissions?: string[]; // Danh sách các code quyền (ví dụ: 'users.read', 'questions.manage')
   iat?: number;
   exp?: number;
@@ -118,6 +119,8 @@ export interface UserProfile {
   name: string;
   email: string;
   role: UserRole;
+  /** Mọi vai trò gán cho user (đồng bộ từ JWT / login) */
+  roles?: UserRole[];
   permissions?: string[];
   status: UserStatus;
   avatarUrl?: string | null;

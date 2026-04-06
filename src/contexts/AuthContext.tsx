@@ -6,13 +6,13 @@ import {
   clearStoredUser,
   clearAuthSession,
   getAccessTokenExpiresAt,
-  getStoredAccessToken,
-  getStoredUserProfile,
-  getStoredRefreshToken,
-  persistAuthSession,
-  persistStoredUser,
+	getStoredAccessToken,
+	getStoredUserProfile,
+	getStoredRefreshToken,
+	persistAuthSession,
+	persistStoredUser,
 } from '@/lib/auth-session';
-import type { UserProfile, LoginData, RegisterData } from '@/types/api';
+import type { UserProfile, LoginData, RegisterData, JwtPayload } from '@/types/api';
 
 export interface AuthActionResult {
   success: boolean;
@@ -39,23 +39,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = !!user;
 
   const mergeUserProfile = useCallback(
-    (
-      payload: {
-        sub: string;
-        email: string;
-        role: UserProfile['role'];
-        permissions?: string[];
-      },
-      fallbackUser?: UserProfile | null,
-    ): UserProfile => ({
-      ...(fallbackUser ?? {}),
-      id: payload.sub,
-      name: fallbackUser?.name ?? '',
-      email: payload.email,
-      role: payload.role,
-      permissions: payload.permissions || [],
-      status: fallbackUser?.status ?? 'active',
-    }),
+    (payload: JwtPayload, fallbackUser?: UserProfile | null): UserProfile => {
+      const roles =
+        Array.isArray(payload.roles) && payload.roles.length > 0
+          ? payload.roles
+          : payload.role
+            ? [payload.role]
+            : fallbackUser?.roles ?? [];
+
+      return {
+        ...(fallbackUser ?? {}),
+        id: payload.sub,
+        name: fallbackUser?.name ?? '',
+        email: payload.email,
+        role: payload.role,
+        roles,
+        permissions: payload.permissions || [],
+        status: fallbackUser?.status ?? 'active',
+      };
+    },
     [],
   );
 

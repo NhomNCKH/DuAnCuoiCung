@@ -18,6 +18,7 @@ import {
 } from "./ExamPreviewModal";
 import { ActionIcon } from "@/components/ui/action-icons";
 import { SharedDropdown } from "@/components/ui/shared-dropdown";
+import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ExamTemplate {
@@ -101,9 +102,9 @@ function SectionsTab({
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState(false);
+  const [standardDialogOpen, setStandardDialogOpen] = useState(false);
 
   const applyToeicStandard = () => {
-    if (!confirm("Hệ thống sẽ thay thế cấu trúc hiện tại bằng cấu trúc TOEIC Chuẩn (200 câu)?")) return;
     const standard: Section[] = [
       { part: "P1", sectionOrder: 1, expectedGroupCount: 6, expectedQuestionCount: 6 },
       { part: "P2", sectionOrder: 2, expectedGroupCount: 25, expectedQuestionCount: 25 },
@@ -178,6 +179,17 @@ function SectionsTab({
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={standardDialogOpen}
+        onOpenChange={setStandardDialogOpen}
+        title="Áp dụng cấu trúc TOEIC Chuẩn?"
+        message="Hệ thống sẽ thay thế cấu trúc hiện tại bằng cấu trúc TOEIC Chuẩn (200 câu)."
+        confirmLabel="Áp dụng"
+        variant="warning"
+        onConfirm={() => {
+          applyToeicStandard();
+        }}
+      />
       <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -186,7 +198,11 @@ function SectionsTab({
           <p className="text-sm text-gray-500">Thiết kế các phần thi theo đúng format TOEIC</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={applyToeicStandard} className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 text-sm font-medium rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors">
+          <button
+            type="button"
+            onClick={() => setStandardDialogOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 text-sm font-medium rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors"
+          >
             <Zap className="w-4 h-4" /> Cấu trúc Chuẩn
           </button>
           <button onClick={addSection} className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors">
@@ -738,6 +754,8 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
   const [validating, setValidating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [result, setResult] = useState<ValidationResult|null>(null);
   const [preview, setPreview] = useState<{
     template: PreviewTemplatePayload;
@@ -772,26 +790,35 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
     finally{setValidating(false);}
   };
 
-  const handlePublish = async() => {
-    if(!confirm("Xuất bản đề thi này? Sau khi xuất bản, học viên có thể sử dụng.")) return;
-    setPublishing(true); setErr("");
+  const handlePublish = async () => {
+    setPublishing(true);
+    setErr("");
     try {
       await apiClient.admin.examTemplate.publish(template.id);
-      onRefresh(); onClose();
+      onRefresh();
+      onClose();
     } catch (e: unknown) {
       setErr(formatExamPublishError(e));
+      throw e;
+    } finally {
+      setPublishing(false);
     }
-    finally{setPublishing(false);}
   };
 
-  const handleArchive = async() => {
-    if(!confirm("Lưu trữ đề thi này?")) return;
-    setArchiving(true); setErr("");
+  const handleArchive = async () => {
+    setArchiving(true);
+    setErr("");
     try {
       await apiClient.admin.examTemplate.archive(template.id);
-      onRefresh(); onClose();
-    } catch(e:any){setErr(e.message||"Lưu trữ thất bại");}
-    finally{setArchiving(false);}
+      onRefresh();
+      onClose();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg || "Lưu trữ thất bại");
+      throw e;
+    } finally {
+      setArchiving(false);
+    }
   };
 
   const handleDuplicate = async() => {
@@ -804,6 +831,28 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={publishDialogOpen}
+        onOpenChange={setPublishDialogOpen}
+        title="Xuất bản đề thi?"
+        message="Sau khi xuất bản, học viên có thể sử dụng đề thi này."
+        confirmLabel="Xuất bản"
+        cancelLabel="Hủy"
+        variant="default"
+        loading={publishing}
+        onConfirm={handlePublish}
+      />
+      <ConfirmDialog
+        open={archiveDialogOpen}
+        onOpenChange={setArchiveDialogOpen}
+        title="Lưu trữ đề thi?"
+        message="Đề thi sẽ không còn hiển thị cho học viên cho đến khi được khôi phục (nếu hệ thống hỗ trợ)."
+        confirmLabel="Lưu trữ"
+        cancelLabel="Hủy"
+        variant="danger"
+        loading={archiving}
+        onConfirm={handleArchive}
+      />
       <AnimatePresence>
         {err && (
           <motion.div
@@ -935,14 +984,24 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
               {result.valid && (
                 <div className="mt-auto">
                   {template.status === "draft" && (
-                    <button onClick={handlePublish} disabled={publishing} className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
-                      {publishing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Globe className="w-5 h-5" />}
+                    <button
+                      type="button"
+                      onClick={() => setPublishDialogOpen(true)}
+                      disabled={publishing}
+                      className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      <Globe className="w-5 h-5" />
                       XUẤT BẢN
                     </button>
                   )}
                   {template.status === "published" && (
-                    <button onClick={handleArchive} disabled={archiving} className="w-full py-3 bg-gray-900 text-white rounded-lg font-bold text-lg hover:bg-black transition-colors flex items-center justify-center gap-2">
-                      {archiving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Archive className="w-5 h-5" />}
+                    <button
+                      type="button"
+                      onClick={() => setArchiveDialogOpen(true)}
+                      disabled={archiving}
+                      className="w-full py-3 bg-gray-900 text-white rounded-lg font-bold text-lg hover:bg-black transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      <Archive className="w-5 h-5" />
                       LƯU TRỮ
                     </button>
                   )}

@@ -474,13 +474,13 @@ export default function HomePage() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center min-h-[4.75rem] h-[4.75rem] py-1">
             <Link href="/" className="flex items-center space-x-2 group">
-              <div className="relative w-44 h-14">
+              <div className="relative w-52 h-[4.25rem] sm:w-60 sm:h-[4.75rem]">
                 <img 
                   src="/logo/logo_website.svg"
                   alt="EduChain Logo"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain object-left"
                 />
               </div>
             </Link>
@@ -730,15 +730,15 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="relative w-40 h-20">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="relative w-52 h-28 shrink-0">
                   <img 
                     src="/icon/icon_website.svg"
                     alt="ToeicMaster Logo"
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain object-left"
                   />
                 </div>
-                <span className="text-xl font-bold">TOEIC MASTER</span>
+                <span className="text-2xl font-bold">TOEIC MASTER</span>
               </div>
               <p className="text-slate-400 text-sm">
                 Nền tảng luyện thi TOEIC với AI và công nghệ Blockchain

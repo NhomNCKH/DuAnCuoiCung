@@ -35,6 +35,11 @@ a {
     @apply min-h-screen bg-transparent;
   }
 
+  /* Khu vực học viên: dùng chung token admin-theme / admin-dark (xem student/layout). */
+  .student-app {
+    @apply min-h-screen;
+  }
+
   .surface {
     background: rgb(var(--surface));
     @apply border border-slate-200/80 rounded-2xl shadow-sm;

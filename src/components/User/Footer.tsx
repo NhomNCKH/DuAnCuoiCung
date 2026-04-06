@@ -60,14 +60,14 @@ export default function Footer() {
       <div className="px-6 py-12 md:px-12">
         {/* Logo và slogan */}
         <div className="text-center mb-12">
-        <div className="flex items-center justify-center gap-3 mb-4">
+        <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
             {/* Ảnh logo */}
             <img 
             src="/icon/icon_website.svg"  // Đường dẫn đến file ảnh logo
             alt="TOEIC MASTER Logo"
-            className="w-30 h-12 object-contain"
+            className="h-20 w-24 sm:h-24 sm:w-32 object-contain"
             />
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h2 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             TOEIC MASTER
             </h2>
         </div>
