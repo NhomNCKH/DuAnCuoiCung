@@ -25,12 +25,12 @@ export default function Footer() {
     }
   ];
 
-    const aboutLinks = [
+  const aboutLinks = [
     { name: "Giới thiệu", href: "/pages/about" },
     { name: "Liên hệ", href: "/pages/contact" },
     { name: "Điều khoản bảo mật", href: "/pages/privacy" },
     { name: "Điều khoản sử dụng", href: "/pages/terms" }
-    ];
+  ];
 
   const resourceLinks = [
     { name: "Thư viện đề thi", href: "/student/practicetest" },
@@ -60,20 +60,19 @@ export default function Footer() {
       <div className="px-6 py-12 md:px-12">
         {/* Logo và slogan */}
         <div className="text-center mb-12">
-        <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
-            {/* Ảnh logo */}
-            <img 
-            src="/icon/icon_website.svg"  // Đường dẫn đến file ảnh logo
-            alt="TOEIC MASTER Logo"
-            className="h-20 w-24 sm:h-24 sm:w-32 object-contain"
+          <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
+            <img
+              src="/icon/icon_website.svg"
+              alt="TOEIC MASTER Logo"
+              className="h-20 w-24 sm:h-24 sm:w-32 object-contain"
             />
-            <h2 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            TOEIC MASTER
+            <h2 className="text-3xl sm:text-4xl font-bold text-blue-700">
+              TOEIC MASTER
             </h2>
-        </div>
-        <p className="text-gray-600 text-lg font-medium">
+          </div>
+          <p className="text-gray-600 text-lg font-medium">
             LUYỆN ĐỀ ONLINE KHÔNG GIỚI HẠN
-        </p>
+          </p>
         </div>
 
         {/* Features Grid */}
@@ -91,7 +90,7 @@ export default function Footer() {
         </div>
 
         {/* Report Feature */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-12 text-center border border-blue-100">
+        <div className="bg-blue-50 rounded-xl p-6 mb-12 text-center border border-blue-100">
           <div className="flex items-center justify-center gap-2 mb-2">
             <span className="text-2xl">📊</span>
             <h3 className="text-gray-800 font-semibold">Report điểm tự động + đánh giá chi tiết bài làm</h3>
@@ -183,7 +182,7 @@ export default function Footer() {
                   key={idx}
                   href={social.href}
                   target="_blank"
-                  className={`p-2 bg-gray-100 rounded-lg text-gray-500 hover:text-white transition-all ${social.color} hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600`}
+                  className={`p-2 bg-gray-100 rounded-lg text-gray-500 hover:text-white transition-all ${social.color} hover:bg-blue-600`}
                 >
                   <social.icon className="w-4 h-4" />
                 </Link>

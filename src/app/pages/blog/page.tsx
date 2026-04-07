@@ -236,9 +236,9 @@ export default function BlogPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600">
+      <section className="relative pt-32 pb-20 overflow-hidden bg-blue-600">
         <div className="absolute inset-0 bg-black/20" />
         <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
@@ -256,7 +256,7 @@ export default function BlogPage() {
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
               Kiến thức & Cảm hứng
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-indigo-200">
+              <span className="block text-white/90">
                 cho hành trình chinh phục TOEIC
               </span>
             </h1>
@@ -348,7 +348,7 @@ export default function BlogPage() {
                       alt={post.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute inset-0 bg-black/35" />
                     <div className="absolute bottom-4 left-4">
                       <span className="px-3 py-1 bg-blue-600 text-white text-xs rounded-full">
                         {post.category}
@@ -541,7 +541,7 @@ export default function BlogPage() {
       </section>
 
       {/* Newsletter Section */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-600">
+      <section className="py-16 bg-blue-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}

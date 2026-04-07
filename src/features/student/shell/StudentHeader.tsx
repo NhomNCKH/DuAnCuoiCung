@@ -70,7 +70,8 @@ export function StudentHeader({
             </Link>
           </div>
 
-          <nav className="hidden items-center gap-1 md:flex md:shrink-0">
+          {/* Nav kiểu admin: underline + glow */}
+          <nav className="hidden items-center gap-6 md:flex md:shrink-0">
             {items.map((item) => {
               const isActive = item.href !== "#" && pathname === item.href;
               return (
@@ -78,14 +79,21 @@ export function StudentHeader({
                   key={item.label}
                   type="button"
                   onClick={item.onClick ?? (() => router.push(item.href))}
-                  className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                  className={`student-nav-tab group relative -mb-px inline-flex h-10 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition-colors ${
                     isActive
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                      ? "student-nav-tab--active border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
                   }`}
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
+                  {/* Glow dưới gạch chân (nhẹ, premium) */}
+                  {isActive ? (
+                    <span
+                      aria-hidden="true"
+                      className="student-nav-underline pointer-events-none absolute -bottom-[2px] left-1 right-1 h-[2px] rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.65)]"
+                    />
+                  ) : null}
                 </button>
               );
             })}

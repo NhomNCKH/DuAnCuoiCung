@@ -13,21 +13,21 @@ export function WelcomeHeader({ userName, title, subtitle, date }: WelcomeHeader
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-6 text-white"
+      className="rounded-2xl p-6 text-white bg-blue-600"
     >
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold mb-2">
             {title} {userName && `, ${userName}`}!
           </h1>
-          <p className="text-emerald-100">
+          <p className="text-white/85">
             {subtitle}
           </p>
         </div>
         {date && (
-          <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 text-center">
+          <div className="bg-white/15 rounded-xl p-3 text-center">
             <div className="text-2xl font-bold">{date}</div>
-            <div className="text-xs text-emerald-100">Hôm nay</div>
+            <div className="text-xs text-white/80">Hôm nay</div>
           </div>
         )}
       </div>

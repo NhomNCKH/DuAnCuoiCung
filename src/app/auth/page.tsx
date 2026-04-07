@@ -243,7 +243,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#121A2F] via-[#16233D] to-[#1B3F8A]">
+    <div className="relative min-h-screen overflow-hidden bg-[#121A2F]">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-[#2563EB] mix-blend-multiply opacity-20 blur-3xl filter animate-pulse" />
@@ -254,7 +254,7 @@ export default function AuthPage() {
       {/* Floating Particles */}
 
 
-      <div className="relative z-10 container mx-auto px-4 min-h-screen flex items-center justify-center py-12">
+      <div className="relative z-10 container mx-auto px-4 flex items-center justify-center py-12">
         <div className="w-full max-w-6xl">
           {/* Header */}
           <motion.div
@@ -268,9 +268,9 @@ export default function AuthPage() {
                 TOEIC Preparation Platform
               </span>
             </div>
-            <p className="text-white/60 mt-2">
+            {/* <p className="text-white/60 mt-2">
               Nền tảng luyện thi TOEIC thông minh với AI
-            </p>
+            </p> */}
           </motion.div>
 
           {/* Main Card */}
@@ -281,64 +281,64 @@ export default function AuthPage() {
           >
             <div className="flex flex-col lg:flex-row">
               {/* Left Panel - Branding & Info */}
-                <div className="bg-gradient-to-br from-[#2563EB]/18 via-[#1A2743]/18 to-[#FBFB24]/10 p-8 lg:w-1/2 lg:p-12">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                    key={isLogin ? "login-info" : "register-info"}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.5 }}
-                    className="space-y-8"
-                    >
-                    {/* Lottie Animation */}
+                <div className="bg-white/5 p-8 lg:w-1/2 lg:p-12">
+                  <div className="space-y-8">
+                    {/* Lottie Animation (GIỮ ỔN ĐỊNH, không remount khi đổi tab) */}
                     <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/10">
-                    <div ref={lottieContainer} className="w-full h-64" />
+                      <div ref={lottieContainer} className="w-full h-64" />
                     </div>
-                    
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4">
-                        {AUTH_STATS.map((stat, idx) => (
-                        <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/10"
-                        >
-                            <div
-                            className={`w-10 h-10 bg-gradient-to-r ${stat.color} rounded-xl flex items-center justify-center mb-2`}
+
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={isLogin ? "login-info" : "register-info"}
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 16 }}
+                        transition={{ duration: 0.25 }}
+                        className="space-y-8"
+                      >
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                          {AUTH_STATS.map((stat, idx) => (
+                            <motion.div
+                              key={idx}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: idx * 0.1 }}
+                              className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/10"
                             >
-                            <stat.icon className="w-5 h-5 text-white" />
-                            </div>
-                            <div className="text-xl font-bold text-white">
-                            {stat.value}
-                            </div>
-                            <div className="text-xs text-white/60">
-                            {stat.label}
-                            </div>
-                        </motion.div>
-                        ))}
-                    </div>
-                    
-                    {/* Features */}
-                    <div className="grid grid-cols-2 gap-3">
-                        {AUTH_FEATURES.map((feature, idx) => (
-                        <div key={idx} className="flex items-start gap-2">
-                            <feature.icon className="mt-0.5 h-4 w-4 text-[#FBFB24]" />
-                            <div>
-                            <p className="text-white text-xs font-medium">
-                                {feature.title}
-                            </p>
-                            <p className="text-white/40 text-[10px]">
-                                {feature.desc}
-                            </p>
-                            </div>
+                              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center mb-2">
+                                <stat.icon className="w-5 h-5 text-white" />
+                              </div>
+                              <div className="text-xl font-bold text-white">
+                                {stat.value}
+                              </div>
+                              <div className="text-xs text-white/60">
+                                {stat.label}
+                              </div>
+                            </motion.div>
+                          ))}
                         </div>
-                        ))}
-                    </div>
-                    </motion.div>
-                </AnimatePresence>
+
+                        {/* Features */}
+                        <div className="grid grid-cols-2 gap-3">
+                          {AUTH_FEATURES.map((feature, idx) => (
+                            <div key={idx} className="flex items-start gap-2">
+                              <feature.icon className="mt-0.5 h-4 w-4 text-[#FBFB24]" />
+                              <div>
+                                <p className="text-white text-xs font-medium">
+                                  {feature.title}
+                                </p>
+                                <p className="text-white/40 text-[10px]">
+                                  {feature.desc}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
                 </div>
 
               {/* Right Panel - Forms */}
@@ -350,7 +350,7 @@ export default function AuthPage() {
                     onClick={() => handleModeChange("login")}
                     className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       isLogin
-                        ? "bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white shadow-lg"
+                        ? "bg-blue-600 text-white shadow-lg"
                         : "text-white/60 hover:text-white"
                     }`}
                   >
@@ -361,7 +361,7 @@ export default function AuthPage() {
                     onClick={() => handleModeChange("register")}
                     className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       !isLogin
-                        ? "bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white shadow-lg"
+                        ? "bg-blue-600 text-white shadow-lg"
                         : "text-white/60 hover:text-white"
                     }`}
                   >
@@ -454,7 +454,7 @@ export default function AuthPage() {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-50"
+                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold hover:shadow-lg transition-colors transform hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-50"
                       >
                         {loading ? (
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -610,7 +610,7 @@ export default function AuthPage() {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-50"
+                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold hover:shadow-lg transition-colors transform hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-50"
                       >
                         {loading ? (
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

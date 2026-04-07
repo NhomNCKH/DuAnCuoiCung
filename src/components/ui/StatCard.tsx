@@ -23,7 +23,7 @@ export function StatCard({
       className={`${bgColor} rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow`}
     >
       <div className="flex justify-between items-start mb-4">
-        <div className={`w-12 h-12 bg-gradient-to-r ${color} bg-opacity-10 rounded-lg flex items-center justify-center`}>
+        <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-blue-50">
           <Icon className={`w-6 h-6 text-emerald-600`} />
         </div>
         {change && (

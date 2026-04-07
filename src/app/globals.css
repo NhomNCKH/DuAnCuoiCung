@@ -87,172 +87,10 @@ a {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-.dark .student-theme {
-  background: #121a2f;
-  color: #e8edff;
-}
+/* Student UI: dùng chung token & override của admin-theme/admin-dark.
+   Tránh override riêng ở đây để đảm bảo đồng bộ màu sắc với admin. */
 
-.dark .student-theme .bg-white,
-.dark .student-theme .bg-white\/60,
-.dark .student-theme .bg-white\/80,
-.dark .student-theme .bg-white\/90 {
-  background-color: #202a45 !important;
-}
-
-.dark .student-theme .bg-gray-50,
-.dark .student-theme .bg-gray-100,
-.dark .student-theme .bg-slate-50,
-.dark .student-theme .bg-slate-100,
-.dark .student-theme .bg-blue-50,
-.dark .student-theme .bg-blue-50\/30,
-.dark .student-theme .bg-indigo-50,
-.dark .student-theme .bg-orange-50,
-.dark .student-theme .bg-amber-50 {
-  background-color: #263154 !important;
-}
-
-.dark .student-theme .border-gray-100,
-.dark .student-theme .border-gray-200,
-.dark .student-theme .border-gray-300,
-.dark .student-theme .border-slate-200,
-.dark .student-theme .border-blue-100,
-.dark .student-theme .border-blue-200,
-.dark .student-theme .border-amber-200,
-.dark .student-theme .border-orange-200 {
-  border-color: #334067 !important;
-}
-
-.dark .student-theme .text-gray-900,
-.dark .student-theme .text-gray-800,
-.dark .student-theme .text-gray-700,
-.dark .student-theme .text-slate-900,
-.dark .student-theme .text-slate-800,
-.dark .student-theme .text-slate-700 {
-  color: #e8edff !important;
-}
-
-.dark .student-theme .text-gray-600,
-.dark .student-theme .text-gray-500,
-.dark .student-theme .text-gray-400,
-.dark .student-theme .text-slate-600,
-.dark .student-theme .text-slate-500,
-.dark .student-theme .text-slate-400 {
-  color: #9ba8cd !important;
-}
-
-.dark .student-theme .text-blue-700,
-.dark .student-theme .text-blue-600,
-.dark .student-theme .text-indigo-700,
-.dark .student-theme .text-indigo-600 {
-  color: #fbfb24 !important;
-}
-
-.dark .student-theme .text-blue-500,
-.dark .student-theme .text-blue-400,
-.dark .student-theme .text-indigo-500,
-.dark .student-theme .text-indigo-400 {
-  color: #8fb5ff !important;
-}
-
-.dark .student-theme .bg-blue-100,
-.dark .student-theme .bg-indigo-100,
-.dark .student-theme .bg-orange-100,
-.dark .student-theme .bg-amber-100 {
-  background-color: rgba(47, 124, 255, 0.16) !important;
-}
-
-.dark .student-theme .bg-green-50 {
-  background-color: rgba(22, 163, 74, 0.16) !important;
-}
-
-.dark .student-theme .bg-yellow-50 {
-  background-color: rgba(234, 179, 8, 0.14) !important;
-}
-
-.dark .student-theme .bg-red-50 {
-  background-color: rgba(239, 68, 68, 0.14) !important;
-}
-
-.dark .student-theme .text-green-700,
-.dark .student-theme .text-green-600 {
-  color: #6ee7b7 !important;
-}
-
-.dark .student-theme .text-red-700,
-.dark .student-theme .text-red-600 {
-  color: #fca5a5 !important;
-}
-
-.dark .student-theme .text-amber-800,
-.dark .student-theme .text-amber-700,
-.dark .student-theme .text-amber-600,
-.dark .student-theme .text-yellow-700,
-.dark .student-theme .text-yellow-600 {
-  color: #fcd34d !important;
-}
-
-.dark .student-theme .hover\:bg-gray-50:hover,
-.dark .student-theme .hover\:bg-gray-100:hover,
-.dark .student-theme .hover\:bg-blue-50:hover {
-  background-color: #2b365c !important;
-}
-
-.dark .student-theme [class*="focus:ring-blue-"] {
-  --tw-ring-color: rgba(47, 124, 255, 0.22) !important;
-}
-
-.dark .student-theme [class*="focus:border-blue-"] {
-  border-color: #2f7cff !important;
-}
-
-.dark .student-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-.dark .student-theme select,
-.dark .student-theme textarea {
-  background-color: #202a45;
-  color: #e8edff;
-  border-color: #334067;
-}
-
-.dark .student-theme input::placeholder,
-.dark .student-theme textarea::placeholder {
-  color: #9ba8cd;
-}
-
-.dark .student-theme [class*="from-slate-50"],
-.dark .student-theme [class*="from-white"],
-.dark .student-theme [class*="from-gray-50"] {
-  --tw-gradient-from: #121a2f var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgb(18 26 47 / 0) var(--tw-gradient-to-position) !important;
-}
-
-.dark .student-theme [class*="via-white"],
-.dark .student-theme [class*="via-slate-50"] {
-  --tw-gradient-stops:
-    var(--tw-gradient-from),
-    #18223b var(--tw-gradient-via-position),
-    var(--tw-gradient-to) !important;
-}
-
-.dark .student-theme [class*="to-blue-50"],
-.dark .student-theme [class*="to-indigo-50"],
-.dark .student-theme [class*="to-orange-50"],
-.dark .student-theme [class*="to-slate-50"],
-.dark .student-theme [class*="to-gray-100"] {
-  --tw-gradient-to: #18223b var(--tw-gradient-to-position) !important;
-}
-
-.dark .student-theme [class*="from-slate-900"],
-.dark .student-theme [class*="from-slate-800"],
-.dark .student-theme [class*="from-gray-900"] {
-  --tw-gradient-from: #f8fafc var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgb(248 250 252 / 0) var(--tw-gradient-to-position) !important;
-}
-
-.dark .student-theme [class*="to-slate-700"],
-.dark .student-theme [class*="to-slate-600"],
-.dark .student-theme [class*="to-gray-700"] {
-  --tw-gradient-to: #93c5fd var(--tw-gradient-to-position) !important;
-}
+/* (Để tránh ảnh hưởng toàn site) chỉ loại bỏ gradient trong admin-dark như cấu hình bên dưới. */
 
 .admin-dark.admin-theme {
   --admin-bg: #141b2f;
@@ -336,6 +174,17 @@ a {
 .admin-dark .text-blue-700,
 .admin-dark .text-blue-600 {
   color: var(--admin-accent) !important;
+}
+
+/* Learner top nav (giống admin): chuyển underline/glow sang accent vàng trong dark mode */
+.admin-dark .student-nav-tab--active {
+  border-color: var(--admin-accent) !important;
+  color: var(--admin-accent) !important;
+}
+
+.admin-dark .student-nav-underline {
+  background-color: var(--admin-accent) !important;
+  box-shadow: 0 0 10px rgba(255, 191, 47, 0.65) !important;
 }
 
 .admin-dark .bg-blue-600 {
@@ -1152,3 +1001,4 @@ a {
 .slide-animation {
   animation: slideIn 0.5s ease-out;
 }
+

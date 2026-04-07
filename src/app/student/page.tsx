@@ -16,7 +16,7 @@ export default function StudentWelcomePage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -28,7 +28,7 @@ export default function StudentWelcomePage() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-          className="w-24 h-24 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl"
+          className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl"
         >
           <GraduationCap className="w-12 h-12 text-white" />
         </motion.div>
@@ -39,9 +39,9 @@ export default function StudentWelcomePage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
-          <h1 className="text-4xl md:text-5xl font-bold text-emerald-900 mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
             Chào mừng bạn đến với
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">
+            <span className="block text-blue-700">
               EduChain
             </span>
           </h1>
@@ -51,7 +51,7 @@ export default function StudentWelcomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="text-xl text-emerald-700 mb-8"
+          className="text-xl text-slate-600 mb-8"
         >
           Hành trình chinh phục TOEIC của bạn bắt đầu từ đây!
         </motion.p>
@@ -63,20 +63,20 @@ export default function StudentWelcomePage() {
           transition={{ delay: 0.8 }}
           className="grid grid-cols-3 gap-4 mb-12"
         >
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-lg">
-            <BookOpen className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-emerald-600">0</div>
-            <div className="text-sm text-emerald-800">Bài đã học</div>
+          <div className="bg-white rounded-xl p-4 shadow-lg border border-slate-200">
+            <BookOpen className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-slate-900">0</div>
+            <div className="text-sm text-slate-600">Bài đã học</div>
           </div>
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-lg">
-            <Trophy className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-emerald-600">0</div>
-            <div className="text-sm text-emerald-800">Điểm TOEIC</div>
+          <div className="bg-white rounded-xl p-4 shadow-lg border border-slate-200">
+            <Trophy className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-slate-900">0</div>
+            <div className="text-sm text-slate-600">Điểm TOEIC</div>
           </div>
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-lg">
-            <Clock className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-emerald-600">0</div>
-            <div className="text-sm text-emerald-800">Giờ học</div>
+          <div className="bg-white rounded-xl p-4 shadow-lg border border-slate-200">
+            <Clock className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-slate-900">0</div>
+            <div className="text-sm text-slate-600">Giờ học</div>
           </div>
         </motion.div>
 
@@ -91,14 +91,14 @@ export default function StudentWelcomePage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => router.push('/student/dashboard')}
-            className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg flex items-center justify-center space-x-2 mx-auto"
+            className="w-full md:w-auto px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center space-x-2 mx-auto"
           >
             <span>Bắt đầu học ngay</span>
             <ArrowRight className="w-5 h-5" />
           </motion.button>
 
-          <div className="flex items-center justify-center space-x-2 text-sm text-emerald-600">
-            <Shield className="w-4 h-4" />
+          <div className="flex items-center justify-center space-x-2 text-sm text-slate-600">
+            <Shield className="w-4 h-4 text-blue-600" />
             <span>Chứng chỉ được bảo mật bởi Blockchain</span>
           </div>
         </motion.div>
@@ -110,17 +110,17 @@ export default function StudentWelcomePage() {
           transition={{ delay: 1.2 }}
           className="flex flex-wrap justify-center gap-3 mt-8"
         >
-          <div className="flex items-center space-x-1 bg-white/60 backdrop-blur-sm rounded-full px-3 py-1">
-            <Sparkles className="w-3 h-3 text-emerald-600" />
-            <span className="text-xs text-emerald-700">AI Interview</span>
+          <div className="flex items-center space-x-1 bg-white rounded-full px-3 py-1 border border-slate-200">
+            <Sparkles className="w-3 h-3 text-blue-600" />
+            <span className="text-xs text-slate-600">AI Interview</span>
           </div>
-          <div className="flex items-center space-x-1 bg-white/60 backdrop-blur-sm rounded-full px-3 py-1">
-            <Shield className="w-3 h-3 text-emerald-600" />
-            <span className="text-xs text-emerald-700">Blockchain Cert</span>
+          <div className="flex items-center space-x-1 bg-white rounded-full px-3 py-1 border border-slate-200">
+            <Shield className="w-3 h-3 text-blue-600" />
+            <span className="text-xs text-slate-600">Blockchain Cert</span>
           </div>
-          <div className="flex items-center space-x-1 bg-white/60 backdrop-blur-sm rounded-full px-3 py-1">
-            <Trophy className="w-3 h-3 text-emerald-600" />
-            <span className="text-xs text-emerald-700">Real-time Feedback</span>
+          <div className="flex items-center space-x-1 bg-white rounded-full px-3 py-1 border border-slate-200">
+            <Trophy className="w-3 h-3 text-blue-600" />
+            <span className="text-xs text-slate-600">Real-time Feedback</span>
           </div>
         </motion.div>
       </motion.div>
