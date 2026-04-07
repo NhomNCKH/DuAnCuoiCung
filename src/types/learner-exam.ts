@@ -25,6 +25,31 @@ export interface LearnerExamTemplateSummary {
   updatedAt?: string;
 }
 
+export interface LearnerExamAttemptHistoryItem {
+  id: string;
+  examTemplateId: string;
+  attemptNo: number;
+  status: string;
+  startedAt: string;
+  submittedAt?: string | null;
+  gradedAt?: string | null;
+  durationSec?: number | null;
+  totalQuestions: number;
+  answeredCount: number;
+  correctCount: number;
+  listeningScaledScore: number;
+  readingScaledScore: number;
+  totalScore: number;
+  passed?: boolean;
+  template?: {
+    id: string;
+    code: string;
+    name: string;
+    mode: string;
+    totalDurationSec: number;
+  } | null;
+}
+
 export interface LearnerAttemptSessionOption {
   optionKey: string;
   content: string;
@@ -43,6 +68,7 @@ export interface LearnerAttemptSessionQuestion {
 export interface LearnerAttemptSessionAsset {
   id: string;
   kind: string;
+  storageKey?: string | null;
   publicUrl?: string | null;
   mimeType?: string | null;
   durationSec?: number | null;
@@ -150,5 +176,62 @@ export interface LearnerAttemptResultData {
     credentialTemplateId: string;
     requestedAt: string;
   } | null;
-  review?: unknown;
+  review?: LearnerAttemptReviewSnapshot;
+}
+
+export interface LearnerAttemptReviewOption {
+  optionKey: string;
+  content: string;
+  sortOrder: number;
+  isCorrect: boolean;
+}
+
+export interface LearnerAttemptReviewQuestion {
+  id: string;
+  questionNo: number;
+  prompt: string;
+  selectedOptionKey?: string | null;
+  correctOptionKey: string;
+  isCorrect: boolean;
+  rationale?: string | null;
+  scoreAwarded: number;
+  options: LearnerAttemptReviewOption[];
+}
+
+export interface LearnerAttemptReviewGroup {
+  id: string;
+  code?: string | null;
+  title?: string | null;
+  stem?: string | null;
+  explanation?: string | null;
+  assets: LearnerAttemptSessionAsset[];
+  questions: LearnerAttemptReviewQuestion[];
+}
+
+export interface LearnerAttemptReviewItem {
+  questionGroupId: string;
+  displayOrder: number;
+  questionGroup: LearnerAttemptReviewGroup;
+}
+
+export interface LearnerAttemptReviewSection {
+  part: string;
+  sectionOrder: number;
+  instructions?: string | null;
+  items: LearnerAttemptReviewItem[];
+}
+
+export interface LearnerAttemptReviewSnapshot {
+  template: {
+    id: string;
+    code: string;
+    name: string;
+    mode: string;
+    totalDurationSec: number;
+    totalQuestions: number;
+    instructions?: string | null;
+    shuffleQuestionOrder?: boolean;
+    shuffleOptionOrder?: boolean;
+  };
+  sections: LearnerAttemptReviewSection[];
 }

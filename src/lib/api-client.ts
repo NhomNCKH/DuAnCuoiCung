@@ -16,9 +16,11 @@ import type {
 import type {
   LearnerAttemptResultData,
   LearnerAttemptSessionData,
+  LearnerExamAttemptHistoryItem,
   LearnerExamTemplateSummary,
   PaginatedData,
 } from '@/types/learner-exam';
+import type { AdminDashboardData } from '@/types/admin-dashboard';
 import {
   clearAuthSession,
   getStoredAccessToken,
@@ -239,6 +241,11 @@ class ApiClient {
 
   // ---- Admin: Question Bank (/admin/question-groups, /admin/tags) ----
   admin = {
+    dashboard: {
+      getSummary: (): Promise<ApiResponse<AdminDashboardData>> =>
+        this.request('/admin/dashboard/summary', { method: 'GET' }),
+    },
+
     questionBank: {
       // Tags
       listTags: (): Promise<ApiResponse> =>
@@ -548,7 +555,34 @@ class ApiClient {
     },
 
     examAttempt: {
-      start: (data: { examTemplateId: string; mode?: string }): Promise<ApiResponse<LearnerAttemptSessionData>> =>
+      listHistory: (params?: {
+        examTemplateId?: string;
+        status?: string;
+        page?: number;
+        limit?: number;
+      }): Promise<ApiResponse<PaginatedData<LearnerExamAttemptHistoryItem>>> => {
+        const qs = params
+          ? '?' +
+            new URLSearchParams(
+              Object.fromEntries(
+                Object.entries(params)
+                  .filter(([, value]) => value !== undefined && value !== '')
+                  .map(([key, value]) => [key, String(value)]),
+              ),
+            ).toString()
+          : '';
+        return this.request(`/learner/exam-attempts/history${qs}`, {
+          method: 'GET',
+        });
+      },
+
+      start: (
+        data: {
+          examTemplateId: string;
+          forceNew?: boolean;
+          metadata?: Record<string, unknown>;
+        },
+      ): Promise<ApiResponse<LearnerAttemptSessionData>> =>
         this.request('/learner/exam-attempts', { method: 'POST', body: JSON.stringify(data) }),
 
       saveAnswers: (
@@ -565,7 +599,10 @@ class ApiClient {
       ): Promise<ApiResponse<unknown>> =>
         this.request(`/learner/exam-attempts/${attemptId}/answers`, { method: 'PUT', body: JSON.stringify(data) }),
 
-      submit: (attemptId: string, data?: Record<string, unknown>): Promise<ApiResponse<unknown>> =>
+      submit: (
+        attemptId: string,
+        data?: Record<string, unknown>,
+      ): Promise<ApiResponse<LearnerAttemptResultData>> =>
         this.request(`/learner/exam-attempts/${attemptId}/submit`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
 
       getResult: (attemptId: string): Promise<ApiResponse<LearnerAttemptResultData>> =>

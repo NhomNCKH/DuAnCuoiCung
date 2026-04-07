@@ -225,7 +225,7 @@ export default function AdminUsersPage() {
     try {
       const res = await apiClient.admin.rbac.listRoles({
         page: 1,
-        limit: 200,
+        limit: 100,
         sort: "name",
         order: "ASC",
       });

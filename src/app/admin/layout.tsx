@@ -28,15 +28,173 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { isAdminRole } from "@/lib/auth/routing";
 import { useTheme } from "@/contexts/ThemeContext";
+import type { UserProfile } from "@/types/api";
+import type { LucideIcon } from "lucide-react";
 
 type AdminMenuItem = {
   id: string;
-  icon: any;
+  icon: LucideIcon;
   label: string;
   href?: string;
   permission?: string;
   children?: AdminMenuItem[];
 };
+
+type PermissionDescriptor = {
+  code: string;
+};
+
+type RolePermissionCarrier = {
+  permissions?: PermissionDescriptor[];
+};
+
+const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
+  {
+    id: "dashboard",
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    href: "/admin/dashboard",
+    permission: "dashboard.view",
+  },
+  {
+    id: "user-management",
+    icon: Users,
+    label: "Người dùng",
+    children: [
+      {
+        id: "rbac-users",
+        icon: Users,
+        label: "Tài khoản",
+        href: "/admin/users",
+        permission: "users.read",
+      },
+      {
+        id: "rbac-roles",
+        icon: Shield,
+        label: "Vai trò",
+        href: "/admin/settings?tab=roles",
+        permission: "settings.manage",
+      },
+      {
+        id: "rbac-permissions",
+        icon: Lock,
+        label: "Quyền",
+        href: "/admin/settings?tab=permissions",
+        permission: "settings.manage",
+      },
+      {
+        id: "rbac-assignments",
+        icon: UserPlus,
+        label: "Gán vai trò",
+        href: "/admin/settings?tab=users",
+        permission: "settings.manage",
+      },
+    ],
+  },
+  {
+    id: "question-bank",
+    icon: BookOpen,
+    label: "Câu hỏi",
+    children: [
+      {
+        id: "question-tags",
+        icon: Tag,
+        label: "Phân loại",
+        href: "/admin/questions?tab=tags",
+        permission: "questions.manage",
+      },
+      {
+        id: "question-groups",
+        icon: BookOpen,
+        label: "Nhóm câu hỏi",
+        href: "/admin/questions?tab=groups",
+        permission: "questions.manage",
+      },
+    ],
+  },
+  {
+    id: "exam-templates",
+    icon: FileText,
+    label: "Đề thi",
+    href: "/admin/exams",
+    permission: "exam_templates.manage",
+  },
+  {
+    id: "certificates",
+    icon: Award,
+    label: "Chứng chỉ",
+    href: "/admin/certificates",
+    permission: "credentials.manage",
+  },
+  {
+    id: "analytics",
+    icon: BarChart3,
+    label: "Phân tích",
+    href: "/admin/analytics",
+    permission: "audit.view",
+  },
+];
+
+function isPermissionDescriptor(value: unknown): value is PermissionDescriptor {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    typeof value.code === "string"
+  );
+}
+
+function isRolePermissionCarrier(value: unknown): value is RolePermissionCarrier {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  if (!("permissions" in value)) {
+    return false;
+  }
+
+  const permissions = value.permissions;
+
+  return (
+    permissions === undefined ||
+    (Array.isArray(permissions) && permissions.every(isPermissionDescriptor))
+  );
+}
+
+function hasRolePermission(roles: unknown, permission: string) {
+  if (!Array.isArray(roles)) {
+    return false;
+  }
+
+  return roles.some(
+    (role) =>
+      isRolePermissionCarrier(role) &&
+      role.permissions?.some((item) => item.code === permission),
+  );
+}
+
+function canAccessMenuItem(user: UserProfile | null, permission?: string) {
+  if (!permission) return true;
+  if (user?.permissions?.includes(permission)) return true;
+  return hasRolePermission(user?.roles, permission);
+}
+
+function buildVisibleMenuItems(user: UserProfile | null) {
+  return ADMIN_MENU_ITEMS
+    .map((item) => {
+      if (!item.children) return item;
+
+      const visibleChildren = item.children.filter((child) =>
+        canAccessMenuItem(user, child.permission),
+      );
+
+      return { ...item, children: visibleChildren };
+    })
+    .filter((item) => {
+      if (item.children) return item.children.length > 0;
+      return canAccessMenuItem(user, item.permission);
+    });
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -71,113 +229,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const menuItems = useMemo(() => {
-    const canAccess = (permission?: string) => {
-      if (!permission) return true;
-      if (user?.permissions?.includes(permission)) return true;
-      return (user as any)?.roles?.some((role: any) =>
-        role.permissions?.some((p: any) => p.code === permission)
-      );
-    };
-
-    const rawItems: AdminMenuItem[] = [
-      {
-        id: "dashboard",
-        icon: LayoutDashboard,
-        label: "Tổng quan",
-        href: "/admin/dashboard",
-        permission: "dashboard.view",
-      },
-      {
-        id: "user-management",
-        icon: Users,
-        label: "Quản lý người dùng",
-        children: [
-          {
-            id: "rbac-users",
-            icon: Users,
-            label: "Quản lí người dùng",
-            href: "/admin/users",
-            permission: "users.read",
-          },
-          {
-            id: "rbac-roles",
-            icon: Shield,
-            label: "Vai trò",
-            href: "/admin/settings?tab=roles",
-            permission: "settings.manage",
-          },
-          {
-            id: "rbac-permissions",
-            icon: Lock,
-            label: "Quyền hạn",
-            href: "/admin/settings?tab=permissions",
-            permission: "settings.manage",
-          },
-          {
-            id: "rbac-assignments",
-            icon: UserPlus,
-            label: "Gán vai trò",
-            href: "/admin/settings?tab=users",
-            permission: "settings.manage",
-          },
-        ],
-      },
-      {
-        id: "question-bank",
-        icon: BookOpen,
-        label: "Ngân hàng câu hỏi",
-        children: [
-          {
-            id: "question-tags",
-            icon: Tag,
-            label: "Phân loại câu hỏi",
-            href: "/admin/questions?tab=tags",
-            permission: "questions.manage",
-          },
-          {
-            id: "question-groups",
-            icon: BookOpen,
-            label: "Nhóm câu hỏi",
-            href: "/admin/questions?tab=groups",
-            permission: "questions.manage",
-          },
-        ],
-      },
-      {
-        id: "exam-templates",
-        icon: FileText,
-        label: "Đề thi",
-        href: "/admin/exams",
-        permission: "exam_templates.manage",
-      },
-      {
-        id: "certificates",
-        icon: Award,
-        label: "Chứng chỉ",
-        href: "/admin/certificates",
-        permission: "credentials.manage",
-      },
-      {
-        id: "analytics",
-        icon: BarChart3,
-        label: "Phân tích",
-        href: "/admin/analytics",
-        permission: "audit.view",
-      },
-    ];
-
-    return rawItems
-      .map((item) => {
-        if (!item.children) return item;
-        const visibleChildren = item.children.filter((child) => canAccess(child.permission));
-        return { ...item, children: visibleChildren };
-      })
-      .filter((item) => {
-        if (item.children) return item.children.length > 0;
-        return canAccess(item.permission);
-      });
-  }, [user]);
+  const menuItems = useMemo(() => buildVisibleMenuItems(user), [user]);
 
   const isHrefActive = (href?: string) => {
     if (!href) return false;
@@ -224,7 +276,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className={`app-shell admin-theme ${theme === "dark" ? "admin-dark" : "admin-light"}`}>
       <button
         onClick={() => setMobileMenuOpen(true)}
-        className="fixed left-4 top-4 z-50 rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm lg:hidden"
+        className="fixed left-4 top-4 z-50 rounded-lg border border-slate-200 bg-white p-2 text-slate-700 shadow-sm lg:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -239,20 +291,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <motion.aside
         initial={false}
-        animate={{ width: sidebarCollapsed ? "76px" : "248px" }}
+        animate={{ width: sidebarCollapsed ? "72px" : "232px" }}
         transition={{ duration: 0.2 }}
-        className={`admin-sidebar fixed left-0 top-0 z-50 h-full border-r border-blue-100 bg-white text-slate-700 ${
+        className={`admin-sidebar fixed left-0 top-0 z-50 h-full border-r border-slate-200 bg-white text-slate-700 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } transition-transform duration-200`}
       >
         <div className="flex h-full flex-col">
-          <div className="relative h-[80px] w-full overflow-hidden border-b border-blue-100">
+          <div className="relative h-[72px] w-full overflow-hidden border-b border-slate-200">
             <div className="relative h-full w-full">
               <Image
                 src={theme === "dark" ? "/logo/logo_website_dark.svg" : "/logo/logo_website.svg"}
                 alt="TOEIC Master"
                 fill
-                sizes={sidebarCollapsed ? "76px" : "248px"}
+                sizes={sidebarCollapsed ? "72px" : "232px"}
                 className={
                   sidebarCollapsed
                     ? "object-contain object-center"
@@ -269,7 +321,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
           </div>
 
-          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
             {menuItems.map((item) => {
               const hasChildren = Boolean(item.children?.length);
               const isActive = isHrefActive(item.href);
@@ -281,14 +333,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <div key={item.id} className="space-y-1">
                     <button
                       onClick={() => setExpandedMenus((prev) => ({ ...prev, [item.id]: !isExpanded }))}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors ${
                         hasActiveChild
                           ? theme === "dark"
-                            ? "bg-slate-800 text-amber-300"
-                            : "bg-blue-50 text-blue-700"
+                            ? "bg-slate-800 text-slate-100"
+                            : "bg-slate-100 text-slate-900"
                           : theme === "dark"
-                            ? "text-slate-200 hover:bg-slate-800 hover:text-amber-300"
-                            : "text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                            ? "text-slate-200 hover:bg-slate-800"
+                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
@@ -301,7 +353,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </button>
 
                     {!sidebarCollapsed && isExpanded && (
-                      <div className="space-y-1 pl-8">
+                      <div className="space-y-1 pl-7">
                         {item.children?.map((child) => {
                           const childActive = isHrefActive(child.href);
                           return (
@@ -309,14 +361,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                               key={child.id}
                               href={child.href || "#"}
                               onClick={() => setMobileMenuOpen(false)}
-                              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-all ${
+                              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition-colors ${
                                 childActive
                                   ? theme === "dark"
-                                    ? "bg-amber-400 text-slate-900"
-                                    : "bg-blue-600 text-white"
+                                    ? "bg-slate-800 text-slate-100"
+                                    : "bg-slate-100 text-slate-900"
                                   : theme === "dark"
-                                    ? "text-slate-300 hover:bg-slate-800 hover:text-amber-300"
-                                    : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+                                    ? "text-slate-300 hover:bg-slate-800"
+                                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                               }`}
                             >
                               <child.icon className="h-3.5 w-3.5 shrink-0" />
@@ -335,14 +387,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   key={item.id}
                   href={item.href || "#"}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors ${
                     isActive
                       ? theme === "dark"
-                        ? "bg-amber-400 text-slate-900"
-                        : "bg-blue-600 text-white"
+                        ? "bg-slate-800 text-slate-100"
+                        : "bg-slate-100 text-slate-900"
                       : theme === "dark"
-                        ? "text-slate-200 hover:bg-slate-800 hover:text-amber-300"
-                        : "text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                        ? "text-slate-200 hover:bg-slate-800"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   }`}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
@@ -352,10 +404,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             })}
           </nav>
 
-          <div className="border-t border-blue-100 p-3">
+          <div className="border-t border-slate-200 p-3">
             <button
               onClick={() => setSidebarCollapsed((prev) => !prev)}
-              className="hidden h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-blue-50 hover:text-blue-700 lg:flex"
+              className="hidden h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 lg:flex"
               aria-label={sidebarCollapsed ? "Mở rộng sidebar" : "Thu nhỏ sidebar"}
             >
               {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -364,16 +416,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </motion.aside>
 
-      <main className={`admin-main transition-all duration-200 ${sidebarCollapsed ? "lg:ml-[64px]" : "lg:ml-[248px]"}`}>
-        <header className="admin-topbar sticky top-0 z-30 border-b border-blue-100 bg-white/90 backdrop-blur">
-          <div className="flex h-[80px] items-center justify-between px-5 md:px-8">
-            <h1 className="text-base font-semibold text-blue-900 md:text-lg">
+      <main className={`admin-main transition-all duration-200 ${sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[232px]"}`}>
+        <header className="admin-topbar sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+          <div className="flex h-[72px] items-center justify-between px-5 md:px-8">
+            <h1 className="text-base font-semibold text-slate-900 md:text-lg">
               {currentPageLabel}
             </h1>
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleTheme}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 transition-colors hover:bg-blue-100"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200"
                 aria-label={theme === "dark" ? "Chuyển sang light mode" : "Chuyển sang dark mode"}
               >
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -381,20 +433,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => setProfileMenuOpen((prev) => !prev)}
-                className="group flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 py-1.5 pl-1.5 pr-2 text-blue-900 transition-all duration-300 hover:bg-blue-100 hover:pr-3"
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white py-1.5 pl-1.5 pr-2 text-slate-900 transition-colors hover:bg-slate-50"
                 aria-label="Open profile menu"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
                   {user?.name?.charAt(0) || "A"}
                 </div>
-                <div
-                  className={`flex items-center gap-1 overflow-hidden whitespace-nowrap text-xs font-semibold transition-all duration-300 ${
-                    profileMenuOpen
-                      ? "max-w-[120px] opacity-100"
-                      : "max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100"
-                  }`}
-                >
-                  <Shield className="h-3.5 w-3.5 text-blue-600" />
+                <div className="hidden items-center gap-1 whitespace-nowrap text-xs font-semibold md:flex">
+                  <Shield className="h-3.5 w-3.5 text-slate-500" />
                   <span>{roleLabel}</span>
                 </div>
                 <ChevronDown
@@ -403,10 +449,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </button>
 
               {profileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                <div className="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
                   <div className="border-b border-slate-200 p-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
                         {user?.name?.charAt(0) || "A"}
                       </div>
                       <div className="min-w-0">
@@ -418,7 +464,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <div className="p-2">
                     <button
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
                     >
                       <LogOut className="h-4 w-4" />
                       <span>Đăng xuất</span>
