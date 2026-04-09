@@ -2,16 +2,20 @@
 
 // User Roles
 export const USER_ROLES = {
+  SUPERADMIN: 'superadmin',
   ADMIN: 'admin',
-  LEARNER: 'learner', 
-  INSTRUCTOR: 'instructor'
+  ORG_ADMIN: 'org_admin',
+  LEARNER: 'learner',
+  INSTRUCTOR: 'instructor',
+  CURATOR: 'curator',
 } as const;
 
 // User Status
 export const USER_STATUS = {
+  PENDING_VERIFICATION: 'pending_verification',
   ACTIVE: 'active',
-  INACTIVE: 'inactive',
-  BANNED: 'banned'
+  SUSPENDED: 'suspended',
+  DELETED: 'deleted',
 } as const;
 
 // Local Storage Keys
@@ -39,8 +43,9 @@ export const API_ENDPOINTS = {
 // Routes
 export const ROUTES = {
   HOME: '/',
-  LOGIN: '/login',
-  REGISTER: '/register',
+  AUTH: '/auth',
+  LOGIN: '/auth',
+  REGISTER: '/auth?mode=register',
   ADMIN: {
     DASHBOARD: '/admin/dashboard',
     USERS: '/admin/users',
@@ -59,10 +64,10 @@ export const ROUTES = {
 
 // Theme Colors
 export const THEME_COLORS = {
-  PRIMARY: 'from-emerald-500 to-teal-500',
-  SECONDARY: 'from-blue-500 to-blue-600',
-  SUCCESS: 'from-green-500 to-green-600',
-  WARNING: 'from-yellow-500 to-yellow-600',
+  PRIMARY: 'from-blue-600 to-slate-900',
+  SECONDARY: 'from-slate-900 to-blue-700',
+  SUCCESS: 'from-blue-600 to-slate-900',
+  WARNING: 'from-yellow-400 to-yellow-500',
   ERROR: 'from-red-500 to-red-600',
-  INFO: 'from-purple-500 to-purple-600'
+  INFO: 'from-blue-500 to-indigo-600',
 } as const;

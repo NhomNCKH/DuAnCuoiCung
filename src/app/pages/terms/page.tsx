@@ -74,10 +74,10 @@ export default function TermsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5" />
+        <div className="absolute inset-0 bg-blue-50" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -89,7 +89,7 @@ export default function TermsPage() {
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
               Điều khoản
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              <span className="block text-blue-700">
                 sử dụng dịch vụ
               </span>
             </h1>

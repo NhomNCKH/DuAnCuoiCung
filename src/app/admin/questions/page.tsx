@@ -11,6 +11,7 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { getSignedMediaUrl } from "@/lib/media-url";
 import { AdminConfirmDialog, AdminPagination } from "@/components/admin";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { ActionIcon } from "@/components/ui/action-icons";
 import { SharedDropdown } from "@/components/ui/shared-dropdown";
@@ -265,7 +266,7 @@ function QuestionGroupModal({
   type UploadableAssetKind = "audio" | "image";
 
   // Số câu hỏi mặc định theo chuẩn TOEIC
-  const qCountPerGroup: Record<string, number> = { P1: 1, P2: 1, P3: 3, P4: 3, P5: 1, P6: 4, P7: 3 };
+  const qCountPerGroup: Record<string, number> = { P1: 1, P2: 25, P3: 3, P4: 3, P5: 1, P6: 4, P7: 3 };
   const isFixedQCount = ["P1", "P2", "P3", "P4", "P5", "P6"].includes(form.part);
 
   useEffect(() => {
@@ -609,7 +610,13 @@ function QuestionGroupModal({
                       ) : !ro ? (
                         <label className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                           <Music className="w-6 h-6 text-gray-300 mb-1" />
-                          <span className="text-[10px] text-gray-500 text-center px-4">Tải lên Audio cho {isP1 || isP2 ? "câu hỏi" : "đoạn hội thoại"}</span>
+                          <span className="text-[10px] text-gray-500 text-center px-4">
+                            {isP1
+                              ? "Tải lên Audio cho câu hỏi"
+                              : isP2
+                                ? "Tải lên 1 audio chung cho toàn bộ 25 câu của Part 2"
+                                : "Tải lên Audio cho đoạn hội thoại"}
+                          </span>
                           <input type="file" accept="audio/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setMedia({ ...media, audioFile: f, audioUrl: URL.createObjectURL(f) }); }} />
                         </label>
                       ) : (
@@ -687,7 +694,7 @@ function QuestionGroupModal({
                 </h3>
                 <p className="text-[9px] text-blue-600 font-bold mt-0.5 italic">
                   {form.part === "P1" && "P1: 1 Ảnh + Audio = 1 Câu"}
-                  {form.part === "P2" && "P2: 1 Audio = 1 Câu (3 đáp án)"}
+                  {form.part === "P2" && "P2: 1 Audio chung = 25 Câu (mỗi câu 3 đáp án)"}
                   {form.part === "P3" && "P3: 1 Hội thoại (+ ảnh nếu cần) = 3 Câu"}
                   {form.part === "P4" && "P4: 1 Bài nói (+ ảnh nếu cần) = 3 Câu"}
                   {form.part === "P5" && "P5: 1 Câu lẻ"}
@@ -710,7 +717,7 @@ function QuestionGroupModal({
                 </p>
                 <p className="mt-1 text-xs text-gray-500">
                   {form.part
-                    ? "Bạn có thể thêm thủ công hoặc đổi Part để tự tạo theo chuẩn TOEIC."
+                    ? "Bạn có thể chỉnh sửa bộ câu hỏi theo chuẩn TOEIC của từng Part."
                     : "Hệ thống sẽ tự dựng cấu trúc câu hỏi phù hợp từng Part để bạn chỉnh sửa nhanh."}
                 </p>
               </div>

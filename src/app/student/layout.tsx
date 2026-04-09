@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
 import Footer from "@/components/User/Footer";
+import { getStoredUserProfile } from "@/lib/auth-session";
 import {
   createStudentNavItems,
   StudentLayoutLoading,
@@ -40,18 +41,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   }, [isLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    const fetchAvatar = () => {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          setAvatarUrl(userData.avatarUrl || "");
-        } catch {
-          setAvatarUrl("");
-        }
-      }
-    };
-    if (isAuthenticated) fetchAvatar();
+    if (!isAuthenticated) {
+      setAvatarUrl("");
+      return;
+    }
+
+    const storedUser = getStoredUserProfile();
+    setAvatarUrl(storedUser?.avatarUrl || "");
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -84,7 +80,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
   return (
     <div
-      className={`student-app flex min-h-screen flex-col admin-theme ${theme === "dark" ? "admin-dark" : "admin-light"}`}
+      className={`student-app student-theme flex min-h-screen flex-col admin-theme ${theme === "dark" ? "admin-dark" : "admin-light"}`}
     >
       <StudentHeader
         user={user}

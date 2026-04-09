@@ -3,21 +3,29 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import {
+  clearStoredUser,
   clearAuthSession,
   getAccessTokenExpiresAt,
-  getStoredAccessToken,
-  getStoredRefreshToken,
-  getStoredUser,
-  persistAuthSession,
+	getStoredAccessToken,
+	getStoredUserProfile,
+	getStoredRefreshToken,
+	persistAuthSession,
+	persistStoredUser,
 } from '@/lib/auth-session';
-import type { UserProfile, LoginData, RegisterData } from '@/types/api';
+import type { UserProfile, LoginData, RegisterData, JwtPayload } from '@/types/api';
+
+export interface AuthActionResult {
+  success: boolean;
+  message: string;
+  user?: UserProfile;
+}
 
 interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (data: LoginData) => Promise<{ success: boolean; message: string }>;
-  register: (data: RegisterData) => Promise<{ success: boolean; message: string }>;
+  login: (data: LoginData) => Promise<AuthActionResult>;
+  register: (data: RegisterData) => Promise<AuthActionResult>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
 }
@@ -30,6 +38,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = !!user;
 
+  const mergeUserProfile = useCallback(
+    (payload: JwtPayload, fallbackUser?: UserProfile | null): UserProfile => {
+      const roles =
+        Array.isArray(payload.roles) && payload.roles.length > 0
+          ? payload.roles
+          : payload.role
+            ? [payload.role]
+            : fallbackUser?.roles ?? [];
+
+      return {
+        ...(fallbackUser ?? {}),
+        id: payload.sub,
+        name: fallbackUser?.name ?? '',
+        email: payload.email,
+        role: payload.role,
+        roles,
+        permissions: payload.permissions || [],
+        status: fallbackUser?.status ?? 'active',
+      };
+    },
+    [],
+  );
+
+  const syncUserProfile = useCallback(
+    (nextUser: UserProfile | null) => {
+      setUser(nextUser);
+      if (nextUser) {
+        persistStoredUser(nextUser);
+      } else {
+        clearStoredUser();
+      }
+    },
+    [],
+  );
+
   const logout = useCallback(async () => {
     try {
       const rt = getStoredRefreshToken();
@@ -38,9 +81,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore logout errors
     } finally {
       clearAuthSession();
-      setUser(null);
+      syncUserProfile(null);
     }
-  }, []);
+  }, [syncUserProfile]);
 
   const refreshToken = useCallback(async (): Promise<boolean> => {
     try {
@@ -57,21 +100,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     } catch {
       clearAuthSession();
-      setUser(null);
+      syncUserProfile(null);
       return false;
     }
-  }, []);
+  }, [syncUserProfile]);
 
   useEffect(() => {
     const init = async () => {
       try {
         const token = getStoredAccessToken();
         const rt = getStoredRefreshToken();
-        const storedUser = getStoredUser();
-        const parsedUser = storedUser ? JSON.parse(storedUser) as UserProfile : null;
+        const parsedUser = getStoredUserProfile();
 
         if (parsedUser) {
-          setUser(parsedUser);
+          syncUserProfile(parsedUser);
         }
 
         if (token || rt) {
@@ -91,24 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const res = await apiClient.auth.getMe();
             if (res.statusCode === 200 && res.data?.data) {
               const payload = res.data.data;
-              const rolesFromJwt =
-                Array.isArray(payload.roles) && payload.roles.length > 0
-                  ? payload.roles
-                  : payload.role
-                    ? [payload.role]
-                    : parsedUser?.roles ?? [];
-              const freshUser: UserProfile = {
-                ...(parsedUser ?? {}),
-                id: payload.sub,
-                name: parsedUser?.name ?? '',
-                email: payload.email,
-                role: payload.role,
-                roles: rolesFromJwt,
-                permissions: payload.permissions || [],
-                status: parsedUser?.status ?? 'active',
-              };
-              setUser(freshUser);
-              localStorage.setItem('user', JSON.stringify(freshUser));
+              const freshUser = mergeUserProfile(payload, parsedUser);
+              syncUserProfile(freshUser);
             } else {
               throw new Error('Session expired');
             }
@@ -123,46 +149,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const retry = await apiClient.auth.getMe();
             const payload = retry.data?.data;
             if (retry.statusCode === 200 && payload) {
-              const rolesFromJwt =
-                Array.isArray(payload.roles) && payload.roles.length > 0
-                  ? payload.roles
-                  : payload.role
-                    ? [payload.role]
-                    : parsedUser?.roles ?? [];
-              const freshUser: UserProfile = {
-                ...(parsedUser ?? {}),
-                id: payload.sub,
-                name: parsedUser?.name ?? '',
-                email: payload.email,
-                role: payload.role,
-                roles: rolesFromJwt,
-                permissions: payload.permissions || [],
-                status: parsedUser?.status ?? 'active',
-              };
-              setUser(freshUser);
-              localStorage.setItem('user', JSON.stringify(freshUser));
+              const freshUser = mergeUserProfile(payload, parsedUser);
+              syncUserProfile(freshUser);
             } else {
               await logout();
             }
           }
         } else {
-          setUser(null);
+          syncUserProfile(null);
         }
       } catch (e) {
         console.error('Auth initialization error:', e);
-        setUser(null);
+        syncUserProfile(null);
       } finally {
         setIsLoading(false);
       }
     };
     init();
-  }, [refreshToken, logout]);
+  }, [mergeUserProfile, refreshToken, logout, syncUserProfile]);
 
   useEffect(() => {
-    const syncLogout = () => setUser(null);
+    const syncLogout = () => syncUserProfile(null);
     window.addEventListener('auth:session-cleared', syncLogout);
     return () => window.removeEventListener('auth:session-cleared', syncLogout);
-  }, []);
+  }, [syncUserProfile]);
 
   const login = async (data: LoginData) => {
     setIsLoading(true);
@@ -173,9 +183,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (inner?.accessToken) {
         persistAuthSession(inner);
-        localStorage.setItem('user', JSON.stringify(inner.user));
-        setUser(inner.user);
-        return { success: true, message: res.data?.message || 'Đăng nhập thành công' };
+        syncUserProfile(inner.user);
+        return {
+          success: true,
+          message: res.data?.message || 'Đăng nhập thành công',
+          user: inner.user,
+        };
       }
 
       return { success: false, message: res.message || 'Đăng nhập thất bại: Không tìm thấy token' };

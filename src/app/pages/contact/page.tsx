@@ -81,7 +81,7 @@ export default function ContactPage() {
       icon: Instagram,
       href: "#",
       label: "Instagram",
-      color: "bg-gradient-to-r from-pink-500 to-orange-500",
+      color: "bg-pink-600",
     },
     { icon: Youtube, href: "#", label: "YouTube", color: "bg-[#FF0000]" },
   ];
@@ -100,10 +100,10 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5" />
+        <div className="absolute inset-0 bg-blue-50" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -116,7 +116,7 @@ export default function ContactPage() {
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-800 mb-6">
               Chúng tôi luôn sẵn sàng
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              <span className="block text-blue-700">
                 lắng nghe bạn
               </span>
             </h1>

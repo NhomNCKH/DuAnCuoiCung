@@ -45,7 +45,7 @@ export function EnhancedStatCard({
     >
       <div className={`flex ${compact ? "items-center justify-start gap-2.5 mb-2" : "justify-between items-start mb-4"}`}>
         <div
-          className={`${compact ? "w-9 h-9 rounded-lg" : "w-12 h-12 rounded-xl"} ${tone ? "stat-icon-tone" : `bg-gradient-to-r ${color}`} flex items-center justify-center shadow-lg`}
+          className={`${compact ? "w-9 h-9 rounded-lg" : "w-12 h-12 rounded-xl"} ${tone ? "stat-icon-tone" : "bg-blue-600"} flex items-center justify-center shadow-lg`}
           style={{ ...iconBgStyle, ...iconBgStyleDark }}
         >
           <Icon className={`${compact ? "w-4.5 h-4.5" : "w-6 h-6"} text-white`} />

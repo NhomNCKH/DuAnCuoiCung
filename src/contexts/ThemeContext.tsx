@@ -21,6 +21,13 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
+  const applyTheme = (nextTheme: Theme) => {
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(nextTheme);
+    root.style.colorScheme = nextTheme;
+  };
+
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as string | null;
     const adminSaved = localStorage.getItem("admin-theme") as string | null;
@@ -33,8 +40,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       pick(savedTheme) ?? pick(adminSaved) ?? (prefersDark ? "dark" : "light");
 
     setTheme(initialTheme);
-    document.documentElement.classList.remove("light", "dark");
-    document.documentElement.classList.add(initialTheme);
+    applyTheme(initialTheme);
     localStorage.setItem("theme", initialTheme);
     localStorage.setItem("admin-theme", initialTheme);
   }, []);
@@ -44,11 +50,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
     localStorage.setItem("admin-theme", newTheme);
-    document.documentElement.classList.remove("light", "dark");
-    document.documentElement.classList.add(newTheme);
+    applyTheme(newTheme);
   };
 
-  // Tránh lỗi hydration mismatch - không cần nữa vì luôn render provider
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}

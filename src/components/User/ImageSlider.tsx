@@ -61,7 +61,7 @@ export default function ImageSlider({
   }, [isAutoPlaying, interval, currentIndex]);
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden group bg-gradient-to-br from-blue-900 to-indigo-900">
+    <div className="relative w-full rounded-2xl overflow-hidden group bg-slate-900">
       {/* Container cho ảnh */}
       <div className="relative w-full h-[280px] md:h-[320px] flex items-center justify-center">
         <AnimatePresence mode="wait">
@@ -86,7 +86,7 @@ export default function ImageSlider({
       </div>
 
       {/* Overlay gradient cho text */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-black/55 pointer-events-none" />
 
       {/* Slide Content */}
       <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 text-white z-10">
@@ -107,7 +107,7 @@ export default function ImageSlider({
             {slides[currentIndex].link && (
               <button
                 onClick={handleSlideClick}
-                className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg text-white font-medium hover:from-blue-700 hover:to-indigo-700 transition-all"
+                className="px-4 py-1.5 text-sm bg-blue-600 rounded-lg text-white font-medium hover:bg-blue-700 transition-colors"
               >
                 Tìm hiểu thêm
               </button>

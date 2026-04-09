@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import lottie from "lottie-web";
-import animationData from "@/app/animations/12345.json"
+import animationData from "@/app/animations/12345.json";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -13,37 +13,101 @@ import {
   ArrowRight,
   AlertCircle,
   Shield,
-  Sparkles,
   GraduationCap,
   Target,
   TrendingUp,
   Clock,
   CheckCircle2,
-  Quote,
   Eye,
   EyeOff,
   Github,
-  Twitter,
-  Instagram,
-  Globe,
   Zap,
   Star,
-  Heart,
-  Compass,
   BookOpen,
 } from "lucide-react";
-import Link from "next/link";
-import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/api-client";
+import {
+  buildAuthRoute,
+  normalizeAuthMode,
+  resolvePostAuthRedirect,
+  type AuthMode,
+} from "@/lib/auth/routing";
+
+const INITIAL_PASSWORD_VALIDATIONS = {
+  length: false,
+  uppercase: false,
+  lowercase: false,
+  number: false,
+};
+
+const AUTH_STATS = [
+  {
+    value: "50,000+",
+    label: "Học viên",
+    icon: User,
+    color: "from-[#2563EB] to-[#1D4ED8]",
+  },
+  {
+    value: "98%",
+    label: "Hài lòng",
+    icon: Star,
+    color: "from-[#121A2F] to-[#1F2A44]",
+  },
+  {
+    value: "+150",
+    label: "Điểm TB",
+    icon: TrendingUp,
+    color: "from-[#1D4ED8] to-[#121A2F]",
+  },
+  {
+    value: "2,000+",
+    label: "Bài tập",
+    icon: BookOpen,
+    color: "from-[#2563EB] to-[#0F172A]",
+  },
+] as const;
+
+const AUTH_FEATURES = [
+  {
+    icon: Target,
+    title: "Lộ trình cá nhân hóa",
+    desc: "AI đề xuất bài học phù hợp với trình độ",
+  },
+  {
+    icon: Clock,
+    title: "Học mọi lúc mọi nơi",
+    desc: "24/7 truy cập, học trên mọi thiết bị",
+  },
+  {
+    icon: Shield,
+    title: "Chứng chỉ Blockchain",
+    desc: "Được xác thực toàn cầu, không thể làm giả",
+  },
+  {
+    icon: Zap,
+    title: "AI chấm điểm",
+    desc: "Phản hồi tức thì, cải thiện nhanh chóng",
+  },
+] as const;
+
+function validatePassword(value: string) {
+  return {
+    length: value.length >= 8,
+    uppercase: /[A-Z]/.test(value),
+    lowercase: /[a-z]/.test(value),
+    number: /[0-9]/.test(value),
+  };
+}
 
 export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentMode = normalizeAuthMode(searchParams.get("mode"));
+  const requestedRedirect = searchParams.get("redirect");
   const { login } = useAuth();
-  const redirect = searchParams.get("redirect") || "/student/dashboard";
 
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(currentMode === "login");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -59,12 +123,9 @@ export default function AuthPage() {
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  const [passwordValidations, setPasswordValidations] = useState({
-    length: false,
-    uppercase: false,
-    lowercase: false,
-    number: false,
-  });
+  const [passwordValidations, setPasswordValidations] = useState(
+    INITIAL_PASSWORD_VALIDATIONS,
+  );
 
   const lottieContainer = useRef<HTMLDivElement>(null);
 
@@ -82,14 +143,24 @@ export default function AuthPage() {
     }
   }, []);
 
+  useEffect(() => {
+    setIsLogin(currentMode === "login");
+  }, [currentMode]);
+
   const handlePasswordChange = (value: string) => {
     setRegPassword(value);
-    setPasswordValidations({
-      length: value.length >= 8,
-      uppercase: /[A-Z]/.test(value),
-      lowercase: /[a-z]/.test(value),
-      number: /[0-9]/.test(value),
-    });
+    setPasswordValidations(validatePassword(value));
+  };
+
+  const handleModeChange = (mode: AuthMode) => {
+    setIsLogin(mode === "login");
+    setError("");
+    router.replace(
+      buildAuthRoute({
+        mode,
+        redirect: requestedRedirect,
+      }),
+    );
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -100,12 +171,7 @@ export default function AuthPage() {
     try {
       const res = await login({ email: loginEmail, password: loginPassword });
       if (res.success) {
-        const storedUser = localStorage.getItem("user");
-        const user = storedUser ? JSON.parse(storedUser) : null;
-        const isAdminRole = ["admin", "superadmin", "org_admin"].includes(
-          user?.role || "",
-        );
-        router.push(isAdminRole ? "/admin/dashboard" : redirect);
+        router.push(resolvePostAuthRedirect(res.user?.role, requestedRedirect));
       } else {
         setError(res.message);
       }
@@ -155,9 +221,11 @@ export default function AuthPage() {
           password: regPassword,
         });
         if (loginRes.success) {
-          router.push("/student/dashboard");
+          router.push(
+            resolvePostAuthRedirect(loginRes.user?.role, requestedRedirect),
+          );
         } else {
-          setIsLogin(true);
+          handleModeChange("login");
           setError("Đăng ký thành công. Vui lòng đăng nhập để tiếp tục");
         }
       } else {
@@ -174,73 +242,19 @@ export default function AuthPage() {
     }
   };
 
-  const [currentTestimonial, setCurrentTestimonial] = useState(0);
-
-
-
-  const stats = [
-    {
-      value: "50,000+",
-      label: "Học viên",
-      icon: User,
-      color: "from-blue-500 to-cyan-500",
-    },
-    {
-      value: "98%",
-      label: "Hài lòng",
-      icon: Star,
-      color: "from-amber-500 to-yellow-500",
-    },
-    {
-      value: "+150",
-      label: "Điểm TB",
-      icon: TrendingUp,
-      color: "from-green-500 to-emerald-500",
-    },
-    {
-      value: "2,000+",
-      label: "Bài tập",
-      icon: BookOpen,
-      color: "from-purple-500 to-pink-500",
-    },
-  ];
-
-  const features = [
-    {
-      icon: Target,
-      title: "Lộ trình cá nhân hóa",
-      desc: "AI đề xuất bài học phù hợp với trình độ",
-    },
-    {
-      icon: Clock,
-      title: "Học mọi lúc mọi nơi",
-      desc: "24/7 truy cập, học trên mọi thiết bị",
-    },
-    {
-      icon: Shield,
-      title: "Chứng chỉ Blockchain",
-      desc: "Được xác thực toàn cầu, không thể làm giả",
-    },
-    {
-      icon: Zap,
-      title: "AI chấm điểm",
-      desc: "Phản hồi tức thì, cải thiện nhanh chóng",
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 overflow-hidden relative">
+    <div className="relative min-h-screen overflow-hidden bg-[#121A2F]">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-2000" />
+        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-[#2563EB] mix-blend-multiply opacity-20 blur-3xl filter animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-[#121A2F] mix-blend-multiply opacity-30 blur-3xl filter animate-pulse delay-1000" />
+        <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FBFB24] mix-blend-multiply opacity-10 blur-3xl filter animate-pulse delay-2000" />
       </div>
 
       {/* Floating Particles */}
 
 
-      <div className="relative z-10 container mx-auto px-4 min-h-screen flex items-center justify-center py-12">
+      <div className="relative z-10 container mx-auto px-4 flex items-center justify-center py-12">
         <div className="w-full max-w-6xl">
           {/* Header */}
           <motion.div
@@ -248,104 +262,106 @@ export default function AuthPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-8"
           >
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-4 border border-white/20">
-              <GraduationCap className="w-4 h-4 text-blue-400" />
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 backdrop-blur-sm">
+              <GraduationCap className="h-4 w-4 text-[#FBFB24]" />
               <span className="text-sm font-medium text-white/80">
                 TOEIC Preparation Platform
               </span>
             </div>
-            <p className="text-white/60 mt-2">
+            {/* <p className="text-white/60 mt-2">
               Nền tảng luyện thi TOEIC thông minh với AI
-            </p>
+            </p> */}
           </motion.div>
 
           {/* Main Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
+            className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl"
           >
             <div className="flex flex-col lg:flex-row">
               {/* Left Panel - Branding & Info */}
-                <div className="lg:w-1/2 p-8 lg:p-12 bg-gradient-to-br from-blue-600/20 via-indigo-600/20 to-purple-600/20">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                    key={isLogin ? "login-info" : "register-info"}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.5 }}
-                    className="space-y-8"
-                    >
-                    {/* Lottie Animation */}
+                <div className="bg-white/5 p-8 lg:w-1/2 lg:p-12">
+                  <div className="space-y-8">
+                    {/* Lottie Animation (GIỮ ỔN ĐỊNH, không remount khi đổi tab) */}
                     <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/10">
-                    <div ref={lottieContainer} className="w-full h-64" />
+                      <div ref={lottieContainer} className="w-full h-64" />
                     </div>
-                    
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4">
-                        {stats.map((stat, idx) => (
-                        <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/10"
-                        >
-                            <div
-                            className={`w-10 h-10 bg-gradient-to-r ${stat.color} rounded-xl flex items-center justify-center mb-2`}
+
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={isLogin ? "login-info" : "register-info"}
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 16 }}
+                        transition={{ duration: 0.25 }}
+                        className="space-y-8"
+                      >
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                          {AUTH_STATS.map((stat, idx) => (
+                            <motion.div
+                              key={idx}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: idx * 0.1 }}
+                              className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/10"
                             >
-                            <stat.icon className="w-5 h-5 text-white" />
-                            </div>
-                            <div className="text-xl font-bold text-white">
-                            {stat.value}
-                            </div>
-                            <div className="text-xs text-white/60">
-                            {stat.label}
-                            </div>
-                        </motion.div>
-                        ))}
-                    </div>
-                    
-                    {/* Features */}
-                    <div className="grid grid-cols-2 gap-3">
-                        {features.map((feature, idx) => (
-                        <div key={idx} className="flex items-start gap-2">
-                            <feature.icon className="w-4 h-4 text-blue-400 mt-0.5" />
-                            <div>
-                            <p className="text-white text-xs font-medium">
-                                {feature.title}
-                            </p>
-                            <p className="text-white/40 text-[10px]">
-                                {feature.desc}
-                            </p>
-                            </div>
+                              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center mb-2">
+                                <stat.icon className="w-5 h-5 text-white" />
+                              </div>
+                              <div className="text-xl font-bold text-white">
+                                {stat.value}
+                              </div>
+                              <div className="text-xs text-white/60">
+                                {stat.label}
+                              </div>
+                            </motion.div>
+                          ))}
                         </div>
-                        ))}
-                    </div>
-                    </motion.div>
-                </AnimatePresence>
+
+                        {/* Features */}
+                        <div className="grid grid-cols-2 gap-3">
+                          {AUTH_FEATURES.map((feature, idx) => (
+                            <div key={idx} className="flex items-start gap-2">
+                              <feature.icon className="mt-0.5 h-4 w-4 text-[#FBFB24]" />
+                              <div>
+                                <p className="text-white text-xs font-medium">
+                                  {feature.title}
+                                </p>
+                                <p className="text-white/40 text-[10px]">
+                                  {feature.desc}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
                 </div>
 
               {/* Right Panel - Forms */}
               <div className="lg:w-1/2 p-8 lg:p-12">
                 {/* Toggle Buttons */}
-                <div className="flex gap-2 bg-white/10 rounded-xl p-1 mb-8">
+                <div className="mb-8 flex gap-2 rounded-xl bg-white/10 p-1">
                   <button
-                    onClick={() => setIsLogin(true)}
+                    type="button"
+                    onClick={() => handleModeChange("login")}
                     className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       isLogin
-                        ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
+                        ? "bg-blue-600 text-white shadow-lg"
                         : "text-white/60 hover:text-white"
                     }`}
                   >
                     Đăng nhập
                   </button>
                   <button
-                    onClick={() => setIsLogin(false)}
+                    type="button"
+                    onClick={() => handleModeChange("register")}
                     className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       !isLogin
-                        ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
+                        ? "bg-blue-600 text-white shadow-lg"
                         : "text-white/60 hover:text-white"
                     }`}
                   >
@@ -381,26 +397,26 @@ export default function AuthPage() {
                       className="space-y-4"
                     >
                       <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
+                        <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-[#FBFB24]" />
                         <input
                           type="email"
                           placeholder="Email"
                           value={loginEmail}
                           onChange={(e) => setLoginEmail(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-white/40 transition-all"
+                          className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-4 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                           required
                           disabled={loading}
                         />
                       </div>
 
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
+                        <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-[#FBFB24]" />
                         <input
                           type={showPassword ? "text" : "password"}
                           placeholder="Mật khẩu"
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
-                          className="w-full pl-12 pr-12 py-3 bg-white/10 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-white/40 transition-all"
+                          className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-12 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                           required
                           disabled={loading}
                         />
@@ -421,7 +437,7 @@ export default function AuthPage() {
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="checkbox"
-                            className="w-4 h-4 rounded border-white/20 bg-white/10 checked:bg-blue-500"
+                            className="h-4 w-4 rounded border-white/20 bg-white/10 checked:bg-[#2563EB]"
                           />
                           <span className="text-sm text-white/60">
                             Ghi nhớ đăng nhập
@@ -429,7 +445,7 @@ export default function AuthPage() {
                         </label>
                         <button
                           type="button"
-                          className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                          className="text-sm text-[#FBFB24] transition-colors hover:text-yellow-200"
                         >
                           Quên mật khẩu?
                         </button>
@@ -438,7 +454,7 @@ export default function AuthPage() {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-50"
+                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold hover:shadow-lg transition-colors transform hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-50"
                       >
                         {loading ? (
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -461,39 +477,39 @@ export default function AuthPage() {
                       className="space-y-4"
                     >
                       <div className="relative group">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
+                        <User className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-[#FBFB24]" />
                         <input
                           type="text"
                           placeholder="Họ và tên"
                           value={regName}
                           onChange={(e) => setRegName(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-white/40 transition-all"
+                          className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-4 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                           required
                           disabled={loading}
                         />
                       </div>
 
                       <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
+                        <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-[#FBFB24]" />
                         <input
                           type="email"
                           placeholder="Email"
                           value={regEmail}
                           onChange={(e) => setRegEmail(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-white/40 transition-all"
+                          className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-4 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                           required
                           disabled={loading}
                         />
                       </div>
 
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
+                        <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-[#FBFB24]" />
                         <input
                           type={showPassword ? "text" : "password"}
                           placeholder="Mật khẩu"
                           value={regPassword}
                           onChange={(e) => handlePasswordChange(e.target.value)}
-                          className="w-full pl-12 pr-12 py-3 bg-white/10 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-white/40 transition-all"
+                          className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-12 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                           required
                           disabled={loading}
                         />
@@ -552,7 +568,7 @@ export default function AuthPage() {
                       )}
 
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
+                        <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-[#FBFB24]" />
                         <input
                           type={showPassword ? "text" : "password"}
                           placeholder="Xác nhận mật khẩu"
@@ -560,7 +576,7 @@ export default function AuthPage() {
                           onChange={(e) =>
                             setRegConfirmPassword(e.target.value)
                           }
-                          className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-white/40 transition-all"
+                          className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-4 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                           required
                           disabled={loading}
                         />
@@ -571,20 +587,20 @@ export default function AuthPage() {
                           type="checkbox"
                           checked={agreeTerms}
                           onChange={(e) => setAgreeTerms(e.target.checked)}
-                          className="w-4 h-4 rounded border-white/20 bg-white/10 checked:bg-blue-500"
+                          className="h-4 w-4 rounded border-white/20 bg-white/10 checked:bg-[#2563EB]"
                         />
                         <span className="text-sm text-white/60">
                           Tôi đồng ý với{" "}
                           <button
                             type="button"
-                            className="text-blue-400 hover:text-blue-300"
+                            className="text-[#FBFB24] hover:text-yellow-200"
                           >
                             Điều khoản
                           </button>{" "}
                           và{" "}
                           <button
                             type="button"
-                            className="text-blue-400 hover:text-blue-300"
+                            className="text-[#FBFB24] hover:text-yellow-200"
                           >
                             Chính sách bảo mật
                           </button>
@@ -594,7 +610,7 @@ export default function AuthPage() {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-50"
+                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold hover:shadow-lg transition-colors transform hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-50"
                       >
                         {loading ? (
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

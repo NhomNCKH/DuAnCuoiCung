@@ -40,7 +40,7 @@ export function ExamRegistrationModal({
             className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
+            <div className="bg-blue-600 px-6 py-5">
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-xl font-bold text-white">
                   <Award className="h-6 w-6" />
@@ -67,7 +67,7 @@ export function ExamRegistrationModal({
                 </p>
               </div>
 
-              <div className="mb-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
+              <div className="mb-6 rounded-xl bg-blue-50 p-4">
                 <h5 className="mb-3 flex items-center gap-2 font-medium text-gray-900">
                   <User className="h-4 w-4 text-blue-600" />
                   Thông tin thí sinh
@@ -113,7 +113,7 @@ export function ExamRegistrationModal({
                 className={`flex-1 rounded-xl px-4 py-2.5 font-medium text-white transition-all ${
                   isSubmitting
                     ? "cursor-not-allowed bg-gray-400"
-                    : "bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg"
+                    : "bg-blue-600 shadow-md hover:bg-blue-700 hover:shadow-lg"
                 }`}
               >
                 {isSubmitting ? (

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { buildAuthRoute } from "@/lib/auth/routing";
 
 export default function AboutPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -126,11 +127,11 @@ export default function AboutPage() {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+      className="min-h-screen bg-gray-50"
     >
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10" />
+        <div className="absolute inset-0 bg-blue-50" />
         <div className="absolute top-20 left-10 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" />
         <div className="absolute bottom-20 right-10 w-72 h-72 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" />
 
@@ -149,7 +150,7 @@ export default function AboutPage() {
             </div>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-800 mb-6">
               Cách mạng hóa
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              <span className="block text-blue-700">
                 việc học TOEIC
               </span>
             </h1>
@@ -174,7 +175,7 @@ export default function AboutPage() {
                 className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg border border-blue-100"
               >
                 <div
-                  className={`w-12 h-12 bg-gradient-to-r ${stat.color} rounded-xl flex items-center justify-center mx-auto mb-3`}
+                  className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3"
                 >
                   <stat.icon className="w-6 h-6 text-white" />
                 </div>
@@ -202,7 +203,7 @@ export default function AboutPage() {
                   alt="Team working"
                   className="w-full h-[400px] object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-indigo-600/20" />
+                <div className="absolute inset-0 bg-black/20" />
               </div>
               <div className="absolute -bottom-6 -right-6 bg-white rounded-xl p-4 shadow-lg">
                 <div className="flex items-center gap-3">
@@ -266,7 +267,7 @@ export default function AboutPage() {
                 </div>
               </div>
               <Link
-                href="/register"
+                href={buildAuthRoute({ mode: "register" })}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-105"
               >
                 Bắt đầu học ngay
@@ -403,7 +404,7 @@ export default function AboutPage() {
             </p>
             <div className="flex flex-wrap justify-center gap-4 pt-4">
               <Link
-                href="/register"
+                href={buildAuthRoute({ mode: "register" })}
                 className="px-8 py-3 bg-white text-blue-600 rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-105"
               >
                 Đăng ký miễn phí

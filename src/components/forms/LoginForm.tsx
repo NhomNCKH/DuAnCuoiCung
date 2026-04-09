@@ -25,7 +25,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setLoading(true);
 
     try {
-      await login({ email, password });
+      const result = await login({ email, password });
+      if (!result.success) {
+        setError(result.message);
+        return;
+      }
       onSuccess?.();
     } catch (err: any) {
       if (err.statusCode === 400) {

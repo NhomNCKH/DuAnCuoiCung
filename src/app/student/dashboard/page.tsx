@@ -454,7 +454,7 @@ export default function StudentDashboard() {
   ];
 
 return (
-     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-x-hidden">
+     <div className="min-h-screen bg-gray-50 relative overflow-x-hidden">
       {/* Confetti Effect */}
       <AnimatePresence>
         {showConfetti && <Confetti onComplete={() => setShowConfetti(false)} />}
@@ -484,24 +484,14 @@ return (
           className="mb-8 relative"
         >
           {/* Animated Background */}
-          <motion.div
-            animate={{
-              background: [
-                "radial-gradient(circle at 20% 50%, rgba(59,130,246,0.1) 0%, transparent 50%)",
-                "radial-gradient(circle at 80% 50%, rgba(139,92,246,0.1) 0%, transparent 50%)",
-                "radial-gradient(circle at 20% 50%, rgba(59,130,246,0.1) 0%, transparent 50%)",
-              ]
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
-            className="absolute inset-0 rounded-3xl -z-10"
-          />
+          <div className="absolute inset-0 rounded-3xl -z-10 bg-blue-50" />
 
           {/* Welcome Badge với Animation */}
           <motion.div
             initial={{ x: -100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-5 py-2 rounded-full text-sm font-medium mb-4 shadow-lg"
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-full text-sm font-medium mb-4 shadow-lg"
           >
             <motion.div
               animate={{ rotate: 360 }}
@@ -519,7 +509,7 @@ return (
             transition={{ duration: 0.5, delay: 0.4 }}
           >
             <h1 className="text-5xl lg:text-6xl font-bold mb-4">
-              <span className="bg-gradient-to-r from-slate-900 via-blue-800 to-indigo-700 bg-clip-text text-transparent">
+              <span className="text-slate-900">
                 Chào mừng trở lại!
               </span>
               <motion.span
@@ -576,7 +566,7 @@ return (
             alt="Dashboard Illustration"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </motion.div>
 
         {/* Stats Cards - Cập nhật màu gradient */}
@@ -622,7 +612,7 @@ return (
               transition={{ delay: idx * 0.1 }}
               className="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${stat.bgGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+              <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <div className="relative p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -631,7 +621,7 @@ return (
                       {stat.value}
                     </p>
                   </div>
-                  <div className={`w-12 h-12 bg-gradient-to-r ${stat.gradient} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <stat.icon className="w-6 h-6 text-white" />
                   </div>
                 </div>
@@ -690,7 +680,7 @@ return (
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{test.duration} phút</span>
                       <span className="flex items-center gap-1"><Brain className="w-3 h-3" />{test.questions} câu</span>
                     </div>
-                    <button className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg">
+                    <button className="w-full py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg">
                       Làm bài ngay
                     </button>
                   </div>
@@ -705,7 +695,7 @@ return (
                   <ChevronLeft className="w-5 h-5 text-slate-600" />
                 </button>
                 {[...Array(totalPages)].map((_, idx) => (
-                  <button key={idx} onClick={() => setCurrentPage(idx + 1)} className={`px-4 py-2 rounded-xl font-medium transition-all ${currentPage === idx + 1 ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                  <button key={idx} onClick={() => setCurrentPage(idx + 1)} className={`px-4 py-2 rounded-xl font-medium transition-all ${currentPage === idx + 1 ? "bg-blue-600 text-white shadow-md" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
                     {idx + 1}
                   </button>
                 ))}
@@ -743,9 +733,9 @@ return (
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
+            <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 <h3 className="font-semibold text-slate-900">Gợi ý học tập</h3>

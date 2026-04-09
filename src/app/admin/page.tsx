@@ -39,7 +39,7 @@ export default function AdminWelcomePage() {
         <div className="grid grid-cols-3 gap-4 mb-12">
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-lg">
             <div className="text-2xl font-bold text-blue-600">1,234</div>
-            <div className="text-sm text-blue-800">Học viên</div>
+            <div className="text-sm text-blue-800">Học viên </div>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-lg">
             <div className="text-2xl font-bold text-blue-600">856</div>
