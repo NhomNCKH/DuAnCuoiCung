@@ -1026,15 +1026,6 @@ function QuestionGroupsTab({
   onDataChanged?: () => void;
 }) {
   const { notify } = useToast();
-  const { user } = useAuth();
-  const roleCodes =
-    user?.roles?.length && user.roles.length > 0
-      ? user.roles
-      : user?.role
-        ? [user.role]
-        : [];
-  const canEditPublishedAsSuperadmin =
-    user?.role === "superadmin" || roleCodes.includes("superadmin");
   const [groups, setGroups] = useState<QuestionGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
