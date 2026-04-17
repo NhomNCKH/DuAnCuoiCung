@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   User,
   LogOut,
   ChevronDown,
+  Headphones,
+  BookOpen,
+  PenTool,
   Menu,
   X,
   Bell,
@@ -50,20 +54,25 @@ export function StudentHeader({
 }: Props) {
   const logoSrc =
     theme === "dark" ? "/logo/logo_website_dark.svg" : "/logo/logo_website.svg";
+  const [practiceMenuOpen, setPracticeMenuOpen] = useState(false);
+  const practiceActive =
+    pathname === "/student/listening" ||
+    pathname === "/student/reading" ||
+    pathname === "/student/writing";
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-blue-100 bg-white/90 backdrop-blur">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-10">
         <div className="flex h-16 items-center justify-between">
           <div className="flex min-w-0 items-center gap-2">
             <Link
               href="/student/dashboard"
-              className="flex h-12 w-[240px] max-w-[min(70vw,15rem)] shrink-0 items-center overflow-hidden sm:max-w-[15rem]"
+              className="flex h-12 w-[280px] max-w-[min(70vw,18rem)] shrink-0 items-center overflow-hidden sm:w-[320px] sm:max-w-[20rem]"
             >
               <img
                 src={logoSrc}
                 alt="TOEIC Master"
-                width={240}
+                width={320}
                 height={48}
                 className="block h-12 w-full object-contain object-left"
               />
@@ -79,24 +88,104 @@ export function StudentHeader({
                   key={item.label}
                   type="button"
                   onClick={item.onClick ?? (() => router.push(item.href))}
-                  className={`student-nav-tab group relative -mb-px inline-flex h-10 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition-colors ${
+                  className={`student-nav-tab group relative inline-flex h-10 items-center gap-2 border-b-2 border-transparent px-1 text-sm font-semibold transition-colors ${
                     isActive
-                      ? "student-nav-tab--active border-blue-600 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
+                      ? "student-nav-tab--active text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                  {/* Glow dưới gạch chân (nhẹ, premium) */}
+                  <item.icon className="relative z-[1] h-4 w-4 shrink-0" />
+                  <span className="relative z-[1]">{item.label}</span>
                   {isActive ? (
                     <span
                       aria-hidden="true"
-                      className="student-nav-underline pointer-events-none absolute -bottom-[2px] left-1 right-1 h-[2px] rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.65)]"
+                      className="student-nav-underline pointer-events-none absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.5)]"
                     />
                   ) : null}
                 </button>
               );
             })}
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setPracticeMenuOpen((v: boolean) => !v)}
+                className={`student-nav-tab group relative inline-flex h-10 items-center gap-2 border-b-2 border-transparent px-1 text-sm font-semibold transition-colors ${
+                  practiceActive
+                    ? "student-nav-tab--active text-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+                aria-haspopup="menu"
+                aria-expanded={practiceMenuOpen}
+              >
+                <BookOpen className="relative z-[1] h-4 w-4 shrink-0" />
+                <span className="relative z-[1]">Luyện tập</span>
+                <ChevronDown className="relative z-[1] h-4 w-4 shrink-0 opacity-70" />
+                {practiceActive ? (
+                  <span
+                    aria-hidden="true"
+                    className="student-nav-underline pointer-events-none absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.5)]"
+                  />
+                ) : null}
+              </button>
+
+              {practiceMenuOpen ? (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setPracticeMenuOpen(false)}
+                    aria-hidden
+                  />
+                  <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-100 bg-white py-2 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        router.push("/student/listening");
+                        setPracticeMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                        pathname === "/student/listening"
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-700 hover:bg-amber-50 hover:text-amber-900 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
+                      }`}
+                    >
+                      <Headphones className="h-4 w-4" />
+                      <span className="font-medium">Luyện Nghe</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        router.push("/student/reading");
+                        setPracticeMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                        pathname === "/student/reading"
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-700 hover:bg-amber-50 hover:text-amber-900 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
+                      }`}
+                    >
+                      <BookOpen className="h-4 w-4" />
+                      <span className="font-medium">Luyện Đọc</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        router.push("/student/writing");
+                        setPracticeMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                        pathname === "/student/writing"
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-700 hover:bg-amber-50 hover:text-amber-900 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
+                      }`}
+                    >
+                      <PenTool className="h-4 w-4" />
+                      <span className="font-medium">Luyện Viết</span>
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
           </nav>
 
           <div className="flex items-center gap-2 md:gap-4">
@@ -107,14 +196,6 @@ export function StudentHeader({
               aria-label={theme === "dark" ? "Chuyển sang light mode" : "Chuyển sang dark mode"}
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-
-            <button
-              type="button"
-              className="hidden p-2 text-gray-400 transition-colors hover:text-gray-600 sm:block"
-              aria-label="Tìm kiếm"
-            >
-              <Search className="h-5 w-5" />
             </button>
 
             <button

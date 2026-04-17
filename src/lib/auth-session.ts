@@ -14,6 +14,22 @@ function isBrowser(): boolean {
   return typeof window !== 'undefined';
 }
 
+function getCookieValue(name: string): string | null {
+  if (!isBrowser()) return null;
+  const raw = document.cookie || '';
+  const parts = raw.split(';').map((p) => p.trim());
+  for (const part of parts) {
+    if (!part) continue;
+    const idx = part.indexOf('=');
+    if (idx <= 0) continue;
+    const k = part.slice(0, idx).trim();
+    if (k !== name) continue;
+    const v = part.slice(idx + 1);
+    return v ? decodeURIComponent(v) : null;
+  }
+  return null;
+}
+
 function decodeJwtExpiry(token: string): number | null {
   try {
     const payload = token.split('.')[1];
@@ -31,7 +47,7 @@ function decodeJwtExpiry(token: string): number | null {
 
 export function getStoredAccessToken(): string | null {
   if (!isBrowser()) return null;
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  return localStorage.getItem(ACCESS_TOKEN_KEY) || getCookieValue(ACCESS_TOKEN_COOKIE);
 }
 
 export function getStoredRefreshToken(): string | null {

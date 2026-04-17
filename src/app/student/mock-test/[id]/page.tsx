@@ -12,9 +12,12 @@ import {
   CheckCircle,
   Loader2,
   Headphones,
+  Library,
+  Plus,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { getSignedMediaUrl } from "@/lib/media-url";
+import { useToast } from "@/hooks/useToast";
 import {
   mapAttemptResultToMockExam,
   mapAttemptSessionToMockExam,
@@ -55,6 +58,177 @@ const PART_TAB_LABEL: Record<string, string> = {
 
 const LISTENING_PARTS = new Set(["P1", "P2", "P3", "P4"]);
 const GROUPED_PARTS = new Set(["P3", "P4", "P6", "P7"]);
+
+function Study4LikeP1Image({
+  asset,
+  resolveAssetUrl,
+}: {
+  asset?: MockExamSharedAsset;
+  resolveAssetUrl: (asset?: MockExamSharedAsset) => Promise<string | undefined>;
+}) {
+  const [url, setUrl] = useState<string | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    if (shouldLoad) return;
+    if (typeof window === "undefined") return;
+    const el = hostRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { root: null, rootMargin: "250px 0px", threshold: 0.01 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+
+  useEffect(() => {
+    if (!shouldLoad) return;
+    let cancelled = false;
+    setFailed(false);
+    setUrl(undefined);
+
+    const run = async () => {
+      const resolved = await resolveAssetUrl(asset);
+      if (!cancelled) setUrl(resolved);
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [asset, resolveAssetUrl, shouldLoad]);
+
+  if (!asset) return null;
+
+  if (failed) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-amber-800 dark:border-slate-600/40 dark:bg-white/5 dark:text-amber-100">
+        Không tải được hình ảnh của câu này.
+      </div>
+    );
+  }
+
+  if (!url) {
+    return (
+      <div
+        ref={hostRef}
+        className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-600/40 dark:bg-white/5 dark:text-slate-300"
+      >
+        {shouldLoad ? "Đang tải hình..." : "Sắp tải hình..."}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={hostRef}
+      className="w-full overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-600/40 dark:bg-transparent"
+    >
+      <img
+        src={url}
+        alt="Question image"
+        className="max-h-[560px] w-full object-contain"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
+function Study4LikeP1Audio({
+  asset,
+  resolveAssetUrl,
+}: {
+  asset?: MockExamSharedAsset;
+  resolveAssetUrl: (asset?: MockExamSharedAsset) => Promise<string | undefined>;
+}) {
+  const [url, setUrl] = useState<string | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    if (shouldLoad) return;
+    if (typeof window === "undefined") return;
+    const el = hostRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { root: null, rootMargin: "250px 0px", threshold: 0.01 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+
+  useEffect(() => {
+    if (!shouldLoad) return;
+    let cancelled = false;
+    setFailed(false);
+    setUrl(undefined);
+
+    const run = async () => {
+      const resolved = await resolveAssetUrl(asset);
+      if (!cancelled) setUrl(resolved);
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [asset, resolveAssetUrl, shouldLoad]);
+
+  if (!asset) return null;
+
+  if (failed) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-amber-800 dark:border-slate-600/40 dark:bg-white/5 dark:text-amber-100">
+        Không tải được audio của câu này.
+      </div>
+    );
+  }
+
+  if (!url) {
+    return (
+      <div
+        ref={hostRef}
+        className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600 dark:border-slate-600/40 dark:bg-white/5 dark:text-slate-300"
+      >
+        {shouldLoad ? "Đang tải audio..." : "Sắp tải audio..."}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={hostRef}
+      className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-600/40 dark:bg-transparent"
+    >
+      <audio
+        controls
+        className="w-full"
+        onError={() => setFailed(true)}
+      >
+        <source src={url} />
+      </audio>
+    </div>
+  );
+}
 
 function isListeningPart(part?: string | null) {
   return !!part && LISTENING_PARTS.has(part);
@@ -218,6 +392,315 @@ function getRequestErrorMessage(error: any, fallback: string) {
   return error?.message || fallback;
 }
 
+function InfoTip({
+  text,
+  className = "",
+}: {
+  text: string;
+  className?: string;
+}) {
+  return (
+    <span className={`relative inline-flex ${className}`}>
+      <span className="group inline-flex items-center">
+        <span
+          tabIndex={0}
+          role="button"
+          aria-label="Thông tin"
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 bg-white text-[12px] font-black text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5 dark:focus-visible:ring-offset-transparent"
+        >
+          i
+        </span>
+
+        <span className="pointer-events-none absolute left-1/2 top-0 z-50 hidden w-[300px] -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-xl bg-slate-900 px-4 py-3 text-center text-sm font-semibold leading-6 text-white shadow-xl group-hover:block group-focus-within:block">
+          {text}
+          <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-8 border-t-8 border-x-transparent border-t-slate-900" />
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function safeJsonParse<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function CreateFlashcardFromSelectionModal({
+  open,
+  onClose,
+  seedText,
+}: {
+  open: boolean;
+  onClose: () => void;
+  seedText?: string;
+}) {
+  const { notify } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [decks, setDecks] = useState<Array<{ id: string; title: string }>>([]);
+  const [deckId, setDeckId] = useState<string>("");
+  const [creatingDeck, setCreatingDeck] = useState(false);
+  const [newDeckTitle, setNewDeckTitle] = useState("");
+
+  const [front, setFront] = useState("");
+  const [back, setBack] = useState("");
+  const [note, setNote] = useState("");
+  const [tags, setTags] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setFront(seedText?.trim() ?? "");
+    setBack("");
+    setNote("");
+    setTags("");
+    setCreatingDeck(false);
+    setNewDeckTitle("");
+
+    let cancelled = false;
+    setLoading(true);
+    apiClient.learner.flashcards
+      .listDecks({ limit: 50, sort: "updatedAt", order: "DESC" })
+      .then((res: any) => {
+        const payload = res?.data?.data ?? res?.data ?? res;
+        const items = payload?.items ?? payload?.data?.items ?? [];
+        const next = (items ?? []).map((d: any) => ({ id: d.id, title: d.title }));
+        if (!cancelled) {
+          setDecks(next);
+          setDeckId(next[0]?.id ?? "");
+        }
+      })
+      .catch((e: any) => {
+        if (!cancelled) {
+          notify({
+            variant: "error",
+            title: "Không tải được danh sách bộ",
+            message: e?.message || "Vui lòng thử lại.",
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, seedText]);
+
+  if (!open) return null;
+
+  const parsedTags = tags
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[1.5px]"
+        onClick={onClose}
+        aria-label="Đóng"
+      />
+      <div
+        className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-600/40 dark:bg-slate-950"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200">
+              <Library className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                Tạo flashcard từ đoạn bôi đen
+              </h3>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Đoạn chọn sẽ được điền vào mặt trước. Bạn bổ sung nghĩa và lưu vào bộ.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
+          >
+            Đóng
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Bộ flashcard
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={deckId}
+                onChange={(e) => setDeckId(e.target.value)}
+                disabled={loading || creatingDeck}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 disabled:opacity-60 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
+              >
+                {decks.length === 0 ? (
+                  <option value="">— Chưa có bộ — (bấm Tạo)</option>
+                ) : null}
+                {decks.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.title}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setCreatingDeck((v) => !v)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-amber-50 hover:text-amber-900 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
+              >
+                <Plus className="h-4 w-4" />
+                Tạo
+              </button>
+            </div>
+
+            {creatingDeck ? (
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={newDeckTitle}
+                  onChange={(e) => setNewDeckTitle(e.target.value)}
+                  placeholder="Tên bộ mới (VD: Từ vựng từ đề thi)"
+                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
+                />
+                <button
+                  type="button"
+                  disabled={!newDeckTitle.trim()}
+                  onClick={async () => {
+                    const title = newDeckTitle.trim();
+                    if (!title) return;
+                    setLoading(true);
+                    try {
+                      const res: any = await apiClient.learner.flashcards.createDeck({ title });
+                      const payload = res?.data?.data ?? res?.data ?? res;
+                      const created = { id: payload.id, title: payload.title };
+                      setDecks((prev) => [created, ...prev]);
+                      setDeckId(created.id);
+                      setCreatingDeck(false);
+                      setNewDeckTitle("");
+                      notify({ variant: "success", title: "Đã tạo bộ flashcard" });
+                    } catch (e: any) {
+                      notify({
+                        variant: "error",
+                        title: "Tạo bộ thất bại",
+                        message: e?.message || "Vui lòng thử lại.",
+                      });
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50"
+                >
+                  Lưu
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Tags (phân tách bằng dấu phẩy)
+            </label>
+            <input
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="toeic, part5"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
+            />
+          </div>
+        </div>
+
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Mặt trước
+            </label>
+            <textarea
+              value={front}
+              onChange={(e) => setFront(e.target.value)}
+              rows={5}
+              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Mặt sau
+            </label>
+            <textarea
+              value={back}
+              onChange={(e) => setBack(e.target.value)}
+              rows={5}
+              placeholder="Nhập nghĩa/giải thích..."
+              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
+            />
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Ghi chú (tuỳ chọn)
+          </label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            placeholder="VD: Câu ví dụ / bối cảnh"
+            className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
+          />
+        </div>
+
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
+          >
+            Hủy
+          </button>
+          <button
+            type="button"
+            disabled={!deckId || !front.trim() || !back.trim() || loading}
+            onClick={async () => {
+              if (!deckId) return;
+              setLoading(true);
+              try {
+                await apiClient.learner.flashcards.createCard(deckId, {
+                  front: front.trim(),
+                  back: back.trim(),
+                  note: note.trim() || undefined,
+                  tags: parsedTags.length ? parsedTags : undefined,
+                });
+                notify({ variant: "success", title: "Đã lưu flashcard" });
+                onClose();
+              } catch (e: any) {
+                notify({
+                  variant: "error",
+                  title: "Lưu flashcard thất bại",
+                  message: e?.message || "Vui lòng thử lại.",
+                });
+              } finally {
+                setLoading(false);
+              }
+            }}
+            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Lưu flashcard
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MockTestExamPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -236,6 +719,24 @@ export default function MockTestExamPage() {
   const [attemptHistory, setAttemptHistory] = useState<LearnerExamAttemptHistoryItem[]>([]);
   const [reviewExpanded, setReviewExpanded] = useState(false);
   const [isReviewLoading, setIsReviewLoading] = useState(false);
+  const [highlightEnabled, setHighlightEnabled] = useState(false);
+  const [flashcardSeedText, setFlashcardSeedText] = useState<string>("");
+  const [flashcardCreateOpen, setFlashcardCreateOpen] = useState(false);
+
+  useEffect(() => {
+    if (!highlightEnabled) return;
+    if (typeof window === "undefined") return;
+    const onMouseUp = () => {
+      const sel = window.getSelection?.();
+      const text = sel?.toString?.().trim?.() ?? "";
+      if (text && text.length >= 2 && text.length <= 2000) {
+        setFlashcardSeedText(text);
+      }
+    };
+    window.addEventListener("mouseup", onMouseUp);
+    return () => window.removeEventListener("mouseup", onMouseUp);
+  }, [highlightEnabled]);
+  const [reviewFlags, setReviewFlags] = useState<Record<string, boolean>>({});
   const [resolvedMedia, setResolvedMedia] = useState<{
     audioUrl?: string;
     imageUrl?: string;
@@ -440,6 +941,27 @@ export default function MockTestExamPage() {
     answersRef.current = answers;
   }, [answers]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!attempt?.id) return;
+    const key = `mock-test:review-flags:${attempt.id}`;
+    setReviewFlags(safeJsonParse<Record<string, boolean>>(window.localStorage.getItem(key), {}));
+  }, [attempt?.id]);
+
+  const toggleReviewFlag = useCallback(
+    (questionId: string) => {
+      setReviewFlags((prev) => {
+        const next = { ...prev, [questionId]: !prev[questionId] };
+        if (typeof window !== "undefined" && attempt?.id) {
+          const key = `mock-test:review-flags:${attempt.id}`;
+          window.localStorage.setItem(key, JSON.stringify(next));
+        }
+        return next;
+      });
+    },
+    [attempt?.id],
+  );
+
   const saveAnswers = useCallback(
     async (
       currentAnswers: Record<string, string>,
@@ -574,37 +1096,6 @@ export default function MockTestExamPage() {
 
   const currentQuestion = allQuestions[currentIdx];
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadCurrentMedia = async () => {
-      if (!currentQuestion) {
-        setResolvedMedia({});
-        setMediaError({ audio: false, image: false });
-        return;
-      }
-
-      setMediaError({ audio: false, image: false });
-
-      const imageAsset = getAssetByKind(currentQuestion.assets, "image");
-      const audioAsset = getAssetByKind(currentQuestion.assets, "audio");
-      const [imageUrl, audioUrl] = await Promise.all([
-        resolveAssetUrl(imageAsset),
-        resolveAssetUrl(audioAsset),
-      ]);
-
-      if (!cancelled) {
-        setResolvedMedia({ imageUrl, audioUrl });
-      }
-    };
-
-    void loadCurrentMedia();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentQuestion, resolveAssetUrl]);
-
   const sectionsWithQuestions = useMemo(
     () =>
       (attempt?.sections ?? [])
@@ -628,10 +1119,52 @@ export default function MockTestExamPage() {
     null;
 
   const currentPart = currentSection?.part ?? currentQuestion?.part ?? "";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCurrentMedia = async () => {
+      if (!currentQuestion) {
+        setResolvedMedia({});
+        setMediaError({ audio: false, image: false });
+        return;
+      }
+
+      setMediaError({ audio: false, image: false });
+
+      const part = currentPart ?? currentQuestion.part;
+      const isGroupedListening = part === "P3" || part === "P4";
+      if (isGroupedListening) {
+        // Part 3/4 dùng audio theo nhóm (render riêng), tránh presign lặp hàng loạt ở đây.
+        if (!cancelled) setResolvedMedia({});
+        return;
+      }
+      const imageAsset = isGroupedListening
+        ? getAssetByKind(currentGroup?.assets, "image") ?? getAssetByKind(currentQuestion.assets, "image")
+        : getAssetByKind(currentQuestion.assets, "image");
+      const audioAsset = isGroupedListening
+        ? getAssetByKind(currentGroup?.assets, "audio") ?? getAssetByKind(currentQuestion.assets, "audio")
+        : getAssetByKind(currentQuestion.assets, "audio");
+      const [imageUrl, audioUrl] = await Promise.all([
+        resolveAssetUrl(imageAsset),
+        resolveAssetUrl(audioAsset),
+      ]);
+
+      if (!cancelled) {
+        setResolvedMedia({ imageUrl, audioUrl });
+      }
+    };
+
+    void loadCurrentMedia();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentGroup?.assets, currentPart, currentQuestion, resolveAssetUrl]);
   const currentPartTabLabel = currentPart
     ? PART_TAB_LABEL[currentPart] ?? PART_LABEL[currentPart] ?? currentPart
     : "Đề thi";
-  const isLongListPart = currentPart === "P2";
+  const isLongListPart = currentPart === "P1" || currentPart === "P2" || currentPart === "P5";
   const isCurrentListeningPart = isListeningPart(currentPart);
   const isCurrentGroupedPart = isGroupedPart(currentPart);
 
@@ -643,6 +1176,8 @@ export default function MockTestExamPage() {
   const imageAsset = getAssetByKind(currentQuestion?.assets, "image");
   const hasAudioAsset = Boolean(audioAsset);
   const hasImageAsset = Boolean(imageAsset);
+  const isStudy4P3P4 = currentPart === "P3" || currentPart === "P4";
+  const groupedAudioAsset = isStudy4P3P4 ? getAssetByKind(currentGroup?.assets, "audio") : undefined;
 
   const jumpToQuestion = (questionId: string) => {
     const nextIndex = allQuestions.findIndex((question) => question.id === questionId);
@@ -650,7 +1185,11 @@ export default function MockTestExamPage() {
       setCurrentIdx(nextIndex);
 
       const targetQuestion = allQuestions[nextIndex];
-      if (targetQuestion?.part === "P2") {
+      if (
+        targetQuestion?.part === "P1" ||
+        targetQuestion?.part === "P2" ||
+        targetQuestion?.part === "P5"
+      ) {
         requestAnimationFrame(() => {
           document
             .getElementById(`question-${questionId}`)
@@ -785,22 +1324,66 @@ export default function MockTestExamPage() {
     const options = getVisibleOptions(question);
     const hideOptionCopy = shouldHideOptionText(question.part);
     const isAnswered = Boolean(answers[question.id]);
+    const isFlagged = Boolean(reviewFlags[question.id]);
+    const isStudy4P1 = question.part === "P1";
+    const isStudy4P2 = question.part === "P2";
+    const imageAssetForQuestion = isStudy4P1 ? getAssetByKind(question.assets, "image") : undefined;
+    const audioAssetForQuestion = (isStudy4P1 || isStudy4P2) ? getAssetByKind(question.assets, "audio") : undefined;
 
     return (
-      <div id={`question-${question.id}`} key={question.id} className="flex items-start gap-4">
-        <span
-          className={`mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold ${
-            isAnswered
-              ? "bg-blue-100 text-blue-700"
-              : "bg-slate-100 text-slate-600"
-          }`}
-        >
-          {question.displayNumber}
-        </span>
+      <div
+        id={`question-${question.id}`}
+        key={question.id}
+        className={isStudy4P1 ? "space-y-3" : "flex items-start gap-4"}
+      >
+        {isStudy4P1 ? (
+          <div className="flex items-start gap-4">
+            <button
+              type="button"
+              onClick={() => toggleReviewFlag(question.id)}
+              aria-pressed={isFlagged}
+              title={isFlagged ? "Bỏ đánh dấu review" : "Đánh dấu review"}
+              className={`relative mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold transition ${
+                isAnswered
+                  ? "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
+                  : isFlagged
+                    ? "bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-500/20 dark:text-rose-100 dark:hover:bg-rose-500/30"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/15"
+              }`}
+            >
+              {question.displayNumber}
+            </button>
+            <div className="min-w-0 flex-1">
+              <div className="space-y-3">
+                <Study4LikeP1Audio asset={audioAssetForQuestion} resolveAssetUrl={resolveAssetUrl} />
+                <Study4LikeP1Image asset={imageAssetForQuestion} resolveAssetUrl={resolveAssetUrl} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => toggleReviewFlag(question.id)}
+            aria-pressed={isFlagged}
+            title={isFlagged ? "Bỏ đánh dấu review" : "Đánh dấu review"}
+            className={`relative mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold transition ${
+              isAnswered
+                ? "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
+                : isFlagged
+                  ? "bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-500/20 dark:text-rose-100 dark:hover:bg-rose-500/30"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/15"
+            }`}
+          >
+            {question.displayNumber}
+          </button>
+        )}
 
-        <div className="min-w-0 flex-1 space-y-3">
+        <div className={isStudy4P1 ? "min-w-0 space-y-3 pl-[3.75rem]" : "min-w-0 flex-1 space-y-3"}>
+          {isStudy4P2 ? (
+            <Study4LikeP1Audio asset={audioAssetForQuestion} resolveAssetUrl={resolveAssetUrl} />
+          ) : null}
           {prompt ? (
-            <p className="text-[18px] font-medium leading-8 text-slate-900">{prompt}</p>
+            <p className="text-[18px] font-medium leading-8 text-slate-900 dark:text-slate-100">{prompt}</p>
           ) : null}
 
           {options.length > 0 ? (
@@ -813,14 +1396,14 @@ export default function MockTestExamPage() {
                     key={option.key}
                     onClick={() => handleAnswer(question.id, option.key)}
                     className={`flex w-full items-start gap-3 rounded-2xl px-1 py-1 text-left ${
-                      selected ? "text-blue-700" : "text-slate-800"
+                      selected ? "text-amber-800 dark:text-amber-200" : "text-slate-800 dark:text-slate-100"
                     }`}
                   >
                     <span
                       className={`mt-1 inline-flex h-5 w-5 shrink-0 rounded-full border ${
                         selected
-                          ? "border-blue-600 bg-blue-600 shadow-[inset_0_0_0_3px_white]"
-                          : "border-slate-400 bg-white"
+                          ? "border-amber-500 bg-amber-500 shadow-[inset_0_0_0_3px_white]"
+                          : "border-slate-400 bg-white dark:border-slate-500/70 dark:bg-transparent"
                       }`}
                     />
                     <span className="flex-1 text-[17px] leading-8">
@@ -845,16 +1428,18 @@ export default function MockTestExamPage() {
 
   const renderSharedContext = () => {
     if (!hasSharedContext) return null;
+    if (currentPart === "P1") return null;
+    if (currentPart === "P3" || currentPart === "P4") return null;
 
     return (
       <div className="space-y-4">
         {showImage && (
-          <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-slate-50">
+          <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-slate-50 dark:border-slate-600/40 dark:bg-white/5">
             {resolvedMedia.imageUrl && !mediaError.image ? (
               <img
                 src={resolvedMedia.imageUrl}
                 alt="Question illustration"
-                className="max-h-[760px] w-full object-contain"
+                className="max-h-[420px] w-full object-contain"
                 onError={() => setMediaError((prev) => ({ ...prev, image: true }))}
               />
             ) : (
@@ -867,16 +1452,16 @@ export default function MockTestExamPage() {
         )}
 
         {showTranscript && (
-          <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-5 py-4">
-            <p className="whitespace-pre-line text-[17px] leading-8 text-slate-800">
+          <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-600/40 dark:bg-white/5">
+            <p className="whitespace-pre-line text-[17px] leading-8 text-slate-800 dark:text-slate-100">
               {transcript}
             </p>
           </div>
         )}
 
         {showStem && (
-          <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-5 py-4">
-            <p className="whitespace-pre-line text-[17px] leading-8 text-slate-800">
+          <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-600/40 dark:bg-white/5">
+            <p className="whitespace-pre-line text-[17px] leading-8 text-slate-800 dark:text-slate-100">
               {stem}
             </p>
           </div>
@@ -895,14 +1480,14 @@ export default function MockTestExamPage() {
     return (
       <div
         key={question.id}
-        className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm"
+        className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-600/40 dark:bg-transparent"
       >
         <div className="flex items-start gap-4">
           <span
             className={`mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold ${
               question.isCorrect
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-rose-100 text-rose-700"
+                ? "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
+                : "bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200"
             }`}
           >
             {question.questionNo}
@@ -910,11 +1495,11 @@ export default function MockTestExamPage() {
 
           <div className="min-w-0 flex-1 space-y-3">
             {question.prompt?.trim() ? (
-              <p className="text-[18px] font-medium leading-8 text-slate-900">
+              <p className="text-[18px] font-medium leading-8 text-slate-900 dark:text-slate-100">
                 {question.prompt}
               </p>
             ) : part === "P1" || part === "P2" ? null : (
-              <p className="text-[18px] font-medium leading-8 text-slate-900">
+              <p className="text-[18px] font-medium leading-8 text-slate-900 dark:text-slate-100">
                 Câu hỏi {question.questionNo}
               </p>
             )}
@@ -932,26 +1517,26 @@ export default function MockTestExamPage() {
                       key={`${question.id}-${option.optionKey}`}
                       className={`rounded-2xl border px-4 py-3 ${
                         isCorrect
-                          ? "border-emerald-200 bg-emerald-50"
+                          ? "border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10"
                           : isSelected
-                            ? "border-rose-200 bg-rose-50"
-                            : "border-slate-200 bg-slate-50"
+                            ? "border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10"
+                            : "border-slate-200 bg-slate-50 dark:border-slate-600/40 dark:bg-white/5"
                       }`}
                     >
                       <div className="flex flex-wrap items-start gap-2">
-                        <span className="font-semibold text-slate-900">
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">
                           {optionKey}.
                         </span>
-                        <span className="flex-1 text-slate-800">
+                        <span className="flex-1 text-slate-800 dark:text-slate-100">
                           {option.content}
                         </span>
                         {isSelected && (
-                          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-white/10 dark:text-slate-200">
                             Bạn chọn
                           </span>
                         )}
                         {isCorrect && (
-                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
                             Đáp án đúng
                           </span>
                         )}
@@ -962,13 +1547,13 @@ export default function MockTestExamPage() {
             </div>
 
             {!question.isCorrect && correctOptionKey ? (
-              <p className="text-sm font-medium text-emerald-700">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
                 Đáp án đúng: {correctOptionKey}
               </p>
             ) : null}
 
             {question.rationale?.trim() ? (
-              <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900">
+              <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900 dark:bg-amber-500/10 dark:text-amber-100">
                 <span className="font-semibold">Giải thích:</span>{" "}
                 {question.rationale}
               </div>
@@ -1082,17 +1667,17 @@ export default function MockTestExamPage() {
     const currentAttemptId = resultPayload?.attempt.id;
 
     return (
-      <div className="min-h-screen bg-[linear-gradient(180deg,#eef4ff_0%,#ffffff_100%)] p-6">
+      <div className="px-4 py-6 sm:px-6 lg:px-10">
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mx-auto w-full max-w-6xl space-y-6"
+          className="mx-auto w-full max-w-screen-2xl space-y-6"
         >
-          <div className="rounded-[28px] border border-blue-100 bg-white p-5 shadow-[0_20px_60px_rgba(47,103,246,0.10)] sm:p-6">
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-600/40 dark:bg-transparent">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4 text-left">
-                <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50">
-                  <CheckCircle className="h-8 w-8 text-blue-600" />
+                <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-500/10">
+                  <CheckCircle className="h-8 w-8 text-amber-600 dark:text-amber-200" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
@@ -1105,7 +1690,7 @@ export default function MockTestExamPage() {
               </div>
 
               {currentAttemptId ? (
-                <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:bg-white/10 dark:text-slate-300">
                   Attempt #{currentAttemptId.slice(0, 8)}
                 </span>
               ) : null}
@@ -1113,60 +1698,60 @@ export default function MockTestExamPage() {
 
             <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
               {result.totalScore !== undefined && (
-                <div className="rounded-2xl bg-blue-50 px-4 py-3 text-center">
-                  <div className="text-2xl font-bold text-blue-700">{result.totalScore}</div>
-                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-white/5">
+                  <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">{result.totalScore}</div>
+                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                     Tổng điểm
                   </div>
                 </div>
               )}
               {result.listeningScore !== undefined && (
-                <div className="rounded-2xl bg-sky-50 px-4 py-3 text-center">
-                  <div className="text-2xl font-bold text-sky-700">
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-white/5">
+                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                     {result.listeningScore}
                   </div>
-                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                     Listening
                   </div>
                 </div>
               )}
               {result.readingScore !== undefined && (
-                <div className="rounded-2xl bg-indigo-50 px-4 py-3 text-center">
-                  <div className="text-2xl font-bold text-indigo-700">
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-white/5">
+                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                     {result.readingScore}
                   </div>
-                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                     Reading
                   </div>
                 </div>
               )}
               {result.accuracy !== undefined && (
-                <div className="rounded-2xl bg-amber-50 px-4 py-3 text-center">
-                  <div className="text-2xl font-bold text-amber-700">
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-white/5">
+                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                     {result.accuracy}%
                   </div>
-                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                     Độ chính xác
                   </div>
                 </div>
               )}
               {result.correctAnswers !== undefined &&
                 result.totalQuestions !== undefined && (
-                  <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center">
-                    <div className="text-2xl font-bold text-slate-800">
+                  <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-white/5">
+                    <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                       {result.correctAnswers}/{result.totalQuestions}
                     </div>
-                    <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+                    <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                       Câu đúng
                     </div>
                   </div>
                 )}
               {typeof resultPayload?.attempt.answeredCount === "number" && (
-                <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center">
-                  <div className="text-2xl font-bold text-slate-800">
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-white/5">
+                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                     {resultPayload.attempt.answeredCount}/{resultPayload.attempt.totalQuestions}
                   </div>
-                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+                  <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                     Câu đã trả lời
                   </div>
                 </div>
@@ -1192,20 +1777,20 @@ export default function MockTestExamPage() {
                   }
                   router.push(`/student/mock-test/${id}`);
                 }}
-                className="flex-1 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 font-semibold text-blue-700 transition hover:bg-blue-100"
+                className="flex-1 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
               >
                 Làm lại đề này
               </button>
               <button
                 onClick={() => router.push("/student/mock-test")}
-                className="flex-1 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
+                className="flex-1 rounded-2xl bg-amber-500 px-5 py-3 font-semibold text-slate-900 transition hover:bg-amber-400"
               >
                 Về trang thi thử
               </button>
               {currentAttemptId && (
                 <button
                   onClick={() => void openReviewDetails()}
-                  className="flex-1 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600/40 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
                 >
                   {isReviewLoading
                     ? "Đang tải đáp án chi tiết..."
@@ -1218,34 +1803,34 @@ export default function MockTestExamPage() {
           </div>
 
           {attemptHistory.length > 0 && (
-            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-600/40 dark:bg-transparent">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                     Lịch sử các lần làm
                   </h3>
-                  <p className="mt-2 text-slate-500">
+                  <p className="mt-2 text-slate-500 dark:text-slate-300">
                     Mở lại chi tiết từng lần làm của đề này.
                   </p>
                 </div>
-                <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
+                <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-white/10 dark:text-slate-200">
                   {attemptHistory.length} lần làm
                 </span>
               </div>
 
-              <div className="mt-6 overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-600/40">
+                <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-600/40">
                   <thead>
-                    <tr className="text-left text-slate-500">
-                      <th className="px-3 py-3 font-semibold">Lần</th>
-                      <th className="px-3 py-3 font-semibold">Trạng thái</th>
-                      <th className="px-3 py-3 font-semibold">Thời gian làm</th>
-                      <th className="px-3 py-3 font-semibold">Kết quả</th>
-                      <th className="px-3 py-3 font-semibold">Thời điểm</th>
-                      <th className="px-3 py-3 font-semibold text-right">Chi tiết</th>
+                    <tr className="bg-slate-50 text-left text-slate-600 dark:bg-white/5 dark:text-slate-300">
+                      <th className="px-4 py-3 font-semibold">Lần</th>
+                      <th className="px-4 py-3 font-semibold">Trạng thái</th>
+                      <th className="px-4 py-3 font-semibold">Thời gian làm</th>
+                      <th className="px-4 py-3 font-semibold">Kết quả</th>
+                      <th className="px-4 py-3 font-semibold">Thời điểm</th>
+                      <th className="px-4 py-3 font-semibold text-right">Chi tiết</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-600/30 dark:bg-transparent">
                     {attemptHistory.map((historyItem) => {
                       const isCurrentAttempt = historyItem.id === currentAttemptId;
                       const hasResult = historyItem.status === "graded";
@@ -1253,32 +1838,32 @@ export default function MockTestExamPage() {
                       return (
                         <tr
                           key={historyItem.id}
-                          className={isCurrentAttempt ? "bg-blue-50/60" : "bg-white"}
+                          className={isCurrentAttempt ? "bg-amber-50/60 dark:bg-amber-500/10" : ""}
                         >
-                          <td className="px-3 py-3 font-semibold text-slate-900">
+                          <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">
                             Lần {historyItem.attemptNo}
                           </td>
-                          <td className="px-3 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-200">
                             {getAttemptStatusLabel(historyItem.status)}
                           </td>
-                          <td className="px-3 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-200">
                             {formatAttemptDuration(historyItem.durationSec)}
                           </td>
-                          <td className="px-3 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-200">
                             {hasResult
                               ? `${historyItem.totalScore} điểm • ${historyItem.correctCount}/${historyItem.totalQuestions} đúng`
                               : `${historyItem.answeredCount}/${historyItem.totalQuestions} câu đã chọn`}
                           </td>
-                          <td className="px-3 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-200">
                             {formatAttemptDate(
                               historyItem.gradedAt ??
                                 historyItem.submittedAt ??
                                 historyItem.startedAt,
                             )}
                           </td>
-                          <td className="px-3 py-3 text-right">
+                          <td className="px-4 py-3 text-right">
                             {isCurrentAttempt ? (
-                              <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                              <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
                                 Đang xem
                               </span>
                             ) : hasResult ? (
@@ -1289,7 +1874,7 @@ export default function MockTestExamPage() {
                                     `/student/mock-test/${id}?attemptId=${historyItem.id}&view=result`,
                                   )
                                 }
-                                className="inline-flex rounded-full border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                                className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
                               >
                                 Xem chi tiết
                               </button>
@@ -1297,7 +1882,7 @@ export default function MockTestExamPage() {
                               <button
                                 type="button"
                                 onClick={() => router.push(`/student/mock-test/${id}`)}
-                                className="inline-flex rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                                className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
                               >
                                 Tiếp tục làm
                               </button>
@@ -1356,10 +1941,10 @@ export default function MockTestExamPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
         <AlertCircle className="h-12 w-12 text-amber-500" />
-        <h2 className="text-xl font-bold text-slate-900">Đề thi không có câu hỏi</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Đề thi không có câu hỏi</h2>
         <button
           onClick={() => router.push("/student/mock-test")}
-          className="rounded-2xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700"
+          className="rounded-2xl bg-amber-500 px-6 py-3 font-semibold text-slate-900 transition hover:bg-amber-400"
         >
           Quay lại
         </button>
@@ -1368,12 +1953,34 @@ export default function MockTestExamPage() {
   }
 
   return (
-    <div className="-mx-4 min-h-screen bg-[#f6f8fc] text-slate-900 sm:-mx-6 lg:-mx-8">
-      <div className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="min-h-screen bg-white text-slate-900 dark:bg-transparent dark:text-slate-100">
+      <CreateFlashcardFromSelectionModal
+        open={flashcardCreateOpen}
+        seedText={flashcardSeedText}
+        onClose={() => setFlashcardCreateOpen(false)}
+      />
+      <div className="mx-auto max-w-screen-2xl px-4 py-4 sm:px-6 lg:px-10">
+        {/* Study4-like top row: title + exit */}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {attempt?.templateName ?? "TOEIC Practice"}
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/student/mock-test")}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
+          >
+            Thoát
+          </button>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div className="min-w-0 space-y-4">
-            <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              {(resolvedMedia.audioUrl && !mediaError.audio) || hasAudioAsset ? (
+            {/* Audio + part tabs (Study4-like) */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-600/40 dark:bg-transparent">
+              {currentPart !== "P1" && currentPart !== "P2" && !isStudy4P3P4 && ((resolvedMedia.audioUrl && !mediaError.audio) || hasAudioAsset) ? (
                 <div>
                   <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
                     <Headphones className="h-4 w-4" />
@@ -1396,11 +2003,30 @@ export default function MockTestExamPage() {
                 </div>
               ) : null}
 
+              {isStudy4P3P4 ? (
+                <div>
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
+                    <Headphones className="h-4 w-4" />
+                    Audio (nhóm)
+                  </div>
+
+                  {groupedAudioAsset ? (
+                    <Study4LikeP1Audio asset={groupedAudioAsset} resolveAssetUrl={resolveAssetUrl} />
+                  ) : (
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      Nhóm câu hỏi này chưa có audio.
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
               <div
                 className={`flex flex-wrap gap-3 ${
-                  ((resolvedMedia.audioUrl && !mediaError.audio) || hasAudioAsset) &&
-                  !isLongListPart
-                    ? "mt-5 border-t border-slate-100 pt-5"
+                  (((resolvedMedia.audioUrl && !mediaError.audio) ||
+                    hasAudioAsset ||
+                    Boolean(groupedAudioAsset)) &&
+                    !isLongListPart)
+                    ? "mt-4 border-t border-slate-100 pt-4 dark:border-slate-600/30"
                     : ""
                 }`}
               >
@@ -1410,10 +2036,10 @@ export default function MockTestExamPage() {
                     <button
                       key={section.id}
                       onClick={() => jumpToSection(section.id)}
-                      className={`rounded-full px-5 py-2.5 text-lg font-semibold transition ${
+                      className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-transparent ${
                         isActive
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          ? "bg-amber-500 text-slate-900"
+                          : "bg-white text-slate-700 hover:bg-amber-50 hover:text-amber-900 dark:bg-transparent dark:text-slate-200 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
                       }`}
                     >
                       {PART_TAB_LABEL[section.part ?? ""] ?? section.name}
@@ -1423,14 +2049,14 @@ export default function MockTestExamPage() {
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm xl:hidden">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 xl:hidden dark:border-slate-600/40 dark:bg-transparent">
               <div className="flex items-center justify-between gap-3">
                 {timeLeft !== null && (
                   <div
-                    className={`flex items-center gap-2 rounded-2xl px-4 py-3 font-mono text-base font-bold ${
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 font-mono text-sm font-bold ${
                       timeLeft < 300
-                        ? "bg-red-50 text-red-600"
-                        : "bg-slate-100 text-slate-700"
+                        ? "bg-red-50 text-red-600 dark:bg-rose-500/10 dark:text-rose-200"
+                        : "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200"
                     }`}
                   >
                     <Clock className="h-4 w-4" />
@@ -1440,7 +2066,7 @@ export default function MockTestExamPage() {
 
                 <button
                   onClick={() => handleSubmit(false)}
-                  className="flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
+                  className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-900 dark:hover:bg-amber-400"
                 >
                   <Send className="h-4 w-4" />
                   Nộp bài
@@ -1452,12 +2078,48 @@ export default function MockTestExamPage() {
               key={currentQuestion.id}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+              className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 dark:border-slate-600/40 dark:bg-transparent"
             >
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <span className="rounded-full bg-blue-100 px-4 py-2 text-lg font-semibold text-blue-700">
-                  {currentPartTabLabel}
-                </span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 dark:bg-white/10 dark:text-slate-200">
+                    {currentPartTabLabel}
+                  </span>
+
+                  <label className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={highlightEnabled}
+                      onClick={() => setHighlightEnabled((v) => !v)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                        highlightEnabled ? "bg-amber-500" : "bg-slate-300 dark:bg-white/15"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                          highlightEnabled ? "translate-x-5" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                    <span className="text-sm italic text-slate-700 dark:text-slate-200">
+                      Highlight nội dung
+                    </span>
+                    <InfoTip text="Bôi đen text để highlight nội dung. Bạn có thể thay đổi màu sắc hoặc thêm ghi chú." />
+                  </label>
+
+                  {highlightEnabled && flashcardSeedText ? (
+                    <button
+                      type="button"
+                      onClick={() => setFlashcardCreateOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-amber-50 hover:text-amber-900 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
+                      title="Tạo flashcard từ đoạn bôi đen"
+                    >
+                      <Library className="h-4 w-4 text-amber-500" />
+                      Lưu flashcard
+                    </button>
+                  ) : null}
+                </div>
                 <span className="text-sm font-medium text-slate-500">
                   Câu {displayedQuestions[0]?.displayNumber}
                   {displayedQuestions.length > 1
@@ -1504,7 +2166,7 @@ export default function MockTestExamPage() {
               <button
                 onClick={() => previousIndex >= 0 && setCurrentIdx(previousIndex)}
                 disabled={previousIndex < 0}
-                className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
               >
                 <ChevronLeft className="h-4 w-4" />
                 {displayedQuestions.length > 1 ? "Nhóm trước" : "Câu trước"}
@@ -1512,7 +2174,7 @@ export default function MockTestExamPage() {
               <button
                 onClick={() => nextIndex >= 0 && setCurrentIdx(nextIndex)}
                 disabled={nextIndex < 0}
-                className="flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-amber-500 dark:text-slate-900 dark:hover:bg-amber-400"
               >
                 {displayedQuestions.length > 1 ? "Nhóm tiếp" : "Câu tiếp"}
                 <ChevronRight className="h-4 w-4" />
@@ -1521,15 +2183,15 @@ export default function MockTestExamPage() {
             )}
           </div>
 
-          <aside className="hidden w-[280px] shrink-0 xl:block">
-            <div className="sticky top-24 space-y-4">
-              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+          <aside className="hidden w-[300px] shrink-0 xl:block">
+            <div className="sticky top-20 space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-600/40 dark:bg-transparent">
                 {timeLeft !== null && (
                   <div>
                     <p className="text-sm font-semibold text-slate-500">Thời gian còn lại</p>
                     <p
-                      className={`mt-2 font-mono text-[40px] font-bold leading-none ${
-                        timeLeft < 300 ? "text-red-600" : "text-slate-900"
+                      className={`mt-1 font-mono text-3xl font-bold leading-none ${
+                        timeLeft < 300 ? "text-red-600 dark:text-rose-200" : "text-slate-900 dark:text-slate-100"
                       }`}
                     >
                       {formatTime(timeLeft)}
@@ -1539,19 +2201,40 @@ export default function MockTestExamPage() {
 
                 <button
                   onClick={() => handleSubmit(false)}
-                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-blue-500 px-5 py-3 text-lg font-semibold text-blue-700 transition hover:bg-blue-50"
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-900 dark:hover:bg-amber-400"
                 >
                   <Send className="h-4 w-4" />
                   Nộp bài
                 </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!attempt?.id) return;
+                    try {
+                      await saveAnswers(answersRef.current, { suppressErrors: false });
+                    } catch (e: any) {
+                      if (await recoverClosedAttemptResult(e)) return;
+                      setErrorMsg(getRequestErrorMessage(e, "Không thể lưu bài làm"));
+                      setPageState("error");
+                    }
+                  }}
+                  className="mt-3 w-full text-left text-[13px] font-semibold text-rose-600 transition hover:text-rose-700 dark:text-rose-200 dark:hover:text-rose-100"
+                >
+                  Khôi phục/lưu bài làm &gt;
+                </button>
+
+                <p className="mt-3 text-[13px] italic font-semibold text-amber-600 dark:text-amber-200">
+                  Chú ý: bạn có thể click vào số thứ tự câu hỏi trong bài để đánh dấu review
+                </p>
 
                 <p className="mt-4 text-sm text-slate-500">
                   {answeredCount}/{totalCount} câu đã chọn
                 </p>
               </div>
 
-              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-600">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-600/40 dark:bg-transparent">
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300">
                   Bảng câu hỏi
                 </p>
 
@@ -1559,7 +2242,7 @@ export default function MockTestExamPage() {
                   {sectionsWithQuestions.map((section) => (
                     <div key={section.id}>
                       <div className="mb-3 flex items-center justify-between gap-2">
-                        <span className="text-lg font-semibold text-slate-900">
+                        <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                           {PART_TAB_LABEL[section.part ?? ""] ?? section.name}
                         </span>
                         <span className="text-sm text-slate-400">
@@ -1567,18 +2250,25 @@ export default function MockTestExamPage() {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-5 gap-2">
+                      <div className="grid grid-cols-6 gap-1.5">
                         {section.questions.map((question) => {
                           const answered = Boolean(answers[question.id]);
+                          const flagged = Boolean(reviewFlags[question.id]);
 
                           return (
                             <button
                               key={question.id}
-                              onClick={() => jumpToQuestion(question.id)}
-                              className={`h-11 rounded-xl border text-sm font-semibold transition ${
+                              onClick={() => {
+                                toggleReviewFlag(question.id);
+                                jumpToQuestion(question.id);
+                              }}
+                              aria-pressed={flagged}
+                              className={`relative h-8 rounded border text-[11px] font-semibold transition ${
                                 answered
-                                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                                  ? "border-slate-900 bg-slate-900 text-white dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
+                                  : flagged
+                                    ? "border-rose-700 bg-rose-600 text-white hover:bg-rose-700 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-100 dark:hover:bg-rose-500/30"
+                                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
                               }`}
                             >
                               {question.displayNumber}
@@ -1597,3 +2287,4 @@ export default function MockTestExamPage() {
     </div>
   );
 }
+

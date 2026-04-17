@@ -31,13 +31,16 @@ export const useAvatarUpload = () => {
       const { signedPutUrl, s3Key } = presignRes.data;
       setProgress(25);
 
-      const s3Res = await fetch(signedPutUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
+      // Luôn upload qua proxy /api/s3-upload để tránh CORS từ S3
+      const formData = new FormData();
+      formData.append('signedPutUrl', signedPutUrl);
+      formData.append('contentType', file.type || 'application/octet-stream');
+      formData.append('file', file);
+      const proxyRes = await fetch('/api/s3-upload', {
+        method: 'POST',
+        body: formData,
       });
-
-      if (!s3Res.ok) {
+      if (!proxyRes.ok) {
         throw new Error('Upload len S3 that bai');
       }
 

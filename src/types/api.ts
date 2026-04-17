@@ -51,6 +51,16 @@ export interface JwtPayload {
   role: UserRole;
   roles?: UserRole[];
   permissions?: string[]; // Danh sách các code quyền (ví dụ: 'users.read', 'questions.manage')
+  // Optional enriched profile fields (BE có thể trả về kèm theo)
+  name?: string;
+  avatarUrl?: string | null;
+  phone?: string | null;
+  birthday?: string | null;
+  address?: string | null;
+  bio?: string | null;
+  linkedin?: string | null;
+  github?: string | null;
+  twitter?: string | null;
   iat?: number;
   exp?: number;
 }

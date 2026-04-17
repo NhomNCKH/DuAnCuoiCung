@@ -178,6 +178,18 @@ class ApiClient {
     getMe: (): Promise<MeApiResponse> =>
       this.request('/auth/me', { method: 'GET' }),
 
+    updateMe: (data: {
+      name?: string;
+      phone?: string;
+      birthday?: string;
+      address?: string;
+      bio?: string;
+      linkedin?: string;
+      github?: string;
+      twitter?: string;
+    }): Promise<ApiResponse<{ success: boolean; message: string; data: any }>> =>
+      this.request('/auth/me', { method: 'PUT', body: JSON.stringify(data) }),
+
     /**
      * POST /auth/me/avatar  (multipart/form-data)
      * Upload file ảnh trực tiếp, BE tự upload lên S3 và cập nhật DB
@@ -342,6 +354,131 @@ class ApiClient {
 
       deleteAsset: (id: string, assetId: string): Promise<ApiResponse> =>
         this.request(`/admin/question-groups/${id}/assets/${assetId}`, { method: 'DELETE' }),
+    },
+
+    vocabulary: {
+      listDecks: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        cefrLevel?: string;
+        published?: boolean;
+        sort?: string;
+        order?: 'ASC' | 'DESC';
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+          if (params.cefrLevel) query.cefrLevel = params.cefrLevel;
+          if (params.published !== undefined) query.published = String(params.published);
+          if (params.sort) query.sort = params.sort;
+          if (params.order) query.order = params.order;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/admin/vocabulary-decks${qs}`, { method: 'GET' });
+      },
+
+      createDeck: (data: {
+        title: string;
+        cefrLevel: string;
+        description?: string;
+        published?: boolean;
+        sortOrder?: number;
+      }): Promise<ApiResponse> =>
+        this.request('/admin/vocabulary-decks', { method: 'POST', body: JSON.stringify(data) }),
+
+      getDeck: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/vocabulary-decks/${id}`, { method: 'GET' }),
+
+      updateDeck: (
+        id: string,
+        data: {
+          title?: string;
+          cefrLevel?: string;
+          description?: string | null;
+          published?: boolean;
+          sortOrder?: number;
+        },
+      ): Promise<ApiResponse> =>
+        this.request(`/admin/vocabulary-decks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+      deleteDeck: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/vocabulary-decks/${id}`, { method: 'DELETE' }),
+
+      listItems: (
+        deckId: string,
+        params?: {
+          page?: number;
+          limit?: number;
+          keyword?: string;
+          sort?: string;
+          order?: 'ASC' | 'DESC';
+        },
+      ): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+          if (params.sort) query.sort = params.sort;
+          if (params.order) query.order = params.order;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/admin/vocabulary-decks/${deckId}/items${qs}`, { method: 'GET' });
+      },
+
+      createItem: (
+        deckId: string,
+        data: {
+          word: string;
+          wordType: string;
+          meaning: string;
+          pronunciation?: string | null;
+          exampleSentence: string;
+          sortOrder?: number;
+        },
+      ): Promise<ApiResponse> =>
+        this.request(`/admin/vocabulary-decks/${deckId}/items`, { method: 'POST', body: JSON.stringify(data) }),
+
+      bulkItems: (
+        deckId: string,
+        data: {
+          items: {
+            word: string;
+            wordType: string;
+            meaning: string;
+            pronunciation?: string | null;
+            exampleSentence: string;
+            sortOrder?: number;
+          }[];
+        },
+      ): Promise<ApiResponse> =>
+        this.request(`/admin/vocabulary-decks/${deckId}/items/bulk`, {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+
+      updateItem: (
+        deckId: string,
+        itemId: string,
+        data: {
+          word?: string;
+          wordType?: string;
+          meaning?: string;
+          pronunciation?: string | null;
+          exampleSentence?: string;
+          sortOrder?: number;
+        },
+      ): Promise<ApiResponse> =>
+        this.request(`/admin/vocabulary-decks/${deckId}/items/${itemId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        }),
+
+      deleteItem: (deckId: string, itemId: string): Promise<ApiResponse> =>
+        this.request(`/admin/vocabulary-decks/${deckId}/items/${itemId}`, { method: 'DELETE' }),
     },
 
     // ---- Admin: Exam Templates (/admin/exam-templates) ----
@@ -607,6 +744,125 @@ class ApiClient {
 
       getResult: (attemptId: string): Promise<ApiResponse<LearnerAttemptResultData>> =>
         this.request(`/learner/exam-attempts/${attemptId}/result`, { method: 'GET' }),
+    },
+
+    flashcards: {
+      listDecks: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        sort?: string;
+        order?: 'ASC' | 'DESC';
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword && params.keyword.trim() !== '') query.keyword = params.keyword.trim();
+          if (params.sort) query.sort = params.sort;
+          if (params.order) query.order = params.order;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/learner/flashcard-decks${qs}`, { method: 'GET' });
+      },
+
+      createDeck: (data: { title: string; description?: string }): Promise<ApiResponse> =>
+        this.request('/learner/flashcard-decks', { method: 'POST', body: JSON.stringify(data) }),
+
+      getDeck: (deckId: string): Promise<ApiResponse> =>
+        this.request(`/learner/flashcard-decks/${deckId}`, { method: 'GET' }),
+
+      updateDeck: (deckId: string, data: { title?: string; description?: string }): Promise<ApiResponse> =>
+        this.request(`/learner/flashcard-decks/${deckId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+      deleteDeck: (deckId: string): Promise<ApiResponse> =>
+        this.request(`/learner/flashcard-decks/${deckId}`, { method: 'DELETE' }),
+
+      listCards: (deckId: string, params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        sort?: string;
+        order?: 'ASC' | 'DESC';
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword && params.keyword.trim() !== '') query.keyword = params.keyword.trim();
+          if (params.sort) query.sort = params.sort;
+          if (params.order) query.order = params.order;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/learner/flashcard-decks/${deckId}/flashcards${qs}`, { method: 'GET' });
+      },
+
+      createCard: (deckId: string, data: { front: string; back: string; note?: string; tags?: string[] }): Promise<ApiResponse> =>
+        this.request(`/learner/flashcard-decks/${deckId}/flashcards`, { method: 'POST', body: JSON.stringify(data) }),
+
+      updateCard: (cardId: string, data: { front?: string; back?: string; note?: string; tags?: string[] }): Promise<ApiResponse> =>
+        this.request(`/learner/flashcards/${cardId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+      deleteCard: (cardId: string): Promise<ApiResponse> =>
+        this.request(`/learner/flashcards/${cardId}`, { method: 'DELETE' }),
+
+      getStudyQueue: (params: { deckId: string; limit?: number; newLimit?: number }): Promise<ApiResponse> => {
+        const qs = `?${new URLSearchParams(
+          Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+        ).toString()}`;
+        return this.request(`/learner/flashcards/study/queue${qs}`, { method: 'GET' });
+      },
+
+      submitReview: (data: { flashcardId: string; rating: 'again' | 'hard' | 'good' | 'easy'; timeMs?: number }): Promise<ApiResponse> =>
+        this.request('/learner/flashcards/study/review', { method: 'POST', body: JSON.stringify(data) }),
+    },
+
+    vocabulary: {
+      listDecks: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        cefrLevel?: string;
+        sort?: string;
+        order?: 'ASC' | 'DESC';
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+          if (params.cefrLevel) query.cefrLevel = params.cefrLevel;
+          if (params.sort) query.sort = params.sort;
+          if (params.order) query.order = params.order;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/learner/vocabulary-decks${qs}`, { method: 'GET' });
+      },
+
+      getDeck: (id: string): Promise<ApiResponse> =>
+        this.request(`/learner/vocabulary-decks/${id}`, { method: 'GET' }),
+
+      listItems: (
+        deckId: string,
+        params?: {
+          page?: number;
+          limit?: number;
+          keyword?: string;
+          sort?: string;
+          order?: 'ASC' | 'DESC';
+        },
+      ): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+          if (params.sort) query.sort = params.sort;
+          if (params.order) query.order = params.order;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/learner/vocabulary-decks/${deckId}/items${qs}`, { method: 'GET' });
+      },
     },
   };
 }

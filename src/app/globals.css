@@ -176,15 +176,14 @@ a {
   color: var(--admin-accent) !important;
 }
 
-/* Learner top nav (giống admin): chuyển underline/glow sang accent vàng trong dark mode */
+/* Learner top nav (giống admin): accent vàng; glow chỉ tỏa xuống (tránh vệt ngang qua chữ) */
 .admin-dark .student-nav-tab--active {
-  border-color: var(--admin-accent) !important;
   color: var(--admin-accent) !important;
 }
 
 .admin-dark .student-nav-underline {
   background-color: var(--admin-accent) !important;
-  box-shadow: 0 0 10px rgba(255, 191, 47, 0.65) !important;
+  box-shadow: 0 2px 8px rgba(255, 191, 47, 0.45) !important;
 }
 
 .admin-dark .bg-blue-600 {
@@ -205,6 +204,28 @@ a {
 .admin-dark .hover\:bg-gray-50:hover,
 .admin-dark .hover\:bg-gray-100:hover {
   background-color: #2b365c !important;
+}
+
+/* Nút/icon hover nền trắng — trong admin-dark chuyển sang surface tối (tránh ô trắng chói) */
+.admin-dark .hover\:bg-white:hover {
+  background-color: #33406b !important;
+}
+
+.admin-dark .hover\:text-slate-800:hover {
+  color: var(--admin-text) !important;
+}
+
+/* Nền slate mờ (toolbar bảng, v.v.) — đồng bộ dark theme */
+.admin-dark .bg-slate-50\/80 {
+  background-color: rgba(38, 49, 84, 0.9) !important;
+}
+
+.admin-dark .border-slate-200\/80 {
+  border-color: var(--admin-border) !important;
+}
+
+.admin-dark .hover\:bg-rose-50:hover {
+  background-color: rgba(244, 63, 94, 0.14) !important;
 }
 
 .admin-dark .bg-green-50 {
@@ -1000,5 +1021,21 @@ a {
 
 .slide-animation {
   animation: slideIn 0.5s ease-out;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.marquee {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee 12s linear infinite;
 }
 

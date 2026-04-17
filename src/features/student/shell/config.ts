@@ -1,11 +1,10 @@
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
-  BookOpen,
-  PenTool,
   ClipboardCheck,
   FileText,
   Award,
+  Library,
 } from "lucide-react";
 
 export type StudentNavItem = {
@@ -19,8 +18,6 @@ export type StudentNavItem = {
 export function createStudentNavItems(onRegisterExam: () => void): StudentNavItem[] {
   return [
     { icon: LayoutDashboard, label: "Tổng quan", href: "/student/dashboard" },
-    { icon: BookOpen, label: "Luyện đọc", href: "/student/reading" },
-    { icon: PenTool, label: "Luyện viết", href: "/student/writing" },
     { icon: FileText, label: "Kiểm tra nhanh", href: "/student/mock-test" },
     { icon: ClipboardCheck, label: "Thi thử", href: "/student/practicetest" },
     {
@@ -29,5 +26,6 @@ export function createStudentNavItems(onRegisterExam: () => void): StudentNavIte
       href: "#",
       onClick: onRegisterExam,
     },
+    { icon: Library, label: "Flashcard", href: "/student/flashcards" },
   ];
 }

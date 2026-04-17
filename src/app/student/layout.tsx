@@ -1,12 +1,14 @@
 // app/student/layout.tsx — compose shell (logic route + auth); UI trong features/student/shell
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
 import Footer from "@/components/User/Footer";
 import { getStoredUserProfile } from "@/lib/auth-session";
+import { apiClient } from "@/lib/api-client";
+import { getSignedMediaUrl } from "@/lib/media-url";
 import {
   createStudentNavItems,
   StudentLayoutLoading,
@@ -34,6 +36,30 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     [],
   );
 
+  const loadHeaderAvatar = useCallback(async () => {
+    const storedUser = getStoredUserProfile();
+
+    // Fast path: use cached URL first (if any)
+    setAvatarUrl(storedUser?.avatarUrl || "");
+
+    try {
+      const res = await apiClient.auth.getAvatar();
+      const data = res.data as any;
+      if (data?.s3Key) {
+        const signed = await getSignedMediaUrl(String(data.s3Key));
+        if (signed) {
+          setAvatarUrl(signed);
+          return;
+        }
+      }
+      if (typeof data?.avatarUrl === "string") {
+        setAvatarUrl(data.avatarUrl);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace("/auth");
@@ -46,9 +72,15 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       return;
     }
 
-    const storedUser = getStoredUserProfile();
-    setAvatarUrl(storedUser?.avatarUrl || "");
-  }, [isAuthenticated]);
+    void loadHeaderAvatar();
+  }, [isAuthenticated, loadHeaderAvatar]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const sync = () => void loadHeaderAvatar();
+    window.addEventListener("auth:user-updated", sync);
+    return () => window.removeEventListener("auth:user-updated", sync);
+  }, [isAuthenticated, loadHeaderAvatar]);
 
   useEffect(() => {
     if (showExamModal) {
@@ -106,7 +138,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       />
 
       <main className="flex-1 bg-gray-50 pt-16">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</div>
+        <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-10">{children}</div>
       </main>
 
       <ExamRegistrationModal

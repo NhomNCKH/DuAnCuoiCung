@@ -122,10 +122,14 @@ export default function MockTestPage() {
 
   const getModeColor = (mode?: string) => {
     switch (mode) {
-      case "practice": return "bg-green-50 text-green-600";
-      case "mock_test": return "bg-blue-50 text-blue-600";
-      case "official_exam": return "bg-purple-50 text-purple-600";
-      default: return "bg-gray-50 text-gray-600";
+      case "practice":
+        return "bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200";
+      case "mock_test":
+        return "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-200";
+      case "official_exam":
+        return "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-200";
+      default:
+        return "bg-slate-50 text-slate-600 dark:bg-slate-500/10 dark:text-slate-300";
     }
   };
 
@@ -154,14 +158,18 @@ export default function MockTestPage() {
   const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="px-4 py-6 sm:px-6 lg:px-10">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <FileText className="w-8 h-8 text-emerald-500" />
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Thi thử TOEIC</h1>
+          <FileText className="w-8 h-8 text-amber-500" />
+          <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-slate-100">
+            Thi thử TOEIC
+          </h1>
         </div>
-        <p className="text-gray-600">Làm quen với cấu trúc đề thi thật và đánh giá năng lực hiện tại</p>
+        <p className="text-slate-600 dark:text-slate-300">
+          Làm quen với cấu trúc đề thi thật và đánh giá năng lực hiện tại
+        </p>
       </motion.div>
 
       {/* Stats */}
@@ -171,21 +179,30 @@ export default function MockTestPage() {
         animate="show"
         className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8"
       >
-        <motion.div variants={item} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-100">
-          <div className="text-2xl font-bold text-emerald-600">{templates.length}</div>
-          <div className="text-sm text-gray-600">Đề thi có sẵn</div>
+        <motion.div
+          variants={item}
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-transparent"
+        >
+          <div className="text-2xl font-bold text-amber-600 dark:text-amber-200">{templates.length}</div>
+          <div className="text-sm text-slate-600 dark:text-slate-300">Đề thi có sẵn</div>
         </motion.div>
-        <motion.div variants={item} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-100">
-          <div className="text-2xl font-bold text-emerald-600">
+        <motion.div
+          variants={item}
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-transparent"
+        >
+          <div className="text-2xl font-bold text-amber-600 dark:text-amber-200">
             {templates.filter((t) => t.mode === "mock_test" || t.mode === "official_exam").length}
           </div>
-          <div className="text-sm text-gray-600">Full test</div>
+          <div className="text-sm text-slate-600 dark:text-slate-300">Full test</div>
         </motion.div>
-        <motion.div variants={item} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-100">
-          <div className="text-2xl font-bold text-emerald-600">
+        <motion.div
+          variants={item}
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-transparent"
+        >
+          <div className="text-2xl font-bold text-amber-600 dark:text-amber-200">
             {totalAttemptHistory}
           </div>
-          <div className="text-sm text-gray-600">Lần thi đã lưu</div>
+          <div className="text-sm text-slate-600 dark:text-slate-300">Lần thi đã lưu</div>
         </motion.div>
       </motion.div>
 
@@ -204,7 +221,7 @@ export default function MockTestPage() {
       {/* Loading */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+          <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
         </div>
       ) : templates.length === 0 ? (
         <div className="text-center py-20 text-gray-500">
@@ -237,24 +254,28 @@ export default function MockTestPage() {
                 <motion.div
                   key={template.id}
                   variants={item}
-                  className="bg-white rounded-xl overflow-hidden shadow-sm border border-emerald-100 hover:shadow-md transition-all"
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md dark:border-slate-600/40 dark:bg-transparent dark:hover:bg-white/5"
                 >
                   <div className="p-5">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h3 className="font-bold text-gray-800 mb-1">{template.name}</h3>
+                        <h3 className="mb-1 font-bold text-slate-900 dark:text-slate-100">
+                          {template.name}
+                        </h3>
                         {template.description && (
-                          <p className="text-sm text-gray-500 line-clamp-2">{template.description}</p>
+                          <p className="line-clamp-2 text-sm text-slate-500 dark:text-slate-300">
+                            {template.description}
+                          </p>
                         )}
                       </div>
                       {template.difficulty && (
-                        <span className="ml-2 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-lg font-medium whitespace-nowrap">
+                        <span className="ml-2 px-2 py-0.5 rounded-lg text-xs font-medium whitespace-nowrap bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
                           {getDifficultyLabel(template.difficulty)}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap gap-3 text-xs text-gray-500 mb-4">
+                    <div className="mb-4 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-300">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
                         {formatDuration(template.totalDurationSec)}
@@ -273,9 +294,9 @@ export default function MockTestPage() {
                     </div>
 
                     {latestAttempt && (
-                      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
+                      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 dark:border-slate-600/40 dark:bg-white/5 dark:text-slate-200">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="font-medium text-slate-700">
+                          <span className="font-medium text-slate-700 dark:text-slate-100">
                             {getAttemptStatusLabel(latestAttempt.status)}
                           </span>
                           <span>Lần {latestAttempt.attemptNo}</span>
@@ -288,7 +309,7 @@ export default function MockTestPage() {
                           <div className="mt-1 flex items-center justify-between gap-3">
                             <span>
                               Điểm gần nhất:{" "}
-                              <span className="font-semibold text-blue-700">
+                              <span className="font-semibold text-amber-800 dark:text-amber-200">
                                 {latestGradedAttempt.totalScore}
                               </span>
                             </span>
@@ -298,12 +319,12 @@ export default function MockTestPage() {
                           </div>
                         ) : null}
                         {hasInProgressAttempt && latestGradedAttempt && (
-                          <div className="mt-1 text-xs text-slate-500">
+                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-300">
                             Kết quả gần nhất: lần {latestGradedAttempt.attemptNo} • {latestGradedAttempt.totalScore} điểm
                           </div>
                         )}
                         {(template.historyCount ?? 0) > 1 && (
-                          <div className="mt-1 text-xs text-slate-500">
+                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-300">
                             Tổng số lần thi: {template.historyCount}
                           </div>
                         )}
@@ -315,7 +336,7 @@ export default function MockTestPage() {
                         <>
                           <Link
                             href={primaryHref}
-                            className="flex items-center justify-center gap-2 w-full rounded-lg bg-emerald-600 py-2.5 font-medium text-white transition-colors hover:bg-emerald-700"
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 py-2.5 font-semibold text-slate-900 transition-colors hover:bg-amber-400"
                           >
                             <Play className="w-4 h-4" />
                             Tiếp tục làm
@@ -323,7 +344,7 @@ export default function MockTestPage() {
                           {latestGradedAttempt && (
                             <Link
                               href={`/student/mock-test/${template.id}?attemptId=${latestGradedAttempt.id}&view=result`}
-                              className="flex items-center justify-center gap-2 w-full rounded-lg border border-blue-200 bg-white py-2.5 font-medium text-blue-600 transition-colors hover:bg-blue-50"
+                              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
                             >
                               <Play className="w-4 h-4" />
                               Xem kết quả gần nhất
@@ -335,8 +356,8 @@ export default function MockTestPage() {
                           href={primaryHref}
                           className={`flex items-center justify-center gap-2 w-full rounded-lg py-2.5 font-medium transition-colors ${
                             hasGradedAttempt
-                              ? "bg-white text-blue-600 border border-blue-200 hover:bg-blue-50"
-                              : "bg-emerald-600 text-white hover:bg-emerald-700"
+                              ? "rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
+                              : "rounded-xl bg-amber-500 text-slate-900 hover:bg-amber-400 font-semibold"
                           }`}
                         >
                           <Play className="w-4 h-4" />
@@ -348,7 +369,7 @@ export default function MockTestPage() {
                         <button
                           type="button"
                           onClick={() => restartTemplate(template.id)}
-                          className="flex items-center justify-center gap-2 w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 font-medium text-slate-700 transition-colors hover:bg-slate-100"
+                          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 py-2.5 font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-600/40 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
                         >
                           Làm lại đề này
                         </button>

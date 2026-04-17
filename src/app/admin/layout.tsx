@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,16 +8,20 @@ import { motion } from "framer-motion";
 import {
   Award,
   BarChart3,
+  BookMarked,
   BookOpen,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Dumbbell,
   FileText,
+  Headphones,
   LayoutDashboard,
   LogOut,
   Menu,
   Moon,
   Lock,
+  PenLine,
   Shield,
   Sun,
   Tag,
@@ -30,6 +34,8 @@ import { isAdminRole } from "@/lib/auth/routing";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { UserProfile } from "@/types/api";
 import type { LucideIcon } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
+import { getSignedMediaUrl } from "@/lib/media-url";
 
 type AdminMenuItem = {
   id: string;
@@ -109,6 +115,41 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
         label: "Nhóm câu hỏi",
         href: "/admin/questions?tab=groups",
         permission: "questions.manage",
+      },
+    ],
+  },
+  {
+    id: "practice",
+    icon: Dumbbell,
+    label: "Luyện tập",
+    children: [
+      {
+        id: "practice-vocabulary",
+        icon: BookMarked,
+        label: "Từ vựng",
+        href: "/admin/practice/vocabulary",
+        permission: "vocabulary.manage",
+      },
+      {
+        id: "practice-reading",
+        icon: BookOpen,
+        label: "Luyện đọc",
+        href: "/admin/practice/reading",
+        permission: "dashboard.view",
+      },
+      {
+        id: "practice-writing",
+        icon: PenLine,
+        label: "Luyện viết",
+        href: "/admin/practice/writing",
+        permission: "dashboard.view",
+      },
+      {
+        id: "practice-listening",
+        icon: Headphones,
+        label: "Luyện nghe",
+        href: "/admin/practice/listening",
+        permission: "dashboard.view",
       },
     ],
   },
@@ -205,8 +246,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ "user-management": true });
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  const loadHeaderAvatar = useCallback(async () => {
+    // reset quickly while loading
+    setAvatarUrl("");
+    try {
+      const res = await apiClient.auth.getAvatar();
+      const data = res.data as any;
+      if (data?.s3Key) {
+        const signed = await getSignedMediaUrl(String(data.s3Key));
+        if (signed) {
+          setAvatarUrl(signed);
+          return;
+        }
+      }
+      if (typeof data?.avatarUrl === "string") {
+        setAvatarUrl(data.avatarUrl);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     if (!isLoading) {
@@ -217,6 +280,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
     }
   }, [isAuthenticated, isLoading, router, user]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setAvatarUrl("");
+      return;
+    }
+    void loadHeaderAvatar();
+  }, [isAuthenticated, loadHeaderAvatar]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const sync = () => void loadHeaderAvatar();
+    window.addEventListener("auth:user-updated", sync);
+    return () => window.removeEventListener("auth:user-updated", sync);
+  }, [isAuthenticated, loadHeaderAvatar]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -234,6 +312,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isHrefActive = (href?: string) => {
     if (!href) return false;
     const [targetPath, queryString] = href.split("?");
+    /** Trang chi tiết bộ từ: /admin/practice/vocabulary/[id] vẫn coi là mục «Từ vựng» active */
+    if (targetPath === "/admin/practice/vocabulary") {
+      const onVocab =
+        pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+      if (!onVocab) return false;
+      if (!queryString) return true;
+      const expectedParams = new URLSearchParams(queryString);
+      return Array.from(expectedParams.entries()).every(([key, value]) => searchParams.get(key) === value);
+    }
     if (pathname !== targetPath) return false;
     if (!queryString) return true;
     const expectedParams = new URLSearchParams(queryString);
@@ -436,9 +523,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white py-1.5 pl-1.5 pr-2 text-slate-900 transition-colors hover:bg-slate-50"
                 aria-label="Open profile menu"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
-                  {user?.name?.charAt(0) || "A"}
-                </div>
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="avatar"
+                    className="h-8 w-8 rounded-md object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "";
+                      setAvatarUrl("");
+                    }}
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
+                    {user?.name?.charAt(0) || "A"}
+                  </div>
+                )}
                 <div className="hidden items-center gap-1 whitespace-nowrap text-xs font-semibold md:flex">
                   <Shield className="h-3.5 w-3.5 text-slate-500" />
                   <span>{roleLabel}</span>
@@ -452,9 +551,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
                   <div className="border-b border-slate-200 p-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
-                        {user?.name?.charAt(0) || "A"}
-                      </div>
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt="avatar"
+                          className="h-10 w-10 rounded-md object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = "";
+                            setAvatarUrl("");
+                          }}
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
+                          {user?.name?.charAt(0) || "A"}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-900">{user?.name}</p>
                         <p className="truncate text-xs text-slate-500">{user?.email}</p>

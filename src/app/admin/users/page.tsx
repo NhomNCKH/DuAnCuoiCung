@@ -16,6 +16,7 @@ import { ActionIcon } from "@/components/ui/action-icons";
 import { SharedDropdown } from "@/components/ui/shared-dropdown";
 import { SharedTable, SharedTableBody, SharedTableHead } from "@/components/ui/shared-table";
 import { useAuth } from "@/hooks/useAuth";
+import { getSignedMediaUrl } from "@/lib/media-url";
 
 interface RbacUser {
   id: string;
@@ -26,6 +27,7 @@ interface RbacUser {
   createdAt: string;
   lastLoginAt?: string;
   roles?: string[];
+  avatarUrl?: string | null;
 }
 
 interface RbacRoleOption {
@@ -184,6 +186,7 @@ export default function AdminUsersPage() {
   const [selectedStatus, setSelectedStatus] = useState("all");
 
   const [users, setUsers] = useState<RbacUser[]>([]);
+  const [avatarByUserId, setAvatarByUserId] = useState<Record<string, string>>({});
   const [roles, setRoles] = useState<RbacRoleOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -220,6 +223,51 @@ export default function AdminUsersPage() {
       setIsLoading(false);
     }
   }, [searchTerm, selectedRole, selectedStatus]);
+
+  const extractS3KeyFromUrl = (url: string): string | null => {
+    try {
+      const u = new URL(url);
+      if (!u.hostname.includes("amazonaws.com")) return null;
+      const key = u.pathname.replace(/^\/+/, "");
+      return key || null;
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      const entries = (users ?? [])
+        .map((u) => ({ id: u.id, avatarUrl: String(u.avatarUrl ?? "").trim() }))
+        .filter((u) => u.avatarUrl);
+
+      if (entries.length === 0) {
+        setAvatarByUserId({});
+        return;
+      }
+
+      const next: Record<string, string> = {};
+      for (const e of entries) {
+        const s3Key = extractS3KeyFromUrl(e.avatarUrl);
+        if (s3Key) {
+          const signed = await getSignedMediaUrl(s3Key);
+          if (signed) next[e.id] = signed;
+          else next[e.id] = e.avatarUrl;
+        } else {
+          next[e.id] = e.avatarUrl;
+        }
+      }
+
+      if (!cancelled) setAvatarByUserId(next);
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [users]);
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -403,9 +451,25 @@ export default function AdminUsersPage() {
                     <motion.tr key={user.id} variants={item} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                            {user.name?.charAt(0) ?? "?"}
-                          </div>
+                          {avatarByUserId[user.id] ? (
+                            <img
+                              src={avatarByUserId[user.id]}
+                              alt="avatar"
+                              className="h-9 w-9 rounded-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "";
+                                setAvatarByUserId((prev) => {
+                                  const next = { ...prev };
+                                  delete next[user.id];
+                                  return next;
+                                });
+                              }}
+                            />
+                          ) : (
+                            <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                              {user.name?.charAt(0) ?? "?"}
+                            </div>
+                          )}
                           <p className="font-medium text-gray-800">{user.name}</p>
                         </div>
                       </td>

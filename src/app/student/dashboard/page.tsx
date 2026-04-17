@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import ImageSlider from "@/components/User/ImageSlider";
 import Footer from "@/components/User/Footer";
+import { useAuth } from "@/hooks/useAuth";
 import {
   BookOpen,
   Clock,
@@ -26,6 +27,7 @@ import {
   PartyPopper,
   Gift,
   Rocket,
+  Search,
 } from "lucide-react";
 
 // Component Particle (hạt pháo hoa)
@@ -170,10 +172,12 @@ interface RecentActivity {
 }
 
 export default function StudentDashboard() {
+  const { user } = useAuth();
   const [mockTests, setMockTests] = useState<MockTest[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchValue, setSearchValue] = useState("");
   const [showFireworks, setShowFireworks] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [fireworks, setFireworks] = useState<{ id: number; x: number; y: number }[]>([]);
@@ -187,6 +191,14 @@ export default function StudentDashboard() {
     "Một ngày mới tràn đầy năng lượng! ⚡",
     "Cùng chinh phục mục tiêu hôm nay! 🎯",
   ];
+
+  const displayName = (() => {
+    const raw = String(user?.name ?? "").trim();
+    if (!raw) return "bạn";
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[parts.length - 2]} ${parts[parts.length - 1]}`;
+    return raw;
+  })();
 
 
   useEffect(() => {
@@ -397,7 +409,7 @@ export default function StudentDashboard() {
   const getLevelColor = (level: string) => {
     switch (level) {
       case "Easy":
-        return "bg-emerald-100 text-emerald-700";
+        return "bg-amber-100 text-amber-800";
       case "Medium":
         return "bg-amber-100 text-amber-700";
       case "Hard":
@@ -414,7 +426,7 @@ export default function StudentDashboard() {
       case "writing":
         return <Brain className="w-4 h-4 text-purple-500" />;
       case "speaking":
-        return <MessageSquare className="w-4 h-4 text-emerald-500" />;
+        return <MessageSquare className="w-4 h-4 text-amber-500" />;
       default:
         return <Award className="w-4 h-4 text-amber-500" />;
     }
@@ -474,7 +486,7 @@ return (
       <FloatingStar delay={4.5} x="75%" y="70%" />
       <FloatingStar delay={2} x="50%" y="40%" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 pt-5 pb-8">
         {/* Welcome Section với Animation */}
         <motion.div
           ref={welcomeRef}
@@ -486,21 +498,36 @@ return (
           {/* Animated Background */}
           <div className="absolute inset-0 rounded-3xl -z-10 bg-blue-50" />
 
-          {/* Welcome Badge với Animation */}
-          <motion.div
-            initial={{ x: -100, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-full text-sm font-medium mb-4 shadow-lg"
-          >
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
+            {/* Welcome Badge với Animation */}
             <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              initial={{ x: -100, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="inline-flex w-fit items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-full text-sm font-medium shadow-lg"
             >
-              <Sparkles className="w-4 h-4" />
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                <Sparkles className="w-4 h-4" />
+              </motion.div>
+              <span>{`Chào mừng ${displayName}`}</span>
             </motion.div>
-            <span>✨ Chào mừng bạn quay trở lại ✨</span>
-          </motion.div>
+
+            {/* Search input (vị trí khoanh đỏ) */}
+            <div className="w-full md:mt-4 md:w-[360px] lg:w-[420px]">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  placeholder="Tìm kiếm nhanh…"
+                  className="w-full rounded-full border border-slate-200 bg-white/90 py-2 pl-10 pr-4 text-sm text-slate-800 shadow-sm outline-none backdrop-blur transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+            </div>
+          </div>
 
           {/* Title với Animation */}
           <motion.div
@@ -508,34 +535,12 @@ return (
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <h1 className="text-5xl lg:text-6xl font-bold mb-4">
-              <span className="text-slate-900">
-                Chào mừng trở lại!
+            <h1 className="mb-4 text-5xl font-bold lg:text-6xl">
+              <span className="block w-full overflow-hidden md:w-1/2">
+                <span className="marquee text-slate-900">{`Chào mừng trở lại, ${displayName}!`}</span>
               </span>
-              <motion.span
-                animate={{ rotate: [0, 20, -20, 20, 0] }}
-                transition={{ duration: 0.5, delay: 0.8, repeat: 2 }}
-                className="inline-block ml-2"
-              >
-                👋
-              </motion.span>
             </h1>
           </motion.div>
-
-          {/* Greeting với Animation thay đổi */}
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={greetingIndex}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className="text-slate-600 text-lg flex items-center gap-2"
-            >
-              <PartyPopper className="w-5 h-5 text-orange-500" />
-              {greetings[greetingIndex]}
-            </motion.p>
-          </AnimatePresence>
 
           {/* Decorative Elements */}
           <motion.div
@@ -584,9 +589,9 @@ return (
               label: "Giờ học", 
               value: "48h", 
               icon: Clock, 
-              gradient: "from-emerald-500 to-emerald-600",
-              bgGradient: "from-emerald-50 to-emerald-100",
-              tone: "emerald"
+              gradient: "from-amber-500 to-amber-600",
+              bgGradient: "from-amber-50 to-amber-100",
+              tone: "amber"
             },
             {
               label: "Điểm TB",
@@ -723,7 +728,7 @@ return (
                       <p className="text-sm font-medium text-slate-900 group-hover:text-blue-600 transition-colors">{activity.title}</p>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-xs text-slate-400">{activity.timestamp}</span>
-                        {activity.score && <span className="text-xs font-medium text-emerald-600">Điểm: {activity.score}</span>}
+                        {activity.score && <span className="text-xs font-medium text-amber-700">Điểm: {activity.score}</span>}
                         <span className="text-xs text-slate-400">{activity.duration}</span>
                       </div>
                     </div>
@@ -746,7 +751,7 @@ return (
                     <p className="text-sm font-medium text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">{suggestion.title}</p>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${suggestion.difficulty === "Easy" ? "bg-emerald-100 text-emerald-700" : suggestion.difficulty === "Medium" ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${suggestion.difficulty === "Easy" ? "bg-amber-100 text-amber-800" : suggestion.difficulty === "Medium" ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>
                           {suggestion.difficulty}
                         </span>
                         <span className="text-xs text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" />{suggestion.estimatedTime}</span>
@@ -767,7 +772,7 @@ return (
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-2"><span className="text-slate-600">Bài tập đã hoàn thành</span><span className="font-medium text-slate-900">15/20</span></div>
-                  <div className="w-full bg-slate-100 rounded-full h-2"><div className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-500" style={{ width: "75%" }}></div></div>
+                  <div className="w-full bg-slate-100 rounded-full h-2"><div className="bg-gradient-to-r from-amber-500 to-amber-600 h-2 rounded-full transition-all duration-500" style={{ width: "75%" }}></div></div>
                 </div>
               </div>
             </div>

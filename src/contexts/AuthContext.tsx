@@ -50,12 +50,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return {
         ...(fallbackUser ?? {}),
         id: payload.sub,
-        name: fallbackUser?.name ?? '',
+        name: payload.name ?? fallbackUser?.name ?? '',
         email: payload.email,
         role: payload.role,
         roles,
         permissions: payload.permissions || [],
         status: fallbackUser?.status ?? 'active',
+        avatarUrl: payload.avatarUrl ?? fallbackUser?.avatarUrl ?? null,
+        phone: payload.phone ?? fallbackUser?.phone,
+        birthday: payload.birthday ?? fallbackUser?.birthday,
+        address: payload.address ?? fallbackUser?.address,
+        bio: payload.bio ?? fallbackUser?.bio,
+        linkedin: payload.linkedin ?? fallbackUser?.linkedin,
+        github: payload.github ?? fallbackUser?.github,
+        twitter: payload.twitter ?? fallbackUser?.twitter,
       };
     },
     [],
@@ -172,6 +180,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const syncLogout = () => syncUserProfile(null);
     window.addEventListener('auth:session-cleared', syncLogout);
     return () => window.removeEventListener('auth:session-cleared', syncLogout);
+  }, [syncUserProfile]);
+
+  useEffect(() => {
+    const syncUpdated = () => syncUserProfile(getStoredUserProfile());
+    window.addEventListener('auth:user-updated', syncUpdated);
+    return () => window.removeEventListener('auth:user-updated', syncUpdated);
   }, [syncUserProfile]);
 
   const login = async (data: LoginData) => {

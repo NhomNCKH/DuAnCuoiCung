@@ -11,9 +11,9 @@ export function AdminCard({ title, rightSlot, children, className }: AdminCardPr
   return (
     <section className={`surface p-4 ${className ?? ""}`}>
       {title || rightSlot ? (
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {title ? <h2 className="text-base font-semibold text-slate-900">{title}</h2> : <div />}
-          {rightSlot}
+          {rightSlot ? <div className="flex flex-wrap items-center gap-2">{rightSlot}</div> : null}
         </div>
       ) : null}
       {children}
