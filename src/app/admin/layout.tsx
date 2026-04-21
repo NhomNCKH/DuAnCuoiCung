@@ -312,19 +312,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isHrefActive = (href?: string) => {
     if (!href) return false;
     const [targetPath, queryString] = href.split("?");
+    const path = pathname ?? "";
+    const qs = searchParams ?? new URLSearchParams();
     /** Trang chi tiết bộ từ: /admin/practice/vocabulary/[id] vẫn coi là mục «Từ vựng» active */
     if (targetPath === "/admin/practice/vocabulary") {
       const onVocab =
-        pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+        path === targetPath || path.startsWith(`${targetPath}/`);
       if (!onVocab) return false;
       if (!queryString) return true;
       const expectedParams = new URLSearchParams(queryString);
-      return Array.from(expectedParams.entries()).every(([key, value]) => searchParams.get(key) === value);
+      return Array.from(expectedParams.entries()).every(
+        ([key, value]) => qs.get(key) === value,
+      );
     }
-    if (pathname !== targetPath) return false;
+    if (path !== targetPath) return false;
     if (!queryString) return true;
     const expectedParams = new URLSearchParams(queryString);
-    return Array.from(expectedParams.entries()).every(([key, value]) => searchParams.get(key) === value);
+    return Array.from(expectedParams.entries()).every(
+      ([key, value]) => qs.get(key) === value,
+    );
   };
 
   const currentPageLabel = (() => {

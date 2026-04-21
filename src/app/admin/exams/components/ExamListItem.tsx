@@ -1,7 +1,7 @@
 // app/admin/exams/components/ExamListItem.tsx
 "use client";
 import { motion } from "framer-motion";
-import { Eye, Copy, Send, Edit, Archive, CheckCircle, Trash2 } from "lucide-react";
+import { Eye, Copy, Send, Edit, Archive, CheckCircle, Trash2, Calendar } from "lucide-react";
 import { ExamTemplate } from "../types";
 
 const MODE_LABEL: Record<string, string> = {
@@ -41,6 +41,10 @@ export function ExamListItem({ template, onSelect, onDuplicate, onPublish, onArc
   const statusConfig = statusMap[template.status as keyof typeof statusMap] ?? statusMap.draft;
   const StatusIcon = statusConfig.icon;
   const durationMin = Math.floor((template.totalDurationSec ?? 0) / 60);
+  const shouldShowExamDate = template.mode === "official_exam" && !!template.examDate;
+  const examDateLabel = shouldShowExamDate
+    ? new Date(String(template.examDate)).toLocaleDateString("vi-VN")
+    : "";
 
   return (
     <motion.div
@@ -76,6 +80,15 @@ export function ExamListItem({ template, onSelect, onDuplicate, onPublish, onArc
             <div className="text-sm font-bold text-gray-800">{durationMin}&apos;</div>
             <div className="text-xs text-gray-500">Phút</div>
           </div>
+          {shouldShowExamDate && (
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center gap-1 text-sm font-bold text-gray-800">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                {examDateLabel}
+              </div>
+              <div className="text-xs text-gray-500">Ngày thi</div>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <button
               onClick={() => onSelect(template)}

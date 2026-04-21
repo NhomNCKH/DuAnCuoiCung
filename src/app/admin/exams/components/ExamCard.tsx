@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Eye, Copy, Send, MoreVertical, CheckCircle, Edit, Archive, Trash2 } from "lucide-react";
+import { Eye, Copy, Send, MoreVertical, CheckCircle, Edit, Archive, Trash2, Calendar } from "lucide-react";
 import { ExamTemplate } from "../types";
 
 const MODE_LABEL: Record<string, string> = {
@@ -63,6 +63,10 @@ export function ExamCard({
   const statusConfig = statusMap[template.status as keyof typeof statusMap] ?? statusMap.draft;
   const StatusIcon = statusConfig.icon;
   const durationMin = Math.floor((template.totalDurationSec ?? 0) / 60);
+  const shouldShowExamDate = template.mode === "official_exam" && !!template.examDate;
+  const examDateLabel = shouldShowExamDate
+    ? new Date(String(template.examDate)).toLocaleDateString("vi-VN")
+    : "";
 
   return (
     <motion.div
@@ -156,6 +160,12 @@ export function ExamCard({
             <div className="text-xs text-gray-500">Phut</div>
           </div>
         </div>
+        {shouldShowExamDate && (
+          <div className="mb-4 -mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600">
+            <Calendar className="h-4 w-4 text-gray-400" />
+            Ngày thi: <span className="text-gray-800">{examDateLabel}</span>
+          </div>
+        )}
         <div className="flex items-stretch gap-2 pt-2 border-t border-gray-100">
           <button 
             type="button"

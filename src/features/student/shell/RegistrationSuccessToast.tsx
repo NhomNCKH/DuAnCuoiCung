@@ -6,10 +6,22 @@ import { CheckCircle, Mail, XCircle } from "lucide-react";
 type Props = {
   open: boolean;
   email?: string;
+  examDate?: string | null;
   onDismiss: () => void;
 };
 
-export function RegistrationSuccessToast({ open, email, onDismiss }: Props) {
+function formatDateVi(iso: string | null | undefined) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+export function RegistrationSuccessToast({ open, email, examDate, onDismiss }: Props) {
+  const dateLabel = formatDateVi(examDate);
   return (
     <AnimatePresence>
       {open && (
@@ -27,7 +39,9 @@ export function RegistrationSuccessToast({ open, email, onDismiss }: Props) {
               <div className="flex-1">
                 <h4 className="mb-1 font-semibold text-gray-900">Đăng ký thành công!</h4>
                 <p className="text-sm text-gray-600">
-                  Lịch thi sẽ được thông báo qua email và trong trang hồ sơ của bạn
+                  {dateLabel
+                    ? `Bạn đã chọn ngày thi ${dateLabel}. Email xác nhận sẽ được gửi ngay, và 07:00 sáng ngày thi hệ thống sẽ nhắc bạn.`
+                    : "Email xác nhận sẽ được gửi ngay, và 07:00 sáng ngày thi hệ thống sẽ nhắc bạn."}
                 </p>
                 <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
                   <Mail className="h-3 w-3" />

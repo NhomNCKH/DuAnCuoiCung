@@ -702,10 +702,12 @@ function CreateFlashcardFromSelectionModal({
 }
 
 export default function MockTestExamPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const reviewAttemptId = searchParams.get("attemptId")?.trim() ?? "";
+  const qs = searchParams ?? new URLSearchParams();
+  const reviewAttemptId = qs.get("attemptId")?.trim() ?? "";
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [attempt, setAttempt] = useState<MockExamAttemptView | null>(null);

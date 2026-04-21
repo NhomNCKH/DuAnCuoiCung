@@ -10,6 +10,7 @@ export interface ExamTemplate {
   mode: "practice" | "mock_test" | "official_exam";
   totalDurationSec: number;
   totalQuestions: number;
+  examDate?: string | null;
   instructions?: string;
   shuffleQuestionOrder?: boolean;
   shuffleOptionOrder?: boolean;

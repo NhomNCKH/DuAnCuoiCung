@@ -107,7 +107,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 420, damping: 28 }}
-                className="pointer-events-auto flex overflow-hidden rounded-md border border-slate-200/90 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.12)]"
+                className="pointer-events-auto flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.12)]"
                 role="status"
                 aria-live="polite"
               >

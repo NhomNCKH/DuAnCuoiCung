@@ -79,7 +79,8 @@ const getPostById = (id: string) => {
 };
 
 export default function BlogPostPage() {
-  const { id } = useParams();
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
   const router = useRouter();
   const post = getPostById(id as string);
   const [liked, setLiked] = useState(false);

@@ -14,25 +14,21 @@ import {
   StudentLayoutLoading,
   StudentHeader,
   StudentMobileNav,
-  ExamRegistrationModal,
-  RegistrationSuccessToast,
   StudentQuickActionFab,
 } from "@/features/student/shell";
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const safePathname = pathname ?? "";
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showExamModal, setShowExamModal] = useState(false);
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigationItems = useMemo(
-    () => createStudentNavItems(() => setShowExamModal(true)),
+    () => createStudentNavItems(),
     [],
   );
 
@@ -82,25 +78,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     return () => window.removeEventListener("auth:user-updated", sync);
   }, [isAuthenticated, loadHeaderAvatar]);
 
-  useEffect(() => {
-    if (showExamModal) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [showExamModal]);
-
-  const handleRegisterExam = async () => {
-    setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setShowExamModal(false);
-    setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 5000);
-  };
+  // Đăng ký thi chứng chỉ đã được chuyển sang page riêng:
+  // /student/certificates/register
 
   const handleLogout = async () => {
     await logout();
@@ -116,7 +95,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     >
       <StudentHeader
         user={user}
-        pathname={pathname}
+        pathname={safePathname}
         avatarUrl={avatarUrl}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
@@ -132,7 +111,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       <StudentMobileNav
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
-        pathname={pathname}
+        pathname={safePathname}
         router={router}
         items={navigationItems}
       />
@@ -140,20 +119,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       <main className="flex-1 bg-gray-50 pt-16">
         <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-10">{children}</div>
       </main>
-
-      <ExamRegistrationModal
-        open={showExamModal}
-        onClose={() => setShowExamModal(false)}
-        user={user}
-        isSubmitting={isSubmitting}
-        onConfirm={handleRegisterExam}
-      />
-
-      <RegistrationSuccessToast
-        open={showSuccessToast}
-        email={user?.email}
-        onDismiss={() => setShowSuccessToast(false)}
-      />
 
       <StudentQuickActionFab />
       <Footer />

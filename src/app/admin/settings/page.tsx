@@ -217,7 +217,8 @@ export default function SettingsPage() {
   }, [activeTab, searchTerm]);
 
   useEffect(() => {
-    const tab = searchParams.get("tab");
+    const qs = searchParams ?? new URLSearchParams();
+    const tab = qs.get("tab");
     if (tab === "roles" || tab === "permissions" || tab === "users") {
       setActiveTab(tab);
     }
@@ -225,7 +226,7 @@ export default function SettingsPage() {
 
   const handleChangeTab = (tab: SettingsTab) => {
     setActiveTab(tab);
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams((searchParams ?? new URLSearchParams()).toString());
     params.set("tab", tab);
     router.replace(`${pathname}?${params.toString()}`);
   };

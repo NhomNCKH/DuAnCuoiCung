@@ -134,6 +134,17 @@ export default function StudentVocabularyDeckPage() {
                 <p className="mt-2 text-xs text-slate-500">
                   {typeof deck.itemCount === "number" ? `${deck.itemCount} mục` : ""}
                 </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href={`/student/vocabulary/${id}/practice`}
+                    className="inline-flex items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600"
+                  >
+                    Luyện tập
+                  </Link>
+                  <span className="self-center text-xs text-slate-500 dark:text-slate-400">
+                    Trắc nghiệm, gõ từ, và các game khác theo bộ này
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>

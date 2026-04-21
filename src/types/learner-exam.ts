@@ -18,6 +18,7 @@ export interface LearnerExamTemplateSummary {
   status: string;
   totalDurationSec: number;
   totalQuestions: number;
+  examDate?: string | null;
   instructions?: string | null;
   metadata?: Record<string, unknown>;
   publishedAt?: string | null;

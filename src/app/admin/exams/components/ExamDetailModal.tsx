@@ -107,7 +107,8 @@ function SectionsTab({
   const applyToeicStandard = () => {
     const standard: Section[] = [
       { part: "P1", sectionOrder: 1, expectedGroupCount: 6, expectedQuestionCount: 6 },
-      { part: "P2", sectionOrder: 2, expectedGroupCount: 1, expectedQuestionCount: 25 },
+      // P2: mỗi question group thường chỉ có 1 câu → groupCount = questionCount = 25
+      { part: "P2", sectionOrder: 2, expectedGroupCount: 25, expectedQuestionCount: 25 },
       { part: "P3", sectionOrder: 3, expectedGroupCount: 13, expectedQuestionCount: 39 },
       { part: "P4", sectionOrder: 4, expectedGroupCount: 10, expectedQuestionCount: 30 },
       { part: "P5", sectionOrder: 5, expectedGroupCount: 30, expectedQuestionCount: 30 },
@@ -124,7 +125,7 @@ function SectionsTab({
     // TOEIC Standard Defaults
     const defaults: Record<string, { g: number; q: number }> = {
       P1: { g: 6, q: 6 },
-      P2: { g: 1, q: 25 },
+      P2: { g: 25, q: 25 },
       P3: { g: 13, q: 39 },
       P4: { g: 10, q: 30 },
       P5: { g: 30, q: 30 },
@@ -148,7 +149,8 @@ function SectionsTab({
     setSections(prev => prev.map((s, j) => {
       if (j !== i) return s;
       const updated = { ...s, [field]: val };
-      if (field === "expectedGroupCount" && ["P1", "P5"].includes(s.part)) {
+      // Các part có 1 câu / 1 nhóm: groupCount = questionCount
+      if (field === "expectedGroupCount" && ["P1", "P2", "P5"].includes(s.part)) {
         updated.expectedQuestionCount = val;
       }
       return updated;

@@ -103,8 +103,9 @@ function validatePassword(value: string) {
 export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentMode = normalizeAuthMode(searchParams.get("mode"));
-  const requestedRedirect = searchParams.get("redirect");
+  const qs = searchParams ?? new URLSearchParams();
+  const currentMode = normalizeAuthMode(qs.get("mode"));
+  const requestedRedirect = qs.get("redirect");
   const { login } = useAuth();
 
   const [isLogin, setIsLogin] = useState(currentMode === "login");

@@ -691,6 +691,52 @@ class ApiClient {
       return this.request(`/learner/exam-templates${qs}`, { method: 'GET' });
     },
 
+    officialExam: {
+      listSessions: (): Promise<ApiResponse<{
+        dates: Array<{
+          date: string; // yyyy-mm-dd (local)
+          sessions: Array<{
+            examDate: string; // ISO
+            template: {
+              id: string;
+              code: string;
+              name: string;
+              totalDurationSec: number;
+              totalQuestions: number;
+            };
+          }>;
+        }>;
+      }>> => this.request('/learner/official-exams/sessions', { method: 'GET' }),
+
+      listRegistrations: (): Promise<ApiResponse<{
+        items: Array<{
+          id: string;
+          status: string;
+          examDate: string;
+          registeredAt: string;
+          confirmationSentAt: string | null;
+          reminderSentAt: string | null;
+          emailError?: string | null;
+          template: {
+            id: string;
+            code: string;
+            name: string;
+            totalDurationSec: number;
+            totalQuestions: number;
+          } | null;
+        }>;
+      }>> => this.request('/learner/official-exams/registrations', { method: 'GET' }),
+
+      register: (data: { examTemplateId: string }): Promise<ApiResponse<{
+        registered: boolean;
+        alreadyRegistered: boolean;
+        registrationId: string;
+        examDate: string;
+        emailSent?: boolean;
+        emailError?: string | null;
+      }>> => this.request('/learner/official-exams/registrations', { method: 'POST', body: JSON.stringify(data) }),
+    },
+
     examAttempt: {
       listHistory: (params?: {
         examTemplateId?: string;

@@ -1912,7 +1912,8 @@ export default function AdminQuestionsPage() {
   }, [fetchWorkflowStats]);
 
   useEffect(() => {
-    const tabFromQuery = searchParams.get("tab");
+    const qs = searchParams ?? new URLSearchParams();
+    const tabFromQuery = qs.get("tab");
     setActiveTab(tabFromQuery === "groups" ? "groups" : "tags");
   }, [searchParams]);
 
