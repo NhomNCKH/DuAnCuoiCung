@@ -23,6 +23,7 @@ export function createStudentNavItems(onRegisterExam: () => void): StudentNavIte
     { icon: PenTool, label: "Luyện viết", href: "/student/writing" },
     { icon: FileText, label: "Kiểm tra nhanh", href: "/student/mock-test" },
     { icon: ClipboardCheck, label: "Thi thử", href: "/student/practicetest" },
+    { icon: ClipboardCheck, label: "Thi chính thức", href: "/student/exam/1" },
     {
       icon: Award,
       label: "Đăng ký thi chứng chỉ",

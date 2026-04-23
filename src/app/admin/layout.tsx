@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import {
+  AlertTriangle,
   Award,
   BarChart3,
   BookOpen,
@@ -125,6 +126,12 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
     label: "Chứng chỉ",
     href: "/admin/certificates",
     permission: "credentials.manage",
+  },
+  {
+    id: "proctoring",
+    icon: AlertTriangle,
+    label: "Gian lan",
+    href: "/admin/proctoring",
   },
   {
     id: "analytics",
