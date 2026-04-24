@@ -24,11 +24,34 @@ type ViolationsResponseData = {
   data?: ProctoringViolation[];
 };
 
-function unwrapResponse<T>(payload: unknown): T {
+function unwrapViolationsResponse(payload: unknown): ViolationsResponseData {
   const asAny = payload as any;
-  if (asAny?.data?.data !== undefined) return asAny.data.data as T;
-  if (asAny?.data !== undefined) return asAny.data as T;
-  return asAny as T;
+  const candidates = [asAny?.data, asAny];
+
+  for (const candidate of candidates) {
+    if (
+      candidate &&
+      typeof candidate === "object" &&
+      ("total" in candidate || "limit" in candidate || "offset" in candidate || Array.isArray(candidate.data))
+    ) {
+      return candidate as ViolationsResponseData;
+    }
+  }
+
+  if (Array.isArray(asAny?.data?.data)) {
+    return {
+      data: asAny.data.data,
+      total: Number(asAny.data.total) || asAny.data.data.length,
+      limit: Number(asAny.data.limit) || undefined,
+      offset: Number(asAny.data.offset) || undefined,
+    };
+  }
+
+  if (Array.isArray(asAny)) {
+    return { data: asAny, total: asAny.length };
+  }
+
+  return { data: [], total: 0 };
 }
 
 export default function ProctoringAdminPage() {
@@ -53,23 +76,18 @@ export default function ProctoringAdminPage() {
   }, [total, violations]);
 
   const fetchViolations = useCallback(async () => {
-    if (!userId.trim() || !examId.trim()) {
-      setError("Vui long nhap userId va examId de tra cuu.");
-      setViolations([]);
-      setTotal(0);
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      const res = await apiClient.admin.proctoring.getViolations(userId.trim(), examId.trim(), {
+      const res = await apiClient.admin.proctoring.listViolations({
+        userId: userId.trim() || undefined,
+        examId: examId.trim() || undefined,
         limit,
         offset,
       });
 
-      const payload = unwrapResponse<ViolationsResponseData>(res);
+      const payload = unwrapViolationsResponse(res);
       const rows = Array.isArray(payload?.data) ? payload.data : [];
 
       setViolations(rows);
@@ -84,16 +102,15 @@ export default function ProctoringAdminPage() {
   }, [examId, limit, offset, userId]);
 
   useEffect(() => {
-    if (!userId.trim() || !examId.trim()) return;
     void fetchViolations();
-  }, [fetchViolations, userId, examId]);
+  }, [fetchViolations]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold text-slate-900">Kiem tra gian lan</h1>
         <p className="text-sm text-slate-600">
-          Trang nay hien thi vi pham theo tung nguoi dung va bai thi tu endpoint `/proctoring/violations/:userId/:examId`.
+          Trang nay hien thi cac vi pham moi nhat. Co the loc them theo userId hoac examId.
         </p>
       </div>
 
@@ -211,7 +228,7 @@ export default function ProctoringAdminPage() {
               {violations.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                    Chua co du lieu. Nhap `userId` va `examId` roi bam "Kiem tra gian lan".
+                    Chua co du lieu gian lan.
                   </td>
                 </tr>
               ) : (

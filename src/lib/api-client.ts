@@ -961,6 +961,36 @@ class ApiClient {
       },
 
       /**
+       * GET /proctoring/violations
+       * Get recent violation history, optionally filtered by user/exam.
+       */
+      listViolations: (params?: {
+        userId?: string;
+        examId?: string;
+        limit?: number;
+        offset?: number;
+      }): Promise<
+        ApiResponse<{
+          total: number;
+          limit: number;
+          offset: number;
+          data: unknown[];
+        }>
+      > => {
+        const query: Record<string, string> = {};
+        if (params?.userId) query.userId = params.userId;
+        if (params?.examId) query.examId = params.examId;
+        if (params?.limit !== undefined) query.limit = String(params.limit);
+        if (params?.offset !== undefined) query.offset = String(params.offset);
+        const qs =
+          Object.keys(query).length > 0
+            ? `?${new URLSearchParams(query).toString()}`
+            : "";
+
+        return this.request(`/proctoring/violations${qs}`, { method: "GET" });
+      },
+
+      /**
        * POST /proctoring/report-violation
        * Submit detected violations from proctoring camera/YOLO service
        */

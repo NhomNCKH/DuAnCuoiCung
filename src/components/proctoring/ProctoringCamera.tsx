@@ -13,6 +13,14 @@ interface ProctoringCameraProps {
   onBlocked?: () => void;
 }
 
+type ProctoringViolationPayload = {
+  action?: string;
+  message?: string;
+  severity?: number;
+  confidence?: number;
+  timestamp?: string;
+};
+
 export const ProctoringCamera = ({
   userId,
   examId,
@@ -42,6 +50,39 @@ export const ProctoringCamera = ({
     isConnectedRef.current = isConnected;
   }, [isConnected]);
 
+  const reportViolations = useCallback(
+    async (violations: ProctoringViolationPayload[]) => {
+      if (violations.length === 0) return;
+
+      setIsReporting(true);
+      try {
+        await apiClient.admin.proctoring.reportViolation({
+          userId,
+          examId,
+          examAttemptId,
+          violations: violations.map((v) => ({
+            action: v.action || "unknown",
+            message: v.message,
+            severity: v.severity || 1,
+            confidence: v.confidence || 0,
+            timestamp: v.timestamp || new Date().toISOString(),
+          })),
+          timestamp: new Date().toISOString(),
+        });
+
+        onViolation?.(violations[0]);
+      } catch (error) {
+        console.error("Failed to report violations to backend:", error);
+        onViolation?.({
+          message: `Detected violation but failed to report: ${error}`,
+        });
+      } finally {
+        setIsReporting(false);
+      }
+    },
+    [examAttemptId, examId, onViolation, userId],
+  );
+
   // Handle violations from YOLO service and report to backend
   useEffect(() => {
     if (!lastMessage) return;
@@ -52,34 +93,7 @@ export const ProctoringCamera = ({
 
         // Report violations to backend API
         if (Array.isArray(data.violations) && data.violations.length > 0) {
-          setIsReporting(true);
-
-          try {
-            await apiClient.admin.proctoring.reportViolation({
-              userId,
-              examId,
-              examAttemptId,
-              violations: data.violations.map((v: any) => ({
-                action: v.action || "unknown",
-                message: v.message,
-                severity: v.severity || 1,
-                confidence: v.confidence || 0,
-                timestamp: v.timestamp || new Date().toISOString(),
-              })),
-              timestamp: new Date().toISOString(),
-            });
-
-            // Call local handler after successful backend submission
-            onViolation?.(data.violations[0]);
-          } catch (error) {
-            console.error("Failed to report violations to backend:", error);
-            // Still call handler even if reporting fails
-            onViolation?.({
-              message: `Detected violation but failed to report: ${error}`,
-            });
-          } finally {
-            setIsReporting(false);
-          }
+          await reportViolations(data.violations);
         }
 
         // Update local warning count
@@ -95,7 +109,7 @@ export const ProctoringCamera = ({
     };
 
     reportViolationsToBackend();
-  }, [lastMessage, onBlocked, onViolation, userId, examId, examAttemptId]);
+  }, [lastMessage, onBlocked, reportViolations]);
 
   const stopMonitoring = useCallback(() => {
     if (intervalRef.current) {
@@ -139,9 +153,14 @@ export const ProctoringCamera = ({
   const startCamera = useCallback(async () => {
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        onViolation?.({
-          message: "Camera API is not available in this browser.",
-        });
+        await reportViolations([
+          {
+            action: "camera_unavailable",
+            message: "Camera API is not available in this browser.",
+            severity: 4,
+            confidence: 1,
+          },
+        ]);
         return;
       }
 
@@ -157,12 +176,17 @@ export const ProctoringCamera = ({
       startCapturing();
     } catch (error) {
       console.error("Camera error:", error);
-      onViolation?.({
-        message: "Cannot access camera. Please grant camera permission.",
-      });
+      await reportViolations([
+        {
+          action: "camera_permission_denied",
+          message: "Cannot access camera. Please grant camera permission.",
+          severity: 5,
+          confidence: 1,
+        },
+      ]);
       onBlocked?.();
     }
-  }, [onBlocked, onViolation, startCapturing]);
+  }, [onBlocked, reportViolations, startCapturing]);
 
   useEffect(() => {
     startCamera();
