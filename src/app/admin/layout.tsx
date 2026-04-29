@@ -15,12 +15,12 @@ import {
   ChevronRight,
   Dumbbell,
   FileText,
-  Headphones,
   LayoutDashboard,
   LogOut,
   Menu,
   Moon,
   Lock,
+  Mic,
   PenLine,
   Shield,
   Sun,
@@ -131,10 +131,10 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
         permission: "vocabulary.manage",
       },
       {
-        id: "practice-reading",
-        icon: BookOpen,
-        label: "Luyện đọc",
-        href: "/admin/practice/reading",
+        id: "practice-speaking",
+        icon: Mic,
+        label: "Luyện nói",
+        href: "/admin/practice/speaking",
         permission: "dashboard.view",
       },
       {
@@ -142,13 +142,6 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
         icon: PenLine,
         label: "Luyện viết",
         href: "/admin/practice/writing",
-        permission: "dashboard.view",
-      },
-      {
-        id: "practice-listening",
-        icon: Headphones,
-        label: "Luyện nghe",
-        href: "/admin/practice/listening",
         permission: "dashboard.view",
       },
     ],
@@ -539,7 +532,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <main className={`admin-main transition-all duration-200 ${sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[232px]"}`}>
         <header className={topbarClassName}>
-          <div className="flex h-[80px] items-center justify-between px-5 md:px-8">
+          <div className="flex h-[72px] items-center justify-between px-5 md:px-8">
             <h1 className={pageTitleClassName}>
               {currentPageLabel}
             </h1>

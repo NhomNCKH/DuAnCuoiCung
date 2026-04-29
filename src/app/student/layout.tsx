@@ -16,6 +16,7 @@ import {
   StudentMobileNav,
   StudentQuickActionFab,
 } from "@/features/student/shell";
+import GlobalVocabularyLookup from "@/features/student/shell/GlobalVocabularyLookup";
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -120,6 +121,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-10">{children}</div>
       </main>
 
+      <GlobalVocabularyLookup />
       <StudentQuickActionFab />
       <Footer />
     </div>

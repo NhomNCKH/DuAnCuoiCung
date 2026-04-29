@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { BookMarked, BookOpen, Headphones, PenLine } from "lucide-react";
+import { BookMarked, Mic, PenLine } from "lucide-react";
 
 const PRACTICE_TABS = [
   {
@@ -14,22 +14,16 @@ const PRACTICE_TABS = [
     isActive: (p: string) => p === "/admin/practice/vocabulary" || p.startsWith("/admin/practice/vocabulary/"),
   },
   {
-    href: "/admin/practice/reading",
-    label: "Luyện đọc",
-    icon: BookOpen,
-    isActive: (p: string) => p.startsWith("/admin/practice/reading"),
+    href: "/admin/practice/speaking",
+    label: "Luyện nói",
+    icon: Mic,
+    isActive: (p: string) => p.startsWith("/admin/practice/speaking"),
   },
   {
     href: "/admin/practice/writing",
     label: "Luyện viết",
     icon: PenLine,
     isActive: (p: string) => p.startsWith("/admin/practice/writing"),
-  },
-  {
-    href: "/admin/practice/listening",
-    label: "Luyện nghe",
-    icon: Headphones,
-    isActive: (p: string) => p.startsWith("/admin/practice/listening"),
   },
 ] as const;
 

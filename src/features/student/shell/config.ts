@@ -18,8 +18,8 @@ export type StudentNavItem = {
 export function createStudentNavItems(): StudentNavItem[] {
   return [
     { icon: LayoutDashboard, label: "Tổng quan", href: "/student/dashboard" },
-    { icon: FileText, label: "Kiểm tra nhanh", href: "/student/mock-test" },
-    { icon: ClipboardCheck, label: "Thi thử", href: "/student/practicetest" },
+    { icon: FileText, label: "Thi thử", href: "/student/mock-test" },
+    { icon: ClipboardCheck, label: "Thi chính thức", href: "/student/practicetest" },
     {
       icon: Award,
       label: "Đăng ký thi chứng chỉ",

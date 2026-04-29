@@ -280,6 +280,7 @@ class ApiClient {
         search?: string;
         status?: string;
         part?: string;
+        objectiveOnly?: boolean;
       }): Promise<ApiResponse> => {
         const keyword = params?.keyword ?? params?.search;
         const queryParams = {
@@ -288,6 +289,7 @@ class ApiClient {
           keyword,
           status: params?.status,
           part: params?.part,
+          objectiveOnly: params?.objectiveOnly,
         };
         const qs = params
           ? '?' + new URLSearchParams(
@@ -479,6 +481,137 @@ class ApiClient {
 
       deleteItem: (deckId: string, itemId: string): Promise<ApiResponse> =>
         this.request(`/admin/vocabulary-decks/${deckId}/items/${itemId}`, { method: 'DELETE' }),
+    },
+
+    skillTasks: {
+      listWriting: (params?: { page?: number; limit?: number; level?: string; status?: string; keyword?: string }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.level) query.level = params.level;
+          if (params.status) query.status = params.status;
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : "";
+        return this.request(`/admin/toeic-writing-tasks${qs}`, { method: "GET" });
+      },
+      createWriting: (data: {
+        code: string;
+        title: string;
+        taskType: "part1_sentence" | "part2_email" | "part3_essay";
+        level: "easy" | "medium" | "hard" | "expert";
+        status?: "draft" | "published" | "archived";
+        prompt: string;
+        minWords?: number;
+        maxWords?: number;
+        timeLimitSec?: number;
+        tips?: string[];
+        rubric?: Record<string, unknown>;
+        metadata?: Record<string, unknown>;
+      }): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-writing-tasks`, { method: "POST", body: JSON.stringify(data) }),
+      updateWriting: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-writing-tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      deleteWriting: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-writing-tasks/${id}`, { method: "DELETE" }),
+
+      // ---- Writing Sets (Bộ đề) ----
+      listWritingSets: (params?: { page?: number; limit?: number; level?: string; status?: string; keyword?: string }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.level) query.level = params.level;
+          if (params.status) query.status = params.status;
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : "";
+        return this.request(`/admin/toeic-writing-sets${qs}`, { method: "GET" });
+      },
+      createWritingSet: (data: {
+        code: string;
+        title: string;
+        level: "easy" | "medium" | "hard" | "expert";
+        status?: "draft" | "published" | "archived";
+        timeLimitSec?: number;
+        metadata?: Record<string, unknown>;
+      }): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-writing-sets`, { method: "POST", body: JSON.stringify(data) }),
+      getWritingSet: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-writing-sets/${id}`, { method: "GET" }),
+      updateWritingSet: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-writing-sets/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      deleteWritingSet: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-writing-sets/${id}`, { method: "DELETE" }),
+      addWritingSetItems: (id: string, data: { taskIds: string[] }): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-writing-sets/${id}/items`, { method: "POST", body: JSON.stringify(data) }),
+      removeWritingSetItem: (setId: string, itemId: string): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-writing-sets/${setId}/items/${itemId}`, { method: "DELETE" }),
+
+      listSpeaking: (params?: { page?: number; limit?: number; level?: string; status?: string; keyword?: string }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.level) query.level = params.level;
+          if (params.status) query.status = params.status;
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : "";
+        return this.request(`/admin/toeic-speaking-tasks${qs}`, { method: "GET" });
+      },
+      createSpeaking: (data: {
+        code: string;
+        title: string;
+        taskType: "read_aloud" | "describe_picture" | "express_opinion" | "respond_to_questions";
+        level: "easy" | "medium" | "hard" | "expert";
+        status?: "draft" | "published" | "archived";
+        prompt: string;
+        targetSeconds?: number;
+        timeLimitSec?: number;
+        tips?: string[];
+        rubric?: Record<string, unknown>;
+        metadata?: Record<string, unknown>;
+      }): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-speaking-tasks`, { method: "POST", body: JSON.stringify(data) }),
+      updateSpeaking: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-speaking-tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      deleteSpeaking: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-speaking-tasks/${id}`, { method: "DELETE" }),
+
+      // ---- Speaking Sets (Bộ đề) ----
+      listSpeakingSets: (params?: { page?: number; limit?: number; level?: string; status?: string; keyword?: string }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.level) query.level = params.level;
+          if (params.status) query.status = params.status;
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : "";
+        return this.request(`/admin/toeic-speaking-sets${qs}`, { method: "GET" });
+      },
+      createSpeakingSet: (data: {
+        code: string;
+        title: string;
+        level: "easy" | "medium" | "hard" | "expert";
+        status?: "draft" | "published" | "archived";
+        timeLimitSec?: number;
+        metadata?: Record<string, unknown>;
+      }): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-speaking-sets`, { method: "POST", body: JSON.stringify(data) }),
+      getSpeakingSet: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-speaking-sets/${id}`, { method: "GET" }),
+      updateSpeakingSet: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-speaking-sets/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      deleteSpeakingSet: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-speaking-sets/${id}`, { method: "DELETE" }),
+      addSpeakingSetItems: (id: string, data: { taskIds: string[] }): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-speaking-sets/${id}/items`, { method: "POST", body: JSON.stringify(data) }),
+      removeSpeakingSetItem: (setId: string, itemId: string): Promise<ApiResponse> =>
+        this.request(`/admin/toeic-speaking-sets/${setId}/items/${itemId}`, { method: "DELETE" }),
     },
 
     // ---- Admin: Exam Templates (/admin/exam-templates) ----
@@ -737,6 +870,48 @@ class ApiClient {
       }>> => this.request('/learner/official-exams/registrations', { method: 'POST', body: JSON.stringify(data) }),
     },
 
+    skillTasks: {
+      listSpeakingSets: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        level?: string;
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+          if (params.level) query.level = params.level;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/learner/toeic-speaking-sets${qs}`, { method: 'GET' });
+      },
+
+      getSpeakingSet: (id: string): Promise<ApiResponse> =>
+        this.request(`/learner/toeic-speaking-sets/${id}`, { method: 'GET' }),
+
+      listWritingSets: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        level?: string;
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+          if (params.level) query.level = params.level;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/learner/toeic-writing-sets${qs}`, { method: 'GET' });
+      },
+
+      getWritingSet: (id: string): Promise<ApiResponse> =>
+        this.request(`/learner/toeic-writing-sets/${id}`, { method: 'GET' }),
+    },
+
     examAttempt: {
       listHistory: (params?: {
         examTemplateId?: string;
@@ -909,6 +1084,102 @@ class ApiClient {
         const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
         return this.request(`/learner/vocabulary-decks/${deckId}/items${qs}`, { method: 'GET' });
       },
+    },
+
+    ai: {
+      explain: (data: {
+        skill: 'listening' | 'reading' | 'writing' | 'speaking';
+        question: string;
+        userAnswer?: string;
+        correctAnswer?: string;
+        language?: string;
+      }): Promise<ApiResponse<{ model: string; text: string }>> =>
+        this.request('/learner/ai/explain', { method: 'POST', body: JSON.stringify(data) }),
+
+      gradeWriting: (data: {
+        prompt: string;
+        essay: string;
+        language?: string;
+        taskType?: string;
+      }): Promise<
+        ApiResponse<{
+          model: string;
+          text: string;
+          formatVersion?: string;
+          result?: {
+            overallScore?: number;
+            criteria?: {
+              grammar?: number;
+              vocabulary?: number;
+              coherence?: number;
+              taskFulfillment?: number;
+            };
+            summary?: string;
+            strengths?: string[];
+            weaknesses?: string[];
+            evidence?: string[];
+            actionPlan?: string[];
+            correctedVersion?: string;
+          };
+        }>
+      > =>
+        this.request('/learner/ai/writing/grade', { method: 'POST', body: JSON.stringify(data) }),
+
+      gradeSpeaking: (data: {
+        prompt: string;
+        transcript: string;
+        durationSeconds?: number;
+        language?: string;
+        taskType?: string;
+      }): Promise<
+        ApiResponse<{
+          model: string;
+          text: string;
+          formatVersion?: string;
+          result?: {
+            overallScore?: number;
+            criteria?: {
+              pronunciation?: number;
+              fluency?: number;
+              grammar?: number;
+              vocabulary?: number;
+              relevance?: number;
+            };
+            summary?: string;
+            strengths?: string[];
+            weaknesses?: string[];
+            evidence?: string[];
+            actionPlan?: string[];
+            betterAnswer?: string;
+          };
+        }>
+      > =>
+        this.request('/learner/ai/speaking/grade', { method: 'POST', body: JSON.stringify(data) }),
+
+      lookupVocabulary: (data: {
+        expression: string;
+        context?: string;
+        language?: string;
+      }): Promise<
+        ApiResponse<{
+          model: string;
+          text: string;
+          formatVersion?: string;
+          result?: {
+            expression?: string;
+            partOfSpeech?: string;
+            pronunciation?: string;
+            meaningVi?: string;
+            meaningEn?: string;
+            phrasalVerbs?: string[];
+            synonyms?: string[];
+            antonyms?: string[];
+            examples?: Array<{ en?: string; vi?: string }>;
+            note?: string;
+          };
+        }>
+      > =>
+        this.request('/learner/ai/vocabulary/lookup', { method: 'POST', body: JSON.stringify(data) }),
     },
   };
 }

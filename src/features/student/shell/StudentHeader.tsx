@@ -6,9 +6,9 @@ import {
   User,
   LogOut,
   ChevronDown,
-  Headphones,
   BookOpen,
   PenTool,
+  Mic,
   Menu,
   X,
   Bell,
@@ -56,15 +56,14 @@ export function StudentHeader({
     theme === "dark" ? "/logo/logo_website_dark.svg" : "/logo/logo_website.svg";
   const [practiceMenuOpen, setPracticeMenuOpen] = useState(false);
   const practiceActive =
-    pathname === "/student/listening" ||
-    pathname === "/student/reading" ||
+    pathname === "/student/speaking" ||
     pathname === "/student/writing";
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-blue-100 bg-white/90 backdrop-blur">
       <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-10">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex min-w-0 items-center gap-2">
+        <div className="relative flex h-16 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center">
             <Link
               href="/student/dashboard"
               className="flex h-12 w-[280px] max-w-[min(70vw,18rem)] shrink-0 items-center overflow-hidden sm:w-[320px] sm:max-w-[20rem]"
@@ -80,7 +79,7 @@ export function StudentHeader({
           </div>
 
           {/* Nav kiểu admin: underline + glow */}
-          <nav className="hidden items-center gap-6 md:flex md:shrink-0">
+          <nav className="hidden md:absolute md:inset-y-0 md:left-1/2 md:flex md:-translate-x-1/2 md:items-center md:gap-6">
             {items.map((item) => {
               const isActive = item.href !== "#" && pathname === item.href;
               return (
@@ -140,32 +139,17 @@ export function StudentHeader({
                     <button
                       type="button"
                       onClick={() => {
-                        router.push("/student/listening");
+                        router.push("/student/speaking");
                         setPracticeMenuOpen(false);
                       }}
                       className={`flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors ${
-                        pathname === "/student/listening"
+                        pathname === "/student/speaking"
                           ? "bg-blue-50 text-blue-600"
                           : "text-gray-700 hover:bg-amber-50 hover:text-amber-900 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
                       }`}
                     >
-                      <Headphones className="h-4 w-4" />
-                      <span className="font-medium">Luyện Nghe</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        router.push("/student/reading");
-                        setPracticeMenuOpen(false);
-                      }}
-                      className={`flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors ${
-                        pathname === "/student/reading"
-                          ? "bg-blue-50 text-blue-600"
-                          : "text-gray-700 hover:bg-amber-50 hover:text-amber-900 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
-                      }`}
-                    >
-                      <BookOpen className="h-4 w-4" />
-                      <span className="font-medium">Luyện Đọc</span>
+                      <Mic className="h-4 w-4" />
+                      <span className="font-medium">Luyện Nói</span>
                     </button>
                     <button
                       type="button"
@@ -188,7 +172,7 @@ export function StudentHeader({
             </div>
           </nav>
 
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center justify-end gap-2 md:gap-4">
             <button
               type="button"
               onClick={toggleTheme}

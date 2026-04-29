@@ -515,6 +515,7 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
         status: "published", 
         part: manualPart !== "all" ? manualPart : undefined,
         search: manualSearch || undefined,
+        objectiveOnly: true,
         limit: 50 
       } as any);
       const resData = res.data as any;
@@ -731,7 +732,9 @@ function ItemsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-[10px] font-mono text-gray-400">{g.code}</span>
-                        <span className="text-[10px] font-bold text-gray-500 uppercase">{g.questions?.length || 0} câu</span>
+                        <span className="text-[10px] font-bold text-gray-500 uppercase">
+                          {(g.questionCount ?? g.questions?.length ?? 0)} câu
+                        </span>
                       </div>
                     </div>
                     <button 

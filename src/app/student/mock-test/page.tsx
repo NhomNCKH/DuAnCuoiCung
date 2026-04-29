@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -8,9 +8,13 @@ import {
   Clock,
   Play,
   Star,
+  Trophy,
+  History,
+  Gauge,
   Loader2,
   AlertCircle,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
@@ -33,10 +37,35 @@ export default function MockTestPage() {
   const [templates, setTemplates] = useState<ExamTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const totalAttemptHistory = templates.reduce(
+  const [keyword, setKeyword] = useState("");
+  const visibleTemplates = useMemo(
+    () =>
+      templates.filter(
+        (template) => template.mode === "mock_test" || template.mode === "practice",
+      ),
+    [templates],
+  );
+  const totalAttemptHistory = visibleTemplates.reduce(
     (sum, template) => sum + (template.historyCount ?? 0),
     0,
   );
+  const totalQuestions = visibleTemplates.reduce(
+    (sum, template) => sum + Number(template.totalQuestions ?? 0),
+    0,
+  );
+  const inProgressCount = visibleTemplates.filter(
+    (template) => template.latestAttempt?.status === "in_progress",
+  ).length;
+  const filteredTemplates = useMemo(() => {
+    const q = keyword.trim().toLowerCase();
+    if (!q) return visibleTemplates;
+    return visibleTemplates.filter((template) => {
+      const name = String(template.name ?? "").toLowerCase();
+      const desc = String(template.description ?? "").toLowerCase();
+      const mode = String(getModeLabel(template.mode) ?? "").toLowerCase();
+      return name.includes(q) || desc.includes(q) || mode.includes(q);
+    });
+  }, [visibleTemplates, keyword]);
 
   const fetchTemplates = async () => {
     setIsLoading(true);
@@ -159,50 +188,95 @@ export default function MockTestPage() {
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-10">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <FileText className="w-8 h-8 text-amber-500" />
-          <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-slate-100">
-            Thi thử TOEIC
-          </h1>
+      <motion.div
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6 rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur dark:border-slate-600/40 dark:bg-slate-900/40"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="mb-1 flex items-center gap-2">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                <FileText className="h-5 w-5" />
+              </div>
+              <h1 className="truncate text-2xl font-bold text-slate-900 dark:text-slate-100">
+                Thi thử TOEIC
+              </h1>
+            </div>
+
+          </div>
+          <div className="flex w-full items-center gap-2 md:w-auto md:min-w-[520px]">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="Tìm theo tên đề, mô tả hoặc loại đề..."
+                className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-amber-500/40 dark:focus:ring-amber-500/20"
+              />
+            </div>
+            <button
+              onClick={fetchTemplates}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/10"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Tải lại
+            </button>
+          </div>
         </div>
-        <p className="text-slate-600 dark:text-slate-300">
-          Làm quen với cấu trúc đề thi thật và đánh giá năng lực hiện tại
-        </p>
       </motion.div>
 
-      {/* Stats */}
       <motion.div
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8"
+        className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4"
       >
         <motion.div
           variants={item}
-          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-transparent"
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-slate-900/30"
         >
-          <div className="text-2xl font-bold text-amber-600 dark:text-amber-200">{templates.length}</div>
-          <div className="text-sm text-slate-600 dark:text-slate-300">Đề thi có sẵn</div>
-        </motion.div>
-        <motion.div
-          variants={item}
-          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-transparent"
-        >
-          <div className="text-2xl font-bold text-amber-600 dark:text-amber-200">
-            {templates.filter((t) => t.mode === "mock_test" || t.mode === "official_exam").length}
+          <div className="mb-2 inline-flex rounded-lg bg-amber-100 p-2 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+            <Trophy className="h-4 w-4" />
           </div>
-          <div className="text-sm text-slate-600 dark:text-slate-300">Full test</div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{visibleTemplates.length}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-300">Đề thi có sẵn</div>
         </motion.div>
         <motion.div
           variants={item}
-          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-transparent"
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-slate-900/30"
         >
-          <div className="text-2xl font-bold text-amber-600 dark:text-amber-200">
+          <div className="mb-2 inline-flex rounded-lg bg-sky-100 p-2 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200">
+            <Gauge className="h-4 w-4" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {visibleTemplates.filter((t) => t.mode === "mock_test").length}
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-300">Bài thi thử</div>
+        </motion.div>
+        <motion.div
+          variants={item}
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-slate-900/30"
+        >
+          <div className="mb-2 inline-flex rounded-lg bg-violet-100 p-2 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200">
+            <History className="h-4 w-4" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             {totalAttemptHistory}
           </div>
-          <div className="text-sm text-slate-600 dark:text-slate-300">Lần thi đã lưu</div>
+          <div className="text-xs text-slate-500 dark:text-slate-300">Lượt làm đã lưu</div>
+        </motion.div>
+        <motion.div
+          variants={item}
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600/40 dark:bg-slate-900/30"
+        >
+          <div className="mb-2 inline-flex rounded-lg bg-emerald-100 p-2 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+            <Star className="h-4 w-4" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{totalQuestions}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-300">
+            Tổng câu hỏi • {inProgressCount} bài đang làm
+          </div>
         </motion.div>
       </motion.div>
 
@@ -221,21 +295,25 @@ export default function MockTestPage() {
       {/* Loading */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+          <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
         </div>
-      ) : templates.length === 0 ? (
-        <div className="text-center py-20 text-gray-500">
-          <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p>Chưa có đề thi nào được xuất bản</p>
+      ) : visibleTemplates.length === 0 ? (
+        <div className="py-20 text-center text-gray-500">
+          <FileText className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+          <p>Chưa có đề thi thử hoặc bài luyện tập được xuất bản</p>
+        </div>
+      ) : filteredTemplates.length === 0 ? (
+        <div className="py-16 text-center text-slate-500 dark:text-slate-300">
+          Không tìm thấy đề phù hợp với từ khóa.
         </div>
       ) : (
         <motion.div
           variants={container}
           initial="hidden"
           animate="show"
-          className="grid lg:grid-cols-2 xl:grid-cols-3 gap-6"
+          className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3"
         >
-          {templates.map((template) => (
+          {filteredTemplates.map((template) => (
             (() => {
               const latestAttempt = template.latestAttempt;
               const latestGradedAttempt = template.latestGradedAttempt;
@@ -254,12 +332,13 @@ export default function MockTestPage() {
                 <motion.div
                   key={template.id}
                   variants={item}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md dark:border-slate-600/40 dark:bg-transparent dark:hover:bg-white/5"
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-600/40 dark:bg-slate-900/30 dark:hover:bg-slate-900/40"
                 >
+                  <div className="h-1 w-full bg-slate-200 dark:bg-slate-700/60" />
                   <div className="p-5">
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="mb-3 flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="mb-1 font-bold text-slate-900 dark:text-slate-100">
+                        <h3 className="mb-1 line-clamp-2 font-bold text-slate-900 dark:text-slate-100">
                           {template.name}
                         </h3>
                         {template.description && (
@@ -294,7 +373,7 @@ export default function MockTestPage() {
                     </div>
 
                     {latestAttempt && (
-                      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 dark:border-slate-600/40 dark:bg-white/5 dark:text-slate-200">
+                      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 dark:border-slate-600/40 dark:bg-slate-900/50 dark:text-slate-200">
                         <div className="flex items-center justify-between gap-3">
                           <span className="font-medium text-slate-700 dark:text-slate-100">
                             {getAttemptStatusLabel(latestAttempt.status)}
@@ -331,7 +410,7 @@ export default function MockTestPage() {
                       </div>
                     )}
 
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2.5">
                       {hasInProgressAttempt ? (
                         <>
                           <Link

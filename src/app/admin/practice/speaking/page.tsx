@@ -14,16 +14,19 @@ import {
   Send,
   FilePenLine,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { useToast } from "@/hooks/useToast";
-import { useRouter } from "next/navigation";
 import { CreateSkillSetModal } from "@/app/admin/practice/_components/CreateSkillSetModal";
 import { WorkflowStepper } from "@/components/admin/WorkflowStepper";
 
-const WRITING_TYPES = [
-  { id: "part1_sentence", label: "Part 1 - Sentence" },
-  { id: "part2_email", label: "Part 2 - Email" },
-  { id: "part3_essay", label: "Part 3 - Essay" },
+const SPEAKING_TYPES = [
+  { id: "read_aloud", label: "Read aloud" },
+  { id: "describe_picture", label: "Describe picture" },
+  { id: "respond_to_questions", label: "Respond to questions" },
+  { id: "respond_using_info", label: "Respond using info" },
+  { id: "express_opinion", label: "Express opinion" },
+  { id: "respond_to_question", label: "Respond to question" },
 ] as const;
 
 const LEVELS = ["easy", "medium", "hard", "expert"] as const;
@@ -48,10 +51,11 @@ function statusBadgeClass(status: string) {
   return "border-slate-200 bg-[var(--admin-surface-soft)] text-[var(--admin-muted)] admin-dark:border-[var(--admin-border)]";
 }
 
-export default function AdminPracticeWritingPage() {
+export default function AdminPracticeSpeakingPage() {
   const { notify } = useToast();
   const router = useRouter();
   const [tab, setTab] = useState<"sets" | "bank">("sets");
+
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -71,7 +75,7 @@ export default function AdminPracticeWritingPage() {
   async function loadSets() {
     setLoading(true);
     try {
-      const res: any = await apiClient.admin.skillTasks.listWritingSets({ page: 1, limit: 50 });
+      const res: any = await apiClient.admin.skillTasks.listSpeakingSets({ page: 1, limit: 50 });
       setItems(extractItems(res));
     } catch (e: any) {
       notify({ variant: "error", title: "Không tải được dữ liệu", message: e?.message });
@@ -83,7 +87,7 @@ export default function AdminPracticeWritingPage() {
   async function loadBank() {
     setBankLoading(true);
     try {
-      const res: any = await apiClient.admin.skillTasks.listWriting({
+      const res: any = await apiClient.admin.skillTasks.listSpeaking({
         page: 1,
         limit: 100,
         keyword: keyword.trim() || undefined,
@@ -107,7 +111,7 @@ export default function AdminPracticeWritingPage() {
   async function removeSet(id: string) {
     setSaving(true);
     try {
-      await apiClient.admin.skillTasks.deleteWritingSet(id);
+      await apiClient.admin.skillTasks.deleteSpeakingSet(id);
       notify({ variant: "success", title: "Đã xoá", message: "Xoá thành công." });
       await loadSets();
     } catch (e: any) {
@@ -121,7 +125,7 @@ export default function AdminPracticeWritingPage() {
     if (!window.confirm("Xóa task này?")) return;
     setSaving(true);
     try {
-      await apiClient.admin.skillTasks.deleteWriting(id);
+      await apiClient.admin.skillTasks.deleteSpeaking(id);
       notify({ variant: "success", title: "Đã xoá task", message: "Xoá thành công." });
       await loadBank();
     } catch (e: any) {
@@ -153,6 +157,7 @@ export default function AdminPracticeWritingPage() {
   const publishedCount = statsSource.filter((it) => String(it.status) === "published").length;
   const draftCount = statsSource.filter((it) => String(it.status) === "draft").length;
   const archivedCount = statsSource.filter((it) => String(it.status) === "archived").length;
+
   const activeStep =
     displayedBank.length === 0
       ? 1
@@ -325,7 +330,7 @@ export default function AdminPracticeWritingPage() {
                     <div className="mt-2.5 flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => router.push(`/admin/practice/writing/${it.id}`)}
+                        onClick={() => router.push(`/admin/practice/speaking/${it.id}`)}
                         className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-[var(--admin-text)] hover:bg-[var(--admin-surface)] admin-dark:border-[var(--admin-border)]"
                       >
                         Mở
@@ -358,7 +363,7 @@ export default function AdminPracticeWritingPage() {
             />
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input-modern">
               <option value="all">Tất cả Part</option>
-              {WRITING_TYPES.map((it) => (
+              {SPEAKING_TYPES.map((it) => (
                 <option key={it.id} value={it.id}>
                   {it.label}
                 </option>
@@ -464,10 +469,10 @@ export default function AdminPracticeWritingPage() {
       <CreateSkillSetModal
         open={openCreate}
         onClose={() => setOpenCreate(false)}
-        skill="writing"
-        onCreated={(id) => router.push(`/admin/practice/writing/${id}`)}
+        skill="speaking"
+        onCreated={(id) => router.push(`/admin/practice/speaking/${id}`)}
       />
-      <WritingTaskModal
+      <SpeakingTaskModal
         open={openTaskModal}
         task={editingTask}
         onClose={() => setOpenTaskModal(false)}
@@ -481,7 +486,7 @@ export default function AdminPracticeWritingPage() {
   );
 }
 
-function WritingTaskModal({
+function SpeakingTaskModal({
   open,
   task,
   onClose,
@@ -497,12 +502,11 @@ function WritingTaskModal({
   const [form, setForm] = useState({
     code: "",
     title: "",
-    taskType: "part1_sentence",
+    taskType: "read_aloud",
     level: "medium",
     status: "draft",
     prompt: "",
-    minWords: "",
-    maxWords: "",
+    targetSeconds: "",
     timeLimitSec: "",
     tipsText: "",
   });
@@ -512,12 +516,11 @@ function WritingTaskModal({
     setForm({
       code: task?.code ?? "",
       title: task?.title ?? "",
-      taskType: task?.taskType ?? "part1_sentence",
+      taskType: task?.taskType ?? "read_aloud",
       level: task?.level ?? "medium",
       status: task?.status ?? "draft",
       prompt: task?.prompt ?? "",
-      minWords: task?.minWords ? String(task.minWords) : "",
-      maxWords: task?.maxWords ? String(task.maxWords) : "",
+      targetSeconds: task?.targetSeconds ? String(task.targetSeconds) : "",
       timeLimitSec: task?.timeLimitSec ? String(task.timeLimitSec) : "",
       tipsText: Array.isArray(task?.tips) ? task.tips.join("\n") : "",
     });
@@ -540,8 +543,7 @@ function WritingTaskModal({
       level: form.level,
       status: form.status,
       prompt: form.prompt.trim(),
-      minWords: form.minWords ? Number(form.minWords) : undefined,
-      maxWords: form.maxWords ? Number(form.maxWords) : undefined,
+      targetSeconds: form.targetSeconds ? Number(form.targetSeconds) : undefined,
       timeLimitSec: form.timeLimitSec ? Number(form.timeLimitSec) : undefined,
       tips: tips.length ? tips : undefined,
     };
@@ -549,10 +551,10 @@ function WritingTaskModal({
     setSaving(true);
     try {
       if (task?.id) {
-        await apiClient.admin.skillTasks.updateWriting(task.id, payload);
+        await apiClient.admin.skillTasks.updateSpeaking(task.id, payload);
         notify({ variant: "success", title: "Đã cập nhật", message: "Task đã được cập nhật." });
       } else {
-        await apiClient.admin.skillTasks.createWriting(payload);
+        await apiClient.admin.skillTasks.createSpeaking(payload);
         notify({ variant: "success", title: "Đã tạo", message: "Task đã được tạo." });
       }
       await onSaved();
@@ -571,14 +573,14 @@ function WritingTaskModal({
       <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-xl admin-dark:border-[var(--admin-border)] admin-dark:bg-[var(--admin-surface)]">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm font-semibold text-slate-900 admin-dark:text-[var(--admin-text)]">
-            {task?.id ? "Sửa task Writing" : "Tạo task Writing"}
+            {task?.id ? "Sửa task Speaking" : "Tạo task Speaking"}
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <input className="input-modern" placeholder="Code" value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} />
           <select className="input-modern" value={form.taskType} onChange={(e) => setForm((p) => ({ ...p, taskType: e.target.value }))}>
-            {WRITING_TYPES.map((t) => (
+            {SPEAKING_TYPES.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.label}
               </option>
@@ -600,9 +602,8 @@ function WritingTaskModal({
               </option>
             ))}
           </select>
-          <input className="input-modern" inputMode="numeric" placeholder="Min words" value={form.minWords} onChange={(e) => setForm((p) => ({ ...p, minWords: e.target.value.replace(/[^\d]/g, "") }))} />
-          <input className="input-modern" inputMode="numeric" placeholder="Max words" value={form.maxWords} onChange={(e) => setForm((p) => ({ ...p, maxWords: e.target.value.replace(/[^\d]/g, "") }))} />
-          <input className="input-modern md:col-span-2" inputMode="numeric" placeholder="Time limit (sec)" value={form.timeLimitSec} onChange={(e) => setForm((p) => ({ ...p, timeLimitSec: e.target.value.replace(/[^\d]/g, "") }))} />
+          <input className="input-modern" inputMode="numeric" placeholder="Target seconds" value={form.targetSeconds} onChange={(e) => setForm((p) => ({ ...p, targetSeconds: e.target.value.replace(/[^\d]/g, "") }))} />
+          <input className="input-modern" inputMode="numeric" placeholder="Time limit (sec)" value={form.timeLimitSec} onChange={(e) => setForm((p) => ({ ...p, timeLimitSec: e.target.value.replace(/[^\d]/g, "") }))} />
           <textarea className="input-modern md:col-span-2 min-h-[72px]" placeholder="Tips (mỗi dòng một tip)" value={form.tipsText} onChange={(e) => setForm((p) => ({ ...p, tipsText: e.target.value }))} />
         </div>
 
@@ -618,3 +619,4 @@ function WritingTaskModal({
     </div>
   );
 }
+

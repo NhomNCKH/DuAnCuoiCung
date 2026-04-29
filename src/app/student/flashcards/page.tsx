@@ -13,6 +13,7 @@ import {
   Pencil,
   BookMarked,
   GraduationCap,
+  Search,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { learnerVisibleDescription } from "@/lib/learner-deck-description";
@@ -80,49 +81,36 @@ function DeckFormModal({
         aria-label="Đóng"
       />
       <div
-        className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-600/40 dark:bg-slate-950"
+        className="surface relative w-full max-w-lg p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">
               {initial?.title ? "Chỉnh sửa bộ" : "Tạo bộ flashcard"}
             </h3>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-              Đặt tên rõ ràng để dễ ôn tập theo chủ đề.
-            </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
-          >
-            Đóng
-          </button>
+          
         </div>
 
         <div className="mt-4 space-y-3">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Tên bộ
-            </label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">Tên bộ</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="VD: TOEIC Core 600"
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
+              placeholder="VD: Core 600"
+              className="input-modern"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Mô tả (tuỳ chọn)
-            </label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">Mô tả</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="VD: Từ vựng hay gặp trong Part 5–7"
-              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
+              placeholder="Tuỳ chọn"
+              className="input-modern resize-none"
             />
           </div>
         </div>
@@ -131,7 +119,7 @@ function DeckFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
+            className="btn-secondary rounded-xl px-4 py-2"
           >
             Hủy
           </button>
@@ -139,7 +127,7 @@ function DeckFormModal({
             type="button"
             disabled={submitting || !title.trim()}
             onClick={() => onSubmit({ title: title.trim(), description: description.trim() || undefined })}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50"
+            className="btn-primary rounded-xl px-4 py-2 disabled:opacity-50"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Lưu
@@ -155,6 +143,8 @@ export default function FlashcardsPage() {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [systemDecks, setSystemDecks] = useState<SystemDeck[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"system" | "personal">("system");
+  const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [savingDeck, setSavingDeck] = useState(false);
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
@@ -186,178 +176,206 @@ export default function FlashcardsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const stats = useMemo(() => {
-    return [
-      { label: "Flashcard của bạn", value: totalPersonal, icon: Library },
-      { label: "Bộ từ CEFR", value: totalSystem, icon: BookMarked },
-      { label: "SRS hôm nay", value: "—", icon: Clock },
-    ];
-  }, [totalPersonal, totalSystem]);
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredSystemDecks = useMemo(() => {
+    if (!normalizedSearch) return systemDecks;
+    return systemDecks.filter((d) => {
+      const hay = `${d.title} ${d.cefrLevel} ${d.description ?? ""}`.toLowerCase();
+      return hay.includes(normalizedSearch);
+    });
+  }, [systemDecks, normalizedSearch]);
+
+  const filteredDecks = useMemo(() => {
+    if (!normalizedSearch) return decks;
+    return decks.filter((d) => {
+      const hay = `${d.title} ${d.description ?? ""}`.toLowerCase();
+      return hay.includes(normalizedSearch);
+    });
+  }, [decks, normalizedSearch]);
+
+  const createDeckCta = (
+    <button
+      type="button"
+      onClick={() => {
+        setEditingDeck(null);
+        setCreating(true);
+      }}
+      className="btn-primary rounded-2xl px-5 py-2.5"
+    >
+      <Plus className="h-4 w-4" />
+      Tạo bộ flashcard
+    </button>
+  );
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-4 pt-5 pb-8 sm:px-6 lg:px-10">
+    <div className="w-full">
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8 rounded-3xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-slate-50/90 p-6 shadow-sm ring-1 ring-slate-900/[0.04] dark:border-white/10 dark:from-slate-900/60 dark:via-slate-900/40 dark:to-slate-950/80 dark:ring-white/[0.06] sm:p-8"
+        className="surface mb-6 overflow-hidden p-4 sm:p-5"
       >
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300">
-                <Library className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-[1.65rem]">
-                  Flashcard &amp; từ vựng
-                </h1>
-                <p className="mt-1 text-sm leading-relaxed text-justify text-slate-600 dark:text-slate-400">
-                  Bộ từ CEFR do admin biên soạn (phiên âm, nghĩa, ví dụ) nằm bên dưới; flashcard cá nhân để bạn tự tạo thẻ và ôn theo lịch SRS.
-                </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-white/10 dark:text-blue-400">
+              <Library className="h-5 w-5" />
+            </span>
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50 sm:text-2xl">
+              Flashcards
+            </h1>
+          </div>
+
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <div className="relative w-full sm:w-[360px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm bộ theo tên, CEFR…"
+                className="input-modern pl-9"
+              />
+            </div>
+
+            <div className="inline-flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+              <div className="inline-flex items-center rounded-2xl border border-slate-200 bg-white p-1 dark:border-white/10 dark:bg-white/5">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("system")}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                    activeTab === "system"
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
+                  }`}
+                >
+                  Bộ CEFR
+                  <span className="ml-2 rounded-full bg-black/10 px-2 py-0.5 text-xs font-bold text-inherit dark:bg-white/10">
+                    {totalSystem}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("personal")}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                    activeTab === "personal"
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
+                  }`}
+                >
+                  Của bạn
+                  <span className="ml-2 rounded-full bg-black/10 px-2 py-0.5 text-xs font-bold text-inherit dark:bg-white/10">
+                    {totalPersonal}
+                  </span>
+                </button>
               </div>
+
+              <div className="shrink-0">{createDeckCta}</div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEditingDeck(null);
-              setCreating(true);
-            }}
-            className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-500/20 transition hover:bg-amber-600 active:scale-[0.99] sm:w-auto sm:self-center"
-          >
-            <Plus className="h-4 w-4" />
-            Tạo bộ flashcard
-          </button>
-        </div>
-
-        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              className="flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 dark:border-white/10 dark:bg-slate-950/30 sm:px-5 sm:py-3.5"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-amber-600 dark:bg-white/10 dark:text-amber-300">
-                <s.icon className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 flex-1 text-left">
-                <p className="text-xs font-medium leading-snug text-slate-500 dark:text-slate-400">{s.label}</p>
-                <p className="text-lg font-bold tabular-nums text-slate-900 dark:text-slate-100">{s.value}</p>
-              </div>
-            </div>
-          ))}
         </div>
       </motion.div>
 
-      <section className="mt-2">
-        <header className="mb-5 flex flex-col gap-1 sm:mb-6">
-          <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            <GraduationCap className="h-5 w-5 text-amber-500" aria-hidden />
-            Bộ từ hệ thống
-          </h2>
-          <p className="w-full text-sm leading-relaxed text-justify text-slate-600 dark:text-slate-400">
-            Phiên âm IPA, loại từ, nghĩa tiếng Việt và câu ví dụ có ngữ cảnh — chọn đúng cấp độ CEFR để học từng bộ.
-          </p>
-        </header>
-
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-7 w-7 animate-spin text-amber-500" />
-          </div>
-        ) : systemDecks.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-200/90 bg-slate-50/50 py-14 text-center dark:border-white/10 dark:bg-slate-900/20">
-            <BookMarked className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
-            <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Chưa có bộ từ được xuất bản.</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Admin sẽ cập nhật danh sách sau.</p>
-          </div>
-        ) : (
-          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6">
-            {systemDecks.map((d) => {
-              const blurb = learnerVisibleDescription(d.description);
-              return (
-                <li key={d.id} className="min-w-0">
-                  <div className="flex h-full min-h-[280px] flex-col rounded-3xl border border-slate-200/90 bg-white p-6 text-left shadow-sm ring-1 ring-slate-900/[0.03] transition hover:border-amber-400/35 hover:shadow-md dark:border-white/10 dark:bg-slate-900/35 dark:ring-white/[0.04] dark:hover:border-amber-500/35">
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${CEFR_BADGE[d.cefrLevel] ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}
-                      >
-                        {d.cefrLevel}
-                      </span>
-                      {typeof d.itemCount === "number" ? (
-                        <span className="text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
-                          {d.itemCount} từ
-                        </span>
-                      ) : null}
-                    </div>
-                    <h3 className="mt-4 text-base font-bold leading-snug text-slate-900 dark:text-slate-50">{d.title}</h3>
-                    <p className="mt-2 min-h-[3rem] flex-1 text-sm leading-relaxed text-justify text-slate-600 dark:text-slate-400">
-                      {blurb ?? "Bộ từ theo khung CEFR, có ví dụ ngữ cảnh."}
-                    </p>
-                    <div className="mt-auto pt-6">
-                      <Link
-                        href={`/student/vocabulary/${d.id}`}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600"
-                      >
-                        Học bộ này
-                        <ChevronRight className="h-4 w-4 opacity-90" />
-                      </Link>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-14">
-        <div className="mb-5 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
-          <header>
-            <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              <Library className="h-5 w-5 text-amber-500" aria-hidden />
-              Flashcard của bạn
+      <section className="mt-10">
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+              {activeTab === "system" ? "Bộ từ hệ thống" : "Flashcard của bạn"}
             </h2>
-            <p className="mt-1 w-full text-sm leading-relaxed text-justify text-slate-600 dark:text-slate-400">
-              Thẻ gồm mặt trước và mặt sau; hệ thống nhắc ôn theo lịch SRS để nhớ lâu hơn.
-            </p>
-          </header>
-          <Link
-            href="/student/mock-test"
-            className="inline-flex shrink-0 items-center gap-2 self-start rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-amber-300/60 hover:bg-amber-50/80 dark:border-white/10 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:border-amber-500/30 dark:hover:bg-amber-500/10"
-          >
-            Gợi ý từ đề thi
-            <ChevronRight className="h-4 w-4" />
-          </Link>
+          </div>
+
+          {activeTab === "personal" ? (
+            <Link href="/student/mock-test" className="btn-secondary rounded-2xl px-4 py-2.5">
+              Gợi ý từ đề thi
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : (
+            <Link href="/student/vocabulary" className="btn-secondary rounded-2xl px-4 py-2.5">
+              Mở kho từ vựng
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-7 w-7 animate-spin text-amber-500" />
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} className="surface animate-pulse p-6">
+                <div className="h-5 w-24 rounded bg-slate-200/70 dark:bg-white/10" />
+                <div className="mt-4 h-5 w-3/4 rounded bg-slate-200/70 dark:bg-white/10" />
+                <div className="mt-3 h-16 w-full rounded bg-slate-200/70 dark:bg-white/10" />
+                <div className="mt-6 h-10 w-full rounded-2xl bg-slate-200/70 dark:bg-white/10" />
+              </div>
+            ))}
           </div>
-        ) : decks.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-200/90 bg-slate-50/40 py-14 text-center dark:border-white/10 dark:bg-slate-900/20">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Chưa có bộ flashcard cá nhân.</p>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Tạo bộ mới để thêm thẻ và bắt đầu ôn.</p>
-            <button
-              type="button"
-              onClick={() => {
-                setEditingDeck(null);
-                setCreating(true);
-              }}
-              className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600"
-            >
-              <Plus className="h-4 w-4" />
-              Tạo bộ đầu tiên
-            </button>
+        ) : activeTab === "system" ? (
+          filteredSystemDecks.length === 0 ? (
+            <div className="surface-soft py-14 text-center">
+              <BookMarked className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
+              <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {normalizedSearch ? "Không tìm thấy bộ từ phù hợp." : "Chưa có bộ từ được xuất bản."}
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                {normalizedSearch ? "Thử từ khoá khác hoặc xoá bộ lọc tìm kiếm." : "Admin sẽ cập nhật danh sách sau."}
+              </p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredSystemDecks.map((d) => {
+                const blurb = learnerVisibleDescription(d.description);
+                return (
+                  <li key={d.id} className="min-w-0">
+                    <div className="surface flex h-full min-h-[260px] flex-col p-6 transition hover:shadow-md">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-bold ${
+                            CEFR_BADGE[d.cefrLevel] ??
+                            "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                          }`}
+                        >
+                          {d.cefrLevel}
+                        </span>
+                        {typeof d.itemCount === "number" ? (
+                          <span className="text-xs font-semibold tabular-nums text-muted">{d.itemCount} từ</span>
+                        ) : null}
+                      </div>
+                      <h3 className="mt-4 text-base font-extrabold leading-snug text-slate-900 dark:text-slate-50">
+                        {d.title}
+                      </h3>
+                      <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">
+                        {blurb ?? "Bộ từ theo khung CEFR, có ví dụ ngữ cảnh."}
+                      </p>
+                      <div className="mt-6">
+                        <Link href={`/student/vocabulary/${d.id}`} className="btn-primary w-full rounded-2xl py-3">
+                          Học bộ này
+                          <ChevronRight className="h-4 w-4 opacity-90" />
+                        </Link>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        ) : filteredDecks.length === 0 ? (
+          <div className="surface-soft py-14 text-center">
+            <Library className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
+            <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {normalizedSearch ? "Không tìm thấy bộ flashcard phù hợp." : "Chưa có bộ flashcard cá nhân."}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              {normalizedSearch ? "Thử từ khoá khác hoặc xoá bộ lọc tìm kiếm." : "Tạo bộ mới để thêm thẻ và bắt đầu ôn."}
+            </p>
+            <div className="mt-5 flex justify-center">{createDeckCta}</div>
           </div>
         ) : (
-          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6">
-            {decks.map((d) => (
+          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredDecks.map((d) => (
               <li key={d.id} className="min-w-0">
-                <div className="flex h-full min-h-[220px] flex-col rounded-3xl border border-slate-200/90 bg-white p-6 text-left shadow-sm ring-1 ring-slate-900/[0.03] transition hover:border-slate-300 hover:shadow-md dark:border-white/10 dark:bg-slate-900/35 dark:ring-white/[0.04] dark:hover:border-white/15">
+                <div className="surface flex h-full min-h-[220px] flex-col p-6 transition hover:shadow-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-bold text-slate-900 dark:text-slate-100">{d.title}</p>
-                      <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-justify text-slate-600 dark:text-slate-400">
+                      <p className="truncate text-base font-extrabold text-slate-900 dark:text-slate-100">
+                        {d.title}
+                      </p>
+                      <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-muted">
                         {d.description?.trim() ? d.description : "Chưa có mô tả"}
                       </p>
                     </div>
@@ -381,16 +399,13 @@ export default function FlashcardsPage() {
                     </div>
                   </div>
                   <div className="mt-5 grid gap-2">
-                    <Link
-                      href={`/student/flashcards/${d.id}/study`}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
-                    >
+                    <Link href={`/student/flashcards/${d.id}/study`} className="btn-primary w-full rounded-2xl py-3">
                       Học ngay
                       <ChevronRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href={`/student/flashcards/${d.id}`}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5"
+                      className="btn-secondary w-full rounded-2xl py-2.5"
                     >
                       Quản lý thẻ
                     </Link>

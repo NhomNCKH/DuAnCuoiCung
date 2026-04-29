@@ -13,11 +13,18 @@ import {
   Loader2,
   Headphones,
   Library,
+  Languages,
   Plus,
+  X,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { getSignedMediaUrl } from "@/lib/media-url";
 import { useToast } from "@/hooks/useToast";
+import {
+  buildBackFromMeta,
+  serializeVocabMeta,
+  toVocabMetaFromLookup,
+} from "@/lib/flashcard-vocab";
 import {
   mapAttemptResultToMockExam,
   mapAttemptSessionToMockExam,
@@ -35,6 +42,19 @@ import type {
 } from "@/types/learner-exam";
 
 type PageState = "loading" | "exam" | "submitting" | "result" | "error";
+
+type VocabularyLookupResult = {
+  expression?: string;
+  partOfSpeech?: string;
+  pronunciation?: string;
+  meaningVi?: string;
+  meaningEn?: string;
+  phrasalVerbs?: string[];
+  synonyms?: string[];
+  antonyms?: string[];
+  examples?: Array<{ en?: string; vi?: string }>;
+  note?: string;
+};
 
 const PART_LABEL: Record<string, string> = {
   P1: "Part 1 - Photos",
@@ -429,6 +449,36 @@ function safeJsonParse<T>(raw: string | null, fallback: T): T {
   }
 }
 
+function extractApiData<T = any>(raw: any): T | null {
+  const data = raw?.data?.data ?? raw?.data ?? raw;
+  return (data as T) ?? null;
+}
+
+function getFloatingPosition(
+  rect: DOMRect,
+  options?: { width?: number; height?: number; gap?: number; padding?: number; safeTop?: number },
+) {
+  const width = options?.width ?? 360;
+  const height = options?.height ?? 460;
+  const gap = options?.gap ?? 10;
+  const padding = options?.padding ?? 12;
+  const safeTop = options?.safeTop ?? 74;
+
+  const viewportW = typeof window !== "undefined" ? window.innerWidth : 1200;
+  const viewportH = typeof window !== "undefined" ? window.innerHeight : 800;
+
+  const left = Math.max(padding, Math.min(rect.left, viewportW - width - padding));
+
+  const topBelow = rect.bottom + gap;
+  const topAbove = rect.top - height - gap;
+  const top =
+    topBelow + height <= viewportH - padding
+      ? topBelow
+      : Math.max(safeTop, Math.min(topAbove, viewportH - height - padding));
+
+  return { top, left };
+}
+
 function CreateFlashcardFromSelectionModal({
   open,
   onClose,
@@ -488,7 +538,7 @@ function CreateFlashcardFromSelectionModal({
     return () => {
       cancelled = true;
     };
-  }, [open, seedText]);
+  }, [open, seedText, notify]);
 
   if (!open) return null;
 
@@ -705,6 +755,7 @@ export default function MockTestExamPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
+  const { notify } = useToast();
   const searchParams = useSearchParams();
   const qs = searchParams ?? new URLSearchParams();
   const reviewAttemptId = qs.get("attemptId")?.trim() ?? "";
@@ -721,9 +772,20 @@ export default function MockTestExamPage() {
   const [attemptHistory, setAttemptHistory] = useState<LearnerExamAttemptHistoryItem[]>([]);
   const [reviewExpanded, setReviewExpanded] = useState(false);
   const [isReviewLoading, setIsReviewLoading] = useState(false);
-  const [highlightEnabled, setHighlightEnabled] = useState(false);
+  const [highlightEnabled, setHighlightEnabled] = useState(true);
   const [flashcardSeedText, setFlashcardSeedText] = useState<string>("");
-  const [flashcardCreateOpen, setFlashcardCreateOpen] = useState(false);
+  const [vocabLookupOpen, setVocabLookupOpen] = useState(false);
+  const [vocabLookupLoading, setVocabLookupLoading] = useState(false);
+  const [vocabLookupError, setVocabLookupError] = useState("");
+  const [vocabLookupResult, setVocabLookupResult] = useState<VocabularyLookupResult | null>(null);
+  const [vocabLookupExpression, setVocabLookupExpression] = useState("");
+  const [vocabPopupPos, setVocabPopupPos] = useState<{ top: number; left: number } | null>(null);
+  const [vocabTriggerPos, setVocabTriggerPos] = useState<{ top: number; left: number } | null>(null);
+  const [vocabSaving, setVocabSaving] = useState(false);
+  const [vocabDeckChoices, setVocabDeckChoices] = useState<Array<{ id: string; title: string }>>([]);
+  const [vocabSelectedDeckId, setVocabSelectedDeckId] = useState("");
+  const vocabLookupSeqRef = useRef(0);
+  const vocabPopupRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!highlightEnabled) return;
@@ -731,12 +793,116 @@ export default function MockTestExamPage() {
     const onMouseUp = () => {
       const sel = window.getSelection?.();
       const text = sel?.toString?.().trim?.() ?? "";
-      if (text && text.length >= 2 && text.length <= 2000) {
-        setFlashcardSeedText(text);
-      }
+      const wordCount = text ? text.split(/\s+/).filter(Boolean).length : 0;
+      if (!text || text.length < 2 || text.length > 80 || wordCount > 8) return;
+
+      const range = sel?.rangeCount ? sel.getRangeAt(0) : null;
+      const rect = range?.getBoundingClientRect?.();
+      if (!rect) return;
+
+      setFlashcardSeedText(text);
+      setVocabLookupExpression(text);
+      setVocabLookupOpen(false);
+      setVocabLookupLoading(false);
+      setVocabLookupError("");
+      setVocabLookupResult(null);
+      setVocabDeckChoices([]);
+      setVocabSelectedDeckId("");
+
+      setVocabPopupPos(getFloatingPosition(rect));
+      const triggerTop = Math.min(window.innerHeight - 54, Math.max(8, rect.bottom + 6));
+      const triggerLeft = Math.min(window.innerWidth - 54, Math.max(8, rect.right - 18));
+      setVocabTriggerPos({ top: triggerTop, left: triggerLeft });
     };
     window.addEventListener("mouseup", onMouseUp);
     return () => window.removeEventListener("mouseup", onMouseUp);
+  }, [highlightEnabled, allQuestions, currentIdx]);
+
+  useEffect(() => {
+    if (!vocabLookupOpen && !vocabTriggerPos) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (vocabPopupRef.current && target && !vocabPopupRef.current.contains(target)) {
+        setVocabLookupOpen(false);
+        setVocabTriggerPos(null);
+        setVocabDeckChoices([]);
+        setVocabSelectedDeckId("");
+      }
+    };
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setVocabLookupOpen(false);
+        setVocabTriggerPos(null);
+        setVocabDeckChoices([]);
+        setVocabSelectedDeckId("");
+      }
+    };
+    window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("keydown", onEsc);
+    return () => {
+      window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onEsc);
+    };
+  }, [vocabLookupOpen, vocabTriggerPos]);
+
+  useEffect(() => {
+    if (!vocabLookupOpen || !vocabPopupPos) return;
+    if (typeof window === "undefined") return;
+    const el = vocabPopupRef.current;
+    if (!el) return;
+
+    const padding = 12;
+    const safeTop = 74;
+    const nextTop = Math.max(
+      safeTop,
+      Math.min(vocabPopupPos.top, window.innerHeight - el.offsetHeight - padding),
+    );
+    const nextLeft = Math.max(
+      padding,
+      Math.min(vocabPopupPos.left, window.innerWidth - el.offsetWidth - padding),
+    );
+
+    if (nextTop !== vocabPopupPos.top || nextLeft !== vocabPopupPos.left) {
+      setVocabPopupPos({ top: nextTop, left: nextLeft });
+    }
+  }, [vocabLookupOpen, vocabPopupPos, vocabLookupLoading, vocabLookupError, vocabLookupResult]);
+
+  useEffect(() => {
+    if (!vocabLookupOpen || !vocabPopupPos) return;
+    if (typeof window === "undefined") return;
+    const reflow = () => {
+      const el = vocabPopupRef.current;
+      if (!el) return;
+      const padding = 12;
+      const safeTop = 74;
+      const nextTop = Math.max(
+        safeTop,
+        Math.min(vocabPopupPos.top, window.innerHeight - el.offsetHeight - padding),
+      );
+      const nextLeft = Math.max(
+        padding,
+        Math.min(vocabPopupPos.left, window.innerWidth - el.offsetWidth - padding),
+      );
+      if (nextTop !== vocabPopupPos.top || nextLeft !== vocabPopupPos.left) {
+        setVocabPopupPos({ top: nextTop, left: nextLeft });
+      }
+    };
+
+    const onViewportChange = () => window.requestAnimationFrame(reflow);
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("scroll", onViewportChange, true);
+    return () => {
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("scroll", onViewportChange, true);
+    };
+  }, [vocabLookupOpen, vocabPopupPos]);
+
+  useEffect(() => {
+    if (highlightEnabled) return;
+    setVocabLookupOpen(false);
+    setVocabTriggerPos(null);
+    setVocabDeckChoices([]);
+    setVocabSelectedDeckId("");
   }, [highlightEnabled]);
   const [reviewFlags, setReviewFlags] = useState<Record<string, boolean>>({});
   const [resolvedMedia, setResolvedMedia] = useState<{
@@ -1319,6 +1485,119 @@ export default function MockTestExamPage() {
     resultPayload,
     scrollToReviewSection,
     showResultView,
+  ]);
+
+  const lookupVocabularyNow = useCallback(async () => {
+    if (!vocabLookupExpression.trim()) return;
+    setVocabLookupLoading(true);
+    setVocabLookupError("");
+    try {
+      const current = allQuestions[currentIdx];
+      const context = [current?.content, current?.transcript, current?.stem]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 1200);
+      const requestId = ++vocabLookupSeqRef.current;
+      const res: any = await apiClient.learner.ai.lookupVocabulary({
+        expression: vocabLookupExpression.trim(),
+        context,
+        language: "vi",
+      });
+      if (requestId !== vocabLookupSeqRef.current) return;
+      const payload = extractApiData<any>(res);
+      setVocabLookupResult(payload?.result ?? null);
+    } catch (e: any) {
+      setVocabLookupError(e?.message || "Không thể tra lại từ này.");
+    } finally {
+      setVocabLookupLoading(false);
+    }
+  }, [allQuestions, currentIdx, vocabLookupExpression]);
+
+  const saveSelectionToFlashcard = useCallback(async () => {
+    const expression = (vocabLookupResult?.expression || vocabLookupExpression || flashcardSeedText).trim();
+    if (!expression) return;
+
+    const meta = toVocabMetaFromLookup(vocabLookupResult ?? null, expression);
+    const back = buildBackFromMeta(meta);
+    if (!back) {
+      notify({
+        variant: "warning",
+        title: "Chưa đủ dữ liệu",
+        message: "Vui lòng đợi AI trả nghĩa trước khi lưu flashcard.",
+      });
+      return;
+    }
+
+    setVocabSaving(true);
+    try {
+      const deckRes = await apiClient.learner.flashcards.listDecks({
+        limit: 50,
+        sort: "updatedAt",
+        order: "DESC",
+      });
+      const deckPayload = extractApiData<any>(deckRes);
+      const deckItems = (deckPayload?.items ?? deckPayload?.data?.items ?? []) as Array<{
+        id: string;
+        title: string;
+      }>;
+      let deck: { id: string; title: string } | null = null;
+
+      if (!deckItems.length) {
+        const createdRes = await apiClient.learner.flashcards.createDeck({
+          title: "Từ vựng đã lưu",
+          description: "Bộ từ vựng lưu nhanh khi làm bài thi",
+        });
+        deck = extractApiData<any>(createdRes);
+      } else if (deckItems.length === 1) {
+        deck = deckItems[0];
+      } else {
+        const safeSelectedId = deckItems.some((d) => d.id === vocabSelectedDeckId)
+          ? vocabSelectedDeckId
+          : deckItems[0].id;
+        if (!vocabSelectedDeckId) {
+          setVocabDeckChoices(deckItems.map((d) => ({ id: d.id, title: d.title })));
+          setVocabSelectedDeckId(safeSelectedId);
+          notify({
+            variant: "warning",
+            title: "Chọn bộ flashcard",
+            message: "Bạn có nhiều bộ. Hãy chọn bộ muốn thêm từ.",
+          });
+          return;
+        }
+        deck = deckItems.find((d) => d.id === safeSelectedId) ?? deckItems[0];
+      }
+      if (!deck?.id) throw new Error("Không xác định được bộ flashcard để lưu.");
+
+      await apiClient.learner.flashcards.createCard(deck.id, {
+        front: expression,
+        back,
+        note: serializeVocabMeta(meta),
+        tags: [currentPartTabLabel.toLowerCase().replace(/\s+/g, "-"), "vocab"],
+      });
+
+      notify({
+        variant: "success",
+        title: "Đã thêm vào flashcard",
+        message: `"${expression}" đã được lưu vào bộ "${deck.title}".`,
+      });
+      setVocabDeckChoices([]);
+      setVocabSelectedDeckId("");
+    } catch (e: any) {
+      notify({
+        variant: "error",
+        title: "Lưu flashcard thất bại",
+        message: e?.message || "Vui lòng thử lại.",
+      });
+    } finally {
+      setVocabSaving(false);
+    }
+  }, [
+    currentPartTabLabel,
+    flashcardSeedText,
+    notify,
+    vocabSelectedDeckId,
+    vocabLookupExpression,
+    vocabLookupResult,
   ]);
 
   const renderQuestionPanel = (question: MockExamQuestion) => {
@@ -1956,11 +2235,140 @@ export default function MockTestExamPage() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-transparent dark:text-slate-100">
-      <CreateFlashcardFromSelectionModal
-        open={flashcardCreateOpen}
-        seedText={flashcardSeedText}
-        onClose={() => setFlashcardCreateOpen(false)}
-      />
+      {highlightEnabled && vocabTriggerPos && !vocabLookupOpen ? (
+        <div
+          className="fixed z-[96] flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-1 py-1 shadow-xl dark:border-slate-600/40 dark:bg-slate-900"
+          style={{ top: vocabTriggerPos.top, left: vocabTriggerPos.left }}
+        >
+          <button
+            type="button"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+            onClick={() => {
+              setVocabLookupOpen(true);
+              setVocabTriggerPos(null);
+              void lookupVocabularyNow();
+            }}
+            title="Tra từ bằng AI"
+            aria-label="Tra từ bằng AI"
+          >
+            <Languages className="h-4 w-4 text-blue-500" />
+            Tra từ
+          </button>
+        </div>
+      ) : null}
+      {highlightEnabled && vocabLookupOpen && vocabPopupPos ? (
+        <div
+          ref={vocabPopupRef}
+          className="fixed z-[140] w-[360px] max-h-[70vh] max-w-[calc(100vw-24px)] overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-600/40 dark:bg-slate-900"
+          style={{ top: vocabPopupPos.top, left: vocabPopupPos.left }}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-xs text-slate-500 dark:text-slate-300">Từ được chọn</p>
+              <p className="truncate text-2xl font-bold leading-tight text-slate-900 dark:text-slate-100">
+                {vocabLookupResult?.expression || vocabLookupExpression}
+                {vocabLookupResult?.partOfSpeech ? (
+                  <span className="ml-1 text-sm font-semibold italic text-slate-500 dark:text-slate-300">
+                    ({vocabLookupResult.partOfSpeech})
+                  </span>
+                ) : null}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setVocabLookupOpen(false);
+                setVocabTriggerPos(null);
+                setVocabDeckChoices([]);
+                setVocabSelectedDeckId("");
+              }}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-600/40 dark:text-slate-200 dark:hover:bg-white/5"
+              aria-label="Đóng tra từ"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {vocabLookupLoading ? (
+            <div className="mt-3 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              AI đang phân tích từ vựng...
+            </div>
+          ) : vocabLookupError ? (
+            <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+              {vocabLookupError}
+            </p>
+          ) : (
+            <div className="mt-3 max-h-[42vh] space-y-3 overflow-y-auto pr-1">
+              {vocabLookupResult?.meaningVi ? (
+                <p className="text-xl font-semibold leading-8 text-amber-500 dark:text-amber-300">{vocabLookupResult.meaningVi}</p>
+              ) : null}
+
+              {Array.isArray(vocabLookupResult?.phrasalVerbs) && vocabLookupResult.phrasalVerbs.length ? (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Phrasal verbs</p>
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{vocabLookupResult.phrasalVerbs.slice(0, 3).join(" • ")}</p>
+                </div>
+              ) : null}
+
+              {Array.isArray(vocabLookupResult?.synonyms) && vocabLookupResult.synonyms.length ? (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Đồng nghĩa</p>
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{vocabLookupResult.synonyms.slice(0, 6).join(", ")}</p>
+                </div>
+              ) : null}
+
+              {Array.isArray(vocabLookupResult?.antonyms) && vocabLookupResult.antonyms.length ? (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Trái nghĩa</p>
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{vocabLookupResult.antonyms.slice(0, 6).join(", ")}</p>
+                </div>
+              ) : null}
+
+              {Array.isArray(vocabLookupResult?.examples) && vocabLookupResult.examples.length ? (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Ví dụ</p>
+                  <p className="mt-1 text-sm italic text-slate-700 dark:text-slate-200">
+                    {vocabLookupResult.examples[0]?.en}
+                  </p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">{vocabLookupResult.examples[0]?.vi}</p>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {vocabDeckChoices.length > 1 ? (
+            <div className="mt-4">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
+                Thêm vào bộ
+              </label>
+              <select
+                value={vocabSelectedDeckId}
+                onChange={(e) => setVocabSelectedDeckId(e.target.value)}
+                className="input-modern w-full"
+              >
+                {vocabDeckChoices.map((deck) => (
+                  <option key={deck.id} value={deck.id}>
+                    {deck.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => void saveSelectionToFlashcard()}
+              disabled={vocabSaving || vocabLookupLoading}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-amber-400 disabled:opacity-60"
+            >
+              {vocabSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              flashcard
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="mx-auto max-w-screen-2xl px-4 py-4 sm:px-6 lg:px-10">
         {/* Study4-like top row: title + exit */}
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -2109,18 +2517,6 @@ export default function MockTestExamPage() {
                     </span>
                     <InfoTip text="Bôi đen text để highlight nội dung. Bạn có thể thay đổi màu sắc hoặc thêm ghi chú." />
                   </label>
-
-                  {highlightEnabled && flashcardSeedText ? (
-                    <button
-                      type="button"
-                      onClick={() => setFlashcardCreateOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-amber-50 hover:text-amber-900 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
-                      title="Tạo flashcard từ đoạn bôi đen"
-                    >
-                      <Library className="h-4 w-4 text-amber-500" />
-                      Lưu flashcard
-                    </button>
-                  ) : null}
                 </div>
                 <span className="text-sm font-medium text-slate-500">
                   Câu {displayedQuestions[0]?.displayNumber}
