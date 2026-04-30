@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { ProctoringCamera } from "@/components/proctoring/ProctoringCamera";
+import { useAuth } from "@/hooks/useAuth";
+
 import {
   Clock,
   ChevronLeft,
@@ -752,6 +755,9 @@ function CreateFlashcardFromSelectionModal({
 }
 
 export default function MockTestExamPage() {
+  const { user } = useAuth();
+  const [proctoringMessage, setProctoringMessage] = useState<string | null>(null);
+
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
@@ -923,13 +929,26 @@ export default function MockTestExamPage() {
   const submitRef = useRef<(autoSubmit?: boolean) => void>(() => {});
   const mediaUrlCacheRef = useRef<Record<string, string>>({});
 
-  const clearTimerInterval = () => {
+  const clearTimerInterval = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
-  };
+  }, []);
 
-  const clearAutoSaveInterval = () => {
+  const clearAutoSaveInterval = useCallback(() => {
     if (autoSaveRef.current) clearInterval(autoSaveRef.current);
-  };
+  }, []);
+
+  const handleProctoringViolation = useCallback((violation: any) => {
+    setProctoringMessage(
+      violation?.message || "Phat hien dau hieu vi pham trong qua trinh lam bai.",
+    );
+  }, []);
+
+  const handleProctoringBlocked = useCallback(() => {
+    clearTimerInterval();
+    clearAutoSaveInterval();
+    setErrorMsg("Bai thi da bi dinh chi do vi pham quy che.");
+    setPageState("error");
+  }, [clearAutoSaveInterval, clearTimerInterval]);
 
   const scrollToReviewSection = useCallback(() => {
     requestAnimationFrame(() => {
@@ -1025,7 +1044,7 @@ export default function MockTestExamPage() {
         recoveringResultRef.current = false;
       }
     },
-    [attempt?.id, showResultView],
+    [attempt?.id, clearAutoSaveInterval, clearTimerInterval, showResultView],
   );
 
   useEffect(() => {
@@ -1181,7 +1200,7 @@ export default function MockTestExamPage() {
     }, 30000);
 
     return () => clearAutoSaveInterval();
-  }, [attempt?.id, getChangedAnswerPayload, pageState, saveAnswers]);
+  }, [attempt?.id, clearAutoSaveInterval, getChangedAnswerPayload, pageState, saveAnswers]);
 
   const handleAnswer = (questionId: string, optionKey: string) => {
     setAnswers((prev) => {
@@ -1227,7 +1246,14 @@ export default function MockTestExamPage() {
         submittingRef.current = false;
       }
     },
-    [attempt, recoverClosedAttemptResult, saveAnswers, showResultView],
+    [
+      attempt,
+      clearAutoSaveInterval,
+      clearTimerInterval,
+      recoverClosedAttemptResult,
+      saveAnswers,
+      showResultView,
+    ],
   );
 
   useEffect(() => {
@@ -1260,7 +1286,7 @@ export default function MockTestExamPage() {
     }, 1000);
 
     return () => clearTimerInterval();
-  }, [pageState, timeLeft]);
+  }, [clearAutoSaveInterval, clearTimerInterval, pageState, timeLeft]);
 
   const currentQuestion = allQuestions[currentIdx];
 
@@ -2369,6 +2395,26 @@ export default function MockTestExamPage() {
           </div>
         </div>
       ) : null}
+      <CreateFlashcardFromSelectionModal
+        open={flashcardCreateOpen}
+        seedText={flashcardSeedText}
+        onClose={() => setFlashcardCreateOpen(false)}
+      />
+      {pageState === "exam" && user?.id && attempt?.id && (
+        <ProctoringCamera
+          userId={user.id}
+          examId={attempt.id}
+          examAttemptId={attempt.id}
+          onViolation={handleProctoringViolation}
+          onBlocked={handleProctoringBlocked}
+        />
+      )}
+      {proctoringMessage && (
+        <div className="fixed left-1/2 top-4 z-[60] -translate-x-1/2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 shadow-lg">
+          {proctoringMessage}
+        </div>
+      )}
+
       <div className="mx-auto max-w-screen-2xl px-4 py-4 sm:px-6 lg:px-10">
         {/* Study4-like top row: title + exit */}
         <div className="mb-3 flex items-center justify-between gap-3">
