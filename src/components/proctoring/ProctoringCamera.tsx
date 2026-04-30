@@ -11,6 +11,7 @@ interface ProctoringCameraProps {
   examAttemptId?: string;
   onViolation?: (violation: any) => void;
   onBlocked?: () => void;
+  className?: string;
 }
 
 type ProctoringViolationPayload = {
@@ -19,6 +20,8 @@ type ProctoringViolationPayload = {
   severity?: number;
   confidence?: number;
   timestamp?: string;
+  snapshotImage?: string;
+  screenshotUrl?: string;
 };
 
 export const ProctoringCamera = ({
@@ -27,11 +30,16 @@ export const ProctoringCamera = ({
   examAttemptId,
   onViolation,
   onBlocked,
+  className = "",
 }: ProctoringCameraProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isConnectedRef = useRef(false);
+  const stoppedRef = useRef(false);
+  const cameraRequestRef = useRef(0);
+  const lastFrameDataUrlRef = useRef<string>("");
 
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [warningCount, setWarningCount] = useState(0);
@@ -66,11 +74,13 @@ export const ProctoringCamera = ({
             severity: v.severity || 1,
             confidence: v.confidence || 0,
             timestamp: v.timestamp || new Date().toISOString(),
+            snapshotImage: v.snapshotImage || lastFrameDataUrlRef.current || undefined,
+            screenshotUrl: v.screenshotUrl || v.snapshotImage || lastFrameDataUrlRef.current || undefined,
           })),
           timestamp: new Date().toISOString(),
         });
 
-        onViolation?.(violations[0]);
+        violations.forEach((violation) => onViolation?.(violation));
       } catch (error) {
         console.error("Failed to report violations to backend:", error);
         onViolation?.({
@@ -112,14 +122,23 @@ export const ProctoringCamera = ({
   }, [lastMessage, onBlocked, reportViolations]);
 
   const stopMonitoring = useCallback(() => {
+    stoppedRef.current = true;
+    cameraRequestRef.current += 1;
+
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
 
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
     if (videoRef.current?.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach((track) => track.stop());
+      videoRef.current.pause();
       videoRef.current.srcObject = null;
     }
 
@@ -146,11 +165,15 @@ export const ProctoringCamera = ({
       ctx.drawImage(videoRef.current, 0, 0);
 
       const imageData = canvas.toDataURL("image/jpeg", 0.5);
+      lastFrameDataUrlRef.current = imageData;
       sendMessage(JSON.stringify({ image: imageData.split(",")[1] }));
     }, 3000);
   }, [sendMessage]);
 
   const startCamera = useCallback(async () => {
+    stoppedRef.current = false;
+    const requestId = ++cameraRequestRef.current;
+
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
         await reportViolations([
@@ -168,10 +191,30 @@ export const ProctoringCamera = ({
         video: { width: { ideal: 640 }, height: { ideal: 480 } },
       });
 
-      if (!videoRef.current) return;
+      if (stoppedRef.current || requestId !== cameraRequestRef.current || !videoRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
 
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
+      streamRef.current = stream;
       videoRef.current.srcObject = stream;
       await videoRef.current.play().catch(() => undefined);
+
+      if (stoppedRef.current || requestId !== cameraRequestRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        if (streamRef.current === stream) {
+          streamRef.current = null;
+        }
+        if (videoRef.current?.srcObject === stream) {
+          videoRef.current.srcObject = null;
+        }
+        return;
+      }
+
       setIsMonitoring(true);
       startCapturing();
     } catch (error) {
@@ -197,7 +240,9 @@ export const ProctoringCamera = ({
     <>
       <canvas ref={canvasRef} className="hidden" />
 
-      <div className="fixed bottom-4 right-4 w-48 h-36 bg-black rounded-lg overflow-hidden shadow-lg z-50 border-2 border-blue-500">
+      <div
+        className={`relative aspect-video w-full overflow-hidden rounded-xl border border-blue-200 bg-black shadow-sm dark:border-blue-500/40 ${className}`}
+      >
         <video
           ref={videoRef}
           autoPlay

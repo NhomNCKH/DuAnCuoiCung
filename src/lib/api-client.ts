@@ -1137,6 +1137,8 @@ class ApiClient {
           severity?: number;
           confidence?: number;
           timestamp?: string;
+          snapshotImage?: string;
+          screenshotUrl?: string;
         }>;
         timestamp?: string;
       }): Promise<ApiResponse> =>

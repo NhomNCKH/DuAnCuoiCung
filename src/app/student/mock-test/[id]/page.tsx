@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Send,
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
   Loader2,
   Headphones,
@@ -46,6 +47,14 @@ import type {
 
 type PageState = "loading" | "exam" | "submitting" | "result" | "error";
 
+type ProctoringNotice = {
+  id: string;
+  action: string;
+  message: string;
+  severity: number;
+  confidence: number;
+};
+
 type VocabularyLookupResult = {
   expression?: string;
   partOfSpeech?: string;
@@ -68,6 +77,36 @@ const PART_LABEL: Record<string, string> = {
   P6: "Part 6 - Text Completion",
   P7: "Part 7 - Reading Comprehension",
 };
+
+const PROCTORING_ACTION_LABEL: Record<string, string> = {
+  leaving_frame: "Rời khỏi khung hình",
+  multiple_faces: "Có nhiều người trong khung hình",
+  phone_usage: "Sử dụng điện thoại",
+  cheating_device: "Thiết bị/vật dụng không được phép",
+  looking_away: "Nhìn ra ngoài màn hình",
+  face_occluded: "Che khuôn mặt",
+  eye_closed: "Nhắm mắt quá lâu",
+  camera_unavailable: "Không tìm thấy camera",
+  camera_permission_denied: "Không có quyền truy cập camera",
+  unknown: "Vi phạm quy chế",
+};
+
+function getProctoringNoticeMessage(violation: any) {
+  const action = String(violation?.action || "unknown");
+  const fallback = PROCTORING_ACTION_LABEL[action] ?? PROCTORING_ACTION_LABEL.unknown;
+  const message = typeof violation?.message === "string" && violation.message.trim()
+    ? violation.message.trim()
+    : fallback;
+  const severity = Number(violation?.severity ?? 1);
+
+  return {
+    action,
+    title: fallback,
+    message,
+    severity: Number.isFinite(severity) ? severity : 1,
+    confidence: Number(violation?.confidence ?? 0),
+  };
+}
 
 const PART_TAB_LABEL: Record<string, string> = {
   P1: "Part 1",
@@ -756,7 +795,7 @@ function CreateFlashcardFromSelectionModal({
 
 export default function MockTestExamPage() {
   const { user } = useAuth();
-  const [proctoringMessage, setProctoringMessage] = useState<string | null>(null);
+  const [proctoringNotices, setProctoringNotices] = useState<ProctoringNotice[]>([]);
 
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
@@ -778,6 +817,8 @@ export default function MockTestExamPage() {
   const [attemptHistory, setAttemptHistory] = useState<LearnerExamAttemptHistoryItem[]>([]);
   const [reviewExpanded, setReviewExpanded] = useState(false);
   const [isReviewLoading, setIsReviewLoading] = useState(false);
+  const [proctoringActive, setProctoringActive] = useState(false);
+  const [isDesktopExamLayout, setIsDesktopExamLayout] = useState(false);
   const [highlightEnabled, setHighlightEnabled] = useState(true);
   const [flashcardCreateOpen, setFlashcardCreateOpen] = useState(false);
   const [flashcardSeedText, setFlashcardSeedText] = useState<string>("");
@@ -824,6 +865,17 @@ export default function MockTestExamPage() {
     window.addEventListener("mouseup", onMouseUp);
     return () => window.removeEventListener("mouseup", onMouseUp);
   }, [highlightEnabled, allQuestions, currentIdx]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const query = window.matchMedia("(min-width: 1280px)");
+    const syncLayout = () => setIsDesktopExamLayout(query.matches);
+
+    syncLayout();
+    query.addEventListener("change", syncLayout);
+    return () => query.removeEventListener("change", syncLayout);
+  }, []);
 
   useEffect(() => {
     if (!vocabLookupOpen && !vocabTriggerPos) return;
@@ -939,17 +991,39 @@ export default function MockTestExamPage() {
   }, []);
 
   const handleProctoringViolation = useCallback((violation: any) => {
-    setProctoringMessage(
-      violation?.message || "Phat hien dau hieu vi pham trong qua trinh lam bai.",
-    );
+    const notice = getProctoringNoticeMessage(violation);
+    const id = `${notice.action}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    setProctoringNotices((prev) => [
+      {
+        id,
+        action: notice.title,
+        message: notice.message,
+        severity: notice.severity,
+        confidence: notice.confidence,
+      },
+      ...prev,
+    ].slice(0, 4));
+
+    window.setTimeout(() => {
+      setProctoringNotices((prev) => prev.filter((item) => item.id !== id));
+    }, 8000);
   }, []);
 
   const handleProctoringBlocked = useCallback(() => {
+    setProctoringActive(false);
     clearTimerInterval();
     clearAutoSaveInterval();
     setErrorMsg("Bai thi da bi dinh chi do vi pham quy che.");
     setPageState("error");
   }, [clearAutoSaveInterval, clearTimerInterval]);
+
+  const leaveExam = useCallback(() => {
+    setProctoringActive(false);
+    clearTimerInterval();
+    clearAutoSaveInterval();
+    router.push("/student/mock-test");
+  }, [clearAutoSaveInterval, clearTimerInterval, router]);
 
   const scrollToReviewSection = useCallback(() => {
     requestAnimationFrame(() => {
@@ -1054,6 +1128,7 @@ export default function MockTestExamPage() {
       setErrorMsg("");
       setResult(null);
       setResultPayload(null);
+      setProctoringActive(false);
 
       try {
         if (reviewAttemptId) {
@@ -1096,8 +1171,10 @@ export default function MockTestExamPage() {
           ),
         );
 
+        setProctoringActive(true);
         setPageState("exam");
       } catch (err: any) {
+        setProctoringActive(false);
         setErrorMsg(getRequestErrorMessage(err, "Lỗi khi bắt đầu bài thi"));
         setPageState("error");
       }
@@ -1217,6 +1294,7 @@ export default function MockTestExamPage() {
       if (!autoSubmit && !confirm("Bạn có chắc muốn nộp bài?")) return;
 
       submittingRef.current = true;
+      setProctoringActive(false);
       clearTimerInterval();
       clearAutoSaveInterval();
       setPageState("submitting");
@@ -2401,20 +2479,41 @@ export default function MockTestExamPage() {
         seedText={flashcardSeedText}
         onClose={() => setFlashcardCreateOpen(false)}
       />
-      {pageState === "exam" && user?.id && attempt?.id && (
-        <ProctoringCamera
-          userId={user.id}
-          examId={attempt.id}
-          examAttemptId={attempt.id}
-          onViolation={handleProctoringViolation}
-          onBlocked={handleProctoringBlocked}
-        />
-      )}
-      {proctoringMessage && (
-        <div className="fixed left-1/2 top-4 z-[60] -translate-x-1/2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 shadow-lg">
-          {proctoringMessage}
+      {proctoringNotices.length ? (
+        <div className="fixed right-4 top-20 z-[150] flex w-[min(420px,calc(100vw-32px))] flex-col gap-2">
+          {proctoringNotices.map((notice) => (
+            <div
+              key={notice.id}
+              className={`rounded-xl border px-4 py-3 shadow-lg backdrop-blur ${
+                notice.severity >= 4
+                  ? "border-red-200 bg-red-50/95 text-red-900 dark:border-red-500/30 dark:bg-red-950/90 dark:text-red-100"
+                  : "border-amber-200 bg-amber-50/95 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/90 dark:text-amber-100"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold">{notice.action}</p>
+                    <span className="shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-bold dark:bg-white/10">
+                      Mức {notice.severity}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm font-medium leading-5">{notice.message}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setProctoringNotices((prev) => prev.filter((item) => item.id !== notice.id))}
+                  className="rounded-lg p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
+                  aria-label="Đóng thông báo vi phạm"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-      )}
+      ) : null}
 
       <div className="mx-auto max-w-screen-2xl px-4 py-4 sm:px-6 lg:px-10">
         {/* Study4-like top row: title + exit */}
@@ -2426,7 +2525,7 @@ export default function MockTestExamPage() {
           </div>
           <button
             type="button"
-            onClick={() => router.push("/student/mock-test")}
+            onClick={leaveExam}
             className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
           >
             Thoát
@@ -2529,6 +2628,26 @@ export default function MockTestExamPage() {
                   Nộp bài
                 </button>
               </div>
+
+              {proctoringActive && !isDesktopExamLayout && user?.id && attempt?.id ? (
+                <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-600/30">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+                      Giám sát camera
+                    </p>
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-200">
+                      Đang ghi hình
+                    </span>
+                  </div>
+                  <ProctoringCamera
+                    userId={user.id}
+                    examId={attempt.id}
+                    examAttemptId={attempt.id}
+                    onViolation={handleProctoringViolation}
+                    onBlocked={handleProctoringBlocked}
+                  />
+                </div>
+              ) : null}
             </div>
 
             <motion.div
@@ -2644,9 +2763,29 @@ export default function MockTestExamPage() {
                   </div>
                 )}
 
+                {proctoringActive && isDesktopExamLayout && user?.id && attempt?.id ? (
+                  <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-600/30">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+                        Giám sát camera
+                      </p>
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-200">
+                        Đang ghi hình
+                      </span>
+                    </div>
+                    <ProctoringCamera
+                      userId={user.id}
+                      examId={attempt.id}
+                      examAttemptId={attempt.id}
+                      onViolation={handleProctoringViolation}
+                      onBlocked={handleProctoringBlocked}
+                    />
+                  </div>
+                ) : null}
+
                 <button
                   onClick={() => handleSubmit(false)}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-900 dark:hover:bg-amber-400"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-900 dark:hover:bg-amber-400"
                 >
                   <Send className="h-4 w-4" />
                   Nộp bài
