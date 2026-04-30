@@ -779,6 +779,7 @@ export default function MockTestExamPage() {
   const [reviewExpanded, setReviewExpanded] = useState(false);
   const [isReviewLoading, setIsReviewLoading] = useState(false);
   const [highlightEnabled, setHighlightEnabled] = useState(true);
+  const [flashcardCreateOpen, setFlashcardCreateOpen] = useState(false);
   const [flashcardSeedText, setFlashcardSeedText] = useState<string>("");
   const [vocabLookupOpen, setVocabLookupOpen] = useState(false);
   const [vocabLookupLoading, setVocabLookupLoading] = useState(false);
