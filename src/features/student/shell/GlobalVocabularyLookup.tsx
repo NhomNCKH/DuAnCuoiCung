@@ -163,7 +163,9 @@ export default function GlobalVocabularyLookup() {
 
   useEffect(() => {
     if (!enabled) return;
-    const onMouseUp = () => {
+    const onMouseUp = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && popupRef.current?.contains(target)) return;
       const active = document.activeElement as HTMLElement | null;
       if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) return;
       const sel = window.getSelection?.();

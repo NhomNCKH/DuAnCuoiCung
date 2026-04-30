@@ -790,7 +790,9 @@ export default function MockTestExamPage() {
   useEffect(() => {
     if (!highlightEnabled) return;
     if (typeof window === "undefined") return;
-    const onMouseUp = () => {
+    const onMouseUp = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && vocabPopupRef.current?.contains(target)) return;
       const sel = window.getSelection?.();
       const text = sel?.toString?.().trim?.() ?? "";
       const wordCount = text ? text.split(/\s+/).filter(Boolean).length : 0;
