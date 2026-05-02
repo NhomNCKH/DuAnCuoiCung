@@ -86,3 +86,36 @@ export interface AdminDashboardData {
   recentCredentials: AdminDashboardRecentCredential[];
   recentAttempts: AdminDashboardRecentAttempt[];
 }
+
+export interface AdminOfficialExamResultItem {
+  id: string;
+  status: string;
+  totalScore: number;
+  passThreshold: number;
+  isEligible: boolean;
+  startedAt: string;
+  submittedAt?: string | null;
+  issueStatus: "issued" | "not_issued";
+  hasViolation: boolean;
+  violationCount: number;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  template: {
+    id: string;
+    name: string;
+    code: string;
+    mode: string;
+  } | null;
+}
+
+export interface AdminOfficialExamResultListData {
+  items: AdminOfficialExamResultItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+}

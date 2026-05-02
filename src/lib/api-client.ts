@@ -20,7 +20,7 @@ import type {
   LearnerExamTemplateSummary,
   PaginatedData,
 } from "@/types/learner-exam";
-import type { AdminDashboardData } from "@/types/admin-dashboard";
+import type { AdminDashboardData, AdminOfficialExamResultListData } from "@/types/admin-dashboard";
 import {
   clearAuthSession,
   getStoredAccessToken,
@@ -300,6 +300,29 @@ class ApiClient {
     dashboard: {
       getSummary: (): Promise<ApiResponse<AdminDashboardData>> =>
         this.request("/admin/dashboard/summary", { method: "GET" }),
+
+      listOfficialResults: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        status?: string;
+        eligibleOnly?: boolean;
+        passScoreMin?: number;
+      }): Promise<ApiResponse<AdminOfficialExamResultListData>> => {
+        const query = params
+          ? Object.fromEntries(
+              Object.entries(params)
+                .filter(([, value]) => value !== undefined && value !== "")
+                .map(([key, value]) => [key, String(value)]),
+            )
+          : {};
+        const qs = Object.keys(query).length
+          ? `?${new URLSearchParams(query as Record<string, string>).toString()}`
+          : "";
+        return this.request(`/admin/dashboard/official-results${qs}`, {
+          method: "GET",
+        });
+      },
     },
 
     questionBank: {
