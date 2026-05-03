@@ -7,7 +7,8 @@
     "dev:deploy": "node scripts/run-next-with-env.mjs .env.development.remote dev -p 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:flashcards": "rm -rf .tmp-tests && tsc -p tsconfig.test.json && node --test .tmp-tests/*.spec.js && rm -rf .tmp-tests"
   },
   "dependencies": {
     "framer-motion": "^12.38.0",

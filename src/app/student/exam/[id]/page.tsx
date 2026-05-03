@@ -67,10 +67,10 @@ type Violation = {
 };
 
 export default function ExamPage() {
-  const { id } = useParams();
+  const params = useParams<{ id: string | string[] }>();
   const router = useRouter();
   const { user } = useAuth();
-  const examId = Array.isArray(id) ? id[0] : (id as string);
+  const examId = Array.isArray(params?.id) ? params.id[0] ?? "" : params?.id ?? "";
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});

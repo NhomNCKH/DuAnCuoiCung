@@ -11,6 +11,10 @@ export type VocabFlashcardMeta = {
   exampleEn?: string;
   exampleVi?: string;
   note?: string;
+  source?: "manual" | "json_import" | "ai_generated";
+  level?: string;
+  contentType?: "vocabulary" | "phrase" | "collocation" | "sentence" | "mixed";
+  tags?: string[];
 };
 
 const META_PREFIX = "__VOCAB_META_V1__";
@@ -80,4 +84,3 @@ export function buildBackFromMeta(meta: VocabFlashcardMeta): string {
   if (meta.meaningEn) return meta.meaningEn;
   return "";
 }
-

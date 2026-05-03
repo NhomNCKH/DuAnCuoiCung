@@ -89,8 +89,11 @@ export default function FlashcardStudyPage() {
 
   const current = queue[index] ?? null;
   const currentMeta = current ? parseVocabMeta(current.note) : null;
-  const currentFront = currentMeta?.expression || current?.front || "";
-  const currentBack = currentMeta?.meaningVi || current?.back || "";
+  const currentFront = current?.front || currentMeta?.expression || "";
+  const currentBack =
+    current?.back || currentMeta?.meaningVi || currentMeta?.meaningEn || "";
+  const currentAudioPrompt =
+    currentMeta?.expression || current?.front || current?.back || "";
 
   const progressLabel = useMemo(() => {
     if (!queue.length) return "0/0";
@@ -144,22 +147,26 @@ export default function FlashcardStudyPage() {
     return () => synth.removeEventListener?.("voiceschanged", markReady as any);
   }, []);
 
+  const availableVoices = useMemo(() => {
+    void voicesReady;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return [];
+    return window.speechSynthesis.getVoices?.() ?? [];
+  }, [voicesReady]);
+
   const resolveEnglishVoice = useMemo(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-    const voices = window.speechSynthesis.getVoices?.() ?? [];
-    if (!voices.length) return null;
+    if (!availableVoices.length) return null;
     const prefer = (predicate: (v: SpeechSynthesisVoice) => boolean) =>
-      voices.find(predicate) ?? null;
+      availableVoices.find(predicate) ?? null;
     return (
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-us") && /google|microsoft/i.test(v.name)) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-gb") && /google|microsoft/i.test(v.name)) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-us")) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-gb")) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en")) ||
-      voices[0] ||
+      availableVoices[0] ||
       null
     );
-  }, [voicesReady]);
+  }, [availableVoices]);
 
   const speakFront = (text: string) => {
     if (speakSupport !== "supported") return;
@@ -244,10 +251,10 @@ export default function FlashcardStudyPage() {
     questionStartedAtRef.current = Date.now();
     setTimeout(() => typingRef.current?.focus(), 0);
     if (mode === "listen_mcq" && current && speakSupport === "supported") {
-      const t = setTimeout(() => speakFront(currentFront), 150);
+      const t = setTimeout(() => speakFront(currentAudioPrompt), 150);
       return () => clearTimeout(t);
     }
-  }, [current?.id, mode, currentFront]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current?.id, mode, currentAudioPrompt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="px-4 py-4 sm:px-6 lg:px-10">
@@ -461,7 +468,7 @@ export default function FlashcardStudyPage() {
                   {mode === "listen_mcq" ? (
                     <button
                       type="button"
-                      onClick={() => speakFront(currentFront)}
+                      onClick={() => speakFront(currentAudioPrompt)}
                       disabled={speakSupport !== "supported" || !voicesReady}
                       className="btn-secondary rounded-2xl px-3 py-2 disabled:opacity-50"
                     >
@@ -524,4 +531,3 @@ export default function FlashcardStudyPage() {
     </div>
   );
 }
-

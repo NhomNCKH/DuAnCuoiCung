@@ -18,20 +18,21 @@ import {
 import Link from "next/link";
 
 export default function ExamResultPage() {
-  const { id } = useParams();
+  const params = useParams<{ id: string | string[] }>();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const score = searchParams.get('score');
-  const isBlocked = searchParams.get('blocked') === 'true';
+  const examId = Array.isArray(params?.id) ? params.id[0] ?? "" : params?.id ?? "";
+  const score = searchParams?.get('score');
+  const isBlocked = searchParams?.get('blocked') === 'true';
   
   const [result, setResult] = useState<any>(null);
 
   useEffect(() => {
-    const savedResult = localStorage.getItem(`exam_result_${id}`);
+    const savedResult = localStorage.getItem(`exam_result_${examId}`);
     if (savedResult) {
       setResult(JSON.parse(savedResult));
     }
-  }, [id]);
+  }, [examId]);
 
   if (isBlocked) {
     return (
@@ -75,7 +76,7 @@ export default function ExamResultPage() {
             <span className="font-medium">Kết quả bài thi</span>
           </div>
           <h1 className="text-3xl font-bold text-gray-800">TOEIC Practice Test</h1>
-          <p className="text-gray-500 mt-1">Mã đề: {id}</p>
+          <p className="text-gray-500 mt-1">Mã đề: {examId}</p>
         </motion.div>
 
         {/* Score card */}
@@ -135,7 +136,7 @@ export default function ExamResultPage() {
           </Link>
           
           <button
-            onClick={() => router.push(`/student/exam/${id}`)}
+            onClick={() => router.push(`/student/exam/${examId}`)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
