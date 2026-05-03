@@ -88,6 +88,13 @@ const PROCTORING_ACTION_LABEL: Record<string, string> = {
   eye_closed: "Nhắm mắt quá lâu",
   camera_unavailable: "Không tìm thấy camera",
   camera_permission_denied: "Không có quyền truy cập camera",
+  tab_switch: "Chuyển tab",
+  window_blur: "Cửa sổ bài thi mất tiêu điểm",
+  fullscreen_exit: "Thoát toàn màn hình",
+  split_screen: "Chia đôi màn hình",
+  page_leave: "Rời khỏi trang làm bài",
+  context_menu: "Mở menu chuột phải",
+  forbidden_key: "Dùng phím tắt cấm",
   unknown: "Vi phạm quy chế",
 };
 

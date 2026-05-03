@@ -18,11 +18,13 @@ import {
 import Link from "next/link";
 
 export default function ExamResultPage() {
-  const { id } = useParams();
+  const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const score = searchParams.get('score');
-  const isBlocked = searchParams.get('blocked') === 'true';
+  const rawId = params?.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId ?? "";
+  const score = searchParams?.get('score');
+  const isBlocked = searchParams?.get('blocked') === 'true';
   
   const [result, setResult] = useState<any>(null);
 

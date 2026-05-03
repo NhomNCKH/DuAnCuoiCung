@@ -54,6 +54,13 @@ const ACTION_LABEL: Record<string, string> = {
   eye_closed: "Nham mat qua lau",
   camera_unavailable: "Khong tim thay camera",
   camera_permission_denied: "Khong co quyen truy cap camera",
+  tab_switch: "Chuyen tab",
+  window_blur: "Cua so bai thi mat tieu diem",
+  fullscreen_exit: "Thoat toan man hinh",
+  split_screen: "Chia doi man hinh",
+  page_leave: "Roi khoi trang lam bai",
+  context_menu: "Mo menu chuot phai",
+  forbidden_key: "Dung phim tat cam",
 };
 
 function unwrapViolationsResponse(payload: unknown): ViolationsResponseData {

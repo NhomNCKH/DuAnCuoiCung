@@ -56,9 +56,6 @@ const MOCK_QUESTIONS = [
   },
 ];
 
-const MAX_CLIENT_WARNINGS = 3;
-const VIOLATION_COOLDOWN_MS = 2000;
-
 type Violation = {
   source?: "client" | "server";
   action?: string;
@@ -67,10 +64,11 @@ type Violation = {
 };
 
 export default function ExamPage() {
-  const { id } = useParams();
+  const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
-  const examId = Array.isArray(id) ? id[0] : (id as string);
+  const id = params?.id;
+  const examId = Array.isArray(id) ? id[0] : id ?? "";
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -80,12 +78,10 @@ export default function ExamPage() {
   const [isSoundOn, setIsSoundOn] = useState(true);
   const [violations, setViolations] = useState<Violation[]>([]);
   const [isBlocked, setIsBlocked] = useState(false);
-  const [clientWarningCount, setClientWarningCount] = useState(0);
   const [showWarning, setShowWarning] = useState<{ message: string } | null>(null);
 
   const blockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastClientViolationAtRef = useRef<Record<string, number>>({});
 
   const totalQuestions = MOCK_QUESTIONS.length;
   const currentQuestion = MOCK_QUESTIONS[currentIndex];
@@ -140,36 +136,6 @@ export default function ExamPage() {
     [showWarningToast]
   );
 
-  const registerClientViolation = useCallback(
-    (action: string, message: string) => {
-      const now = Date.now();
-      const last = lastClientViolationAtRef.current[action] ?? 0;
-      if (now - last < VIOLATION_COOLDOWN_MS) return;
-      lastClientViolationAtRef.current[action] = now;
-
-      setViolations((prev) => [
-        ...prev,
-        {
-          source: "client",
-          action,
-          message,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-
-      setClientWarningCount((prev) => {
-        const next = prev + 1;
-        if (next >= MAX_CLIENT_WARNINGS) {
-          handleBlocked();
-        }
-        return next;
-      });
-
-      showWarningToast(message);
-    },
-    [handleBlocked, showWarningToast]
-  );
-
   const handleSubmit = useCallback(async () => {
     if (isSubmitted || isBlocked) return;
 
@@ -216,55 +182,6 @@ export default function ExamPage() {
 
     return () => clearInterval(timer);
   }, [handleSubmit, isBlocked, isSubmitted]);
-
-  useEffect(() => {
-    if (isSubmitted || isBlocked) return;
-
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        registerClientViolation("tab_hidden", "You switched away from the exam tab.");
-      }
-    };
-
-    const onWindowBlur = () => {
-      registerClientViolation("window_blur", "Exam window lost focus.");
-    };
-
-    const onFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        registerClientViolation("fullscreen_exit", "You exited fullscreen mode.");
-      }
-    };
-
-    const onContextMenu = (event: MouseEvent) => {
-      event.preventDefault();
-      registerClientViolation("context_menu", "Right click is disabled during the exam.");
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      const isClipboardShortcut =
-        (event.ctrlKey || event.metaKey) && ["c", "v", "x", "a", "s", "p"].includes(key);
-      const isForbiddenKey = event.key === "PrintScreen";
-      if (!isClipboardShortcut && !isForbiddenKey) return;
-      event.preventDefault();
-      registerClientViolation("forbidden_key", "Forbidden keyboard shortcut detected.");
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("blur", onWindowBlur);
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    document.addEventListener("contextmenu", onContextMenu);
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("blur", onWindowBlur);
-      document.removeEventListener("fullscreenchange", onFullscreenChange);
-      document.removeEventListener("contextmenu", onContextMenu);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [isBlocked, isSubmitted, registerClientViolation]);
 
   useEffect(() => {
     if (isSubmitted || isBlocked) return;
@@ -371,7 +288,7 @@ export default function ExamPage() {
             <div className="flex justify-between text-sm text-gray-600 mb-1">
               <span>Tien do: {answeredCount}/{totalQuestions} cau</span>
               <span>
-                {Math.round((answeredCount / totalQuestions) * 100)}% | Client warnings: {clientWarningCount}/{MAX_CLIENT_WARNINGS}
+                {Math.round((answeredCount / totalQuestions) * 100)}% | Violations: {violations.length}
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
