@@ -91,6 +91,8 @@ export interface AdminOfficialExamResultItem {
   id: string;
   status: string;
   totalScore: number;
+  listeningScore: number;
+  readingScore: number;
   passThreshold: number;
   isEligible: boolean;
   startedAt: string;

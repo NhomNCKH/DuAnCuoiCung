@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ClipboardList, Loader2, MailCheck, MailX } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarDays, ClipboardList, Eye, Loader2, MailCheck, MailX, X } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useToast } from "@/hooks/useToast";
+import { getSignedMediaUrl } from "@/lib/media-url";
+import { useSearchParams } from "next/navigation";
 
 type RegistrationItem = {
   id: string;
@@ -13,6 +15,15 @@ type RegistrationItem = {
   confirmationSentAt: string | null;
   reminderSentAt: string | null;
   emailError?: string | null;
+  registrationProfile?: {
+    fullName?: string;
+    identityNumber?: string;
+    birthday?: string;
+    phone?: string;
+    address?: string;
+    avatarUrl?: string;
+    avatarS3Key?: string;
+  } | null;
   template: {
     id: string;
     code: string;
@@ -50,33 +61,182 @@ function statusLabel(status: string) {
   }
 }
 
+const OFFICIAL_EXAM_PENDING_PAYMENT_KEY = "official_exam_pending_payment";
+
+type PendingPayment = {
+  orderCode: number;
+  examTemplateId: string;
+  profile?: {
+    fullName?: string;
+    identityNumber?: string;
+    birthday?: string;
+    phone?: string;
+    address?: string;
+    avatarUrl?: string;
+    avatarS3Key?: string;
+  };
+  savedAt?: string;
+};
+
 export default function OfficialExamRegistrationHistoryPage() {
   const { notify } = useToast();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<RegistrationItem[]>([]);
+  const [activeProfile, setActiveProfile] = useState<RegistrationItem | null>(null);
+  const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string>("");
+  const paymentHandledRef = useRef(false);
 
-  useEffect(() => {
+  const loadRegistrations = useCallback(async () => {
     setLoading(true);
     setError(null);
-    apiClient.learner.officialExam
-      .listRegistrations()
-      .then((res) => {
-        const data = (res as any)?.data ?? (res as any);
-        setItems(((data?.items ?? []) as RegistrationItem[]) || []);
-      })
-      .catch((e: any) => {
-        const msg = e?.message || "Không thể tải lịch sử đăng ký.";
-        setError(msg);
-        notify({ variant: "error", title: "Tải dữ liệu thất bại", message: msg });
-      })
-      .finally(() => setLoading(false));
+    try {
+      const res = await apiClient.learner.officialExam.listRegistrations();
+      const data = (res as any)?.data ?? (res as any);
+      setItems(((data?.items ?? []) as RegistrationItem[]) || []);
+    } catch (e: any) {
+      const msg = e?.message || "Không thể tải lịch sử đăng ký.";
+      setError(msg);
+      notify({ variant: "error", title: "Tải dữ liệu thất bại", message: msg });
+    } finally {
+      setLoading(false);
+    }
   }, [notify]);
+
+  useEffect(() => {
+    void loadRegistrations();
+  }, [loadRegistrations]);
 
   const sorted = useMemo(() => {
     // BE đã DESC theo registeredAt; vẫn sort lại cho chắc
     return [...items].sort((a, b) => +new Date(b.registeredAt) - +new Date(a.registeredAt));
   }, [items]);
+
+  useEffect(() => {
+    if (paymentHandledRef.current) return;
+    paymentHandledRef.current = true;
+
+    const finalizePaymentIfNeeded = async () => {
+      const status = String(searchParams.get("status") || "").toUpperCase();
+      const cancel = String(searchParams.get("cancel") || "").toLowerCase() === "true";
+      const orderCode = Number(searchParams.get("orderCode") || 0);
+
+      if (cancel) {
+        notify({
+          variant: "warning",
+          title: "Bạn đã hủy thanh toán",
+          message: "Đăng ký chưa được ghi nhận.",
+        });
+        return;
+      }
+
+      if (status !== "PAID") return;
+
+      if (typeof window === "undefined") {
+        notify({
+          variant: "success",
+          title: "Thanh toán thành công",
+          message: "Vui lòng kiểm tra lịch sử đăng ký.",
+        });
+        return;
+      }
+
+      const raw = window.sessionStorage.getItem(OFFICIAL_EXAM_PENDING_PAYMENT_KEY);
+      if (!raw) {
+        notify({
+          variant: "success",
+          title: "Thanh toán thành công",
+          message: "Không thấy phiên thanh toán tạm, vui lòng kiểm tra lịch sử đăng ký.",
+        });
+        return;
+      }
+
+      let pending: PendingPayment | null = null;
+      try {
+        pending = JSON.parse(raw) as PendingPayment;
+      } catch {
+        pending = null;
+      }
+
+      if (!pending?.examTemplateId) {
+        notify({
+          variant: "error",
+          title: "Không thể chốt đăng ký",
+          message: "Dữ liệu thanh toán tạm không hợp lệ.",
+        });
+        return;
+      }
+
+      if (pending.orderCode && orderCode && pending.orderCode !== orderCode) {
+        notify({
+          variant: "warning",
+          title: "Mã đơn không khớp",
+          message: "Hệ thống không tự động chốt đăng ký để đảm bảo an toàn dữ liệu.",
+        });
+        return;
+      }
+
+      try {
+        const res = await apiClient.learner.officialExam.register({
+          examTemplateId: pending.examTemplateId,
+          profile: pending.profile,
+        });
+        const payload = (res as any)?.data ?? (res as any);
+        notify({
+          variant: "success",
+          title: "Thanh toán thành công",
+          message: payload?.alreadyRegistered
+            ? "Bạn đã có đăng ký trước đó cho đề thi này."
+            : "Đăng ký thi đã được ghi nhận.",
+        });
+        window.sessionStorage.removeItem(OFFICIAL_EXAM_PENDING_PAYMENT_KEY);
+        await loadRegistrations();
+      } catch (e: any) {
+        notify({
+          variant: "error",
+          title: "Thanh toán thành công nhưng chốt đăng ký lỗi",
+          message:
+            e?.message ||
+            "Vui lòng thử đăng ký lại hoặc liên hệ quản trị viên để hỗ trợ.",
+        });
+      }
+    };
+
+    void finalizePaymentIfNeeded();
+  }, [loadRegistrations, notify, searchParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveAvatar = async () => {
+      if (!activeProfile?.registrationProfile) {
+        setResolvedAvatarUrl("");
+        return;
+      }
+
+      const profile = activeProfile.registrationProfile;
+      const s3Key = profile.avatarS3Key?.trim() || "";
+      const rawUrl = profile.avatarUrl?.trim() || "";
+
+      if (s3Key) {
+        const signed = await getSignedMediaUrl(s3Key);
+        if (!cancelled) {
+          setResolvedAvatarUrl(signed || rawUrl);
+        }
+        return;
+      }
+
+      if (!cancelled) {
+        setResolvedAvatarUrl(rawUrl);
+      }
+    };
+
+    void resolveAvatar();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProfile]);
 
   return (
     <div className="w-full">
@@ -142,6 +302,14 @@ export default function OfficialExamRegistrationHistoryPage() {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveProfile(r)}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Thông tin đăng ký
+                      </button>
                       {mailOk ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
                           <MailCheck className="h-4 w-4" />
@@ -181,6 +349,87 @@ export default function OfficialExamRegistrationHistoryPage() {
           </div>
         )}
       </div>
+
+      {activeProfile ? (
+        <div
+          className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          onClick={() => setActiveProfile(null)}
+        >
+          <div
+            className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <h3 className="text-base font-extrabold text-slate-900">Thông tin đăng ký</h3>
+              <button
+                type="button"
+                onClick={() => setActiveProfile(null)}
+                className="rounded-full border border-slate-200 p-1 text-slate-500 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 px-5 py-4">
+              <div className="flex items-start gap-4">
+                <div className="h-24 w-20 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                  {resolvedAvatarUrl ? (
+                    <img
+                      src={resolvedAvatarUrl}
+                      alt="Ảnh hồ sơ"
+                      className="h-full w-full object-cover"
+                      onError={() => setResolvedAvatarUrl("")}
+                    />
+                  ) : (
+                    <span className="text-[11px] text-slate-500">Không có ảnh</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {activeProfile.registrationProfile?.fullName || "Chưa cập nhật"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Đề thi: {activeProfile.template?.name ?? "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Số định danh</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {activeProfile.registrationProfile?.identityNumber || "Chưa cập nhật"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Ngày sinh</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {activeProfile.registrationProfile?.birthday || "Chưa cập nhật"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Số điện thoại</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {activeProfile.registrationProfile?.phone || "Chưa cập nhật"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Ngày thi</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {formatDateVi(activeProfile.examDate)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:col-span-2">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Địa chỉ</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {activeProfile.registrationProfile?.address || "Chưa cập nhật"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

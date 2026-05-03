@@ -323,6 +323,24 @@ class ApiClient {
           method: "GET",
         });
       },
+
+      issueOfficialResultCertificate: (
+        attemptId: string,
+      ): Promise<
+        ApiResponse<{
+          issued: boolean;
+          alreadyIssued: boolean;
+          credentialId?: string | null;
+          serialNumber?: string;
+          ipfsCid?: string | null;
+          storageUri?: string | null;
+          issueStatus: "issued" | "not_issued";
+        }>
+      > =>
+        this.request(
+          `/admin/dashboard/official-results/${encodeURIComponent(attemptId)}/issue`,
+          { method: "POST" },
+        ),
     },
 
     questionBank: {
@@ -1220,6 +1238,15 @@ class ApiClient {
           confirmationSentAt: string | null;
           reminderSentAt: string | null;
           emailError?: string | null;
+          registrationProfile?: {
+            fullName?: string;
+            identityNumber?: string;
+            birthday?: string;
+            phone?: string;
+            address?: string;
+            avatarUrl?: string;
+            avatarS3Key?: string;
+          } | null;
           template: {
             id: string;
             code: string;
@@ -1230,7 +1257,18 @@ class ApiClient {
         }>;
       }>> => this.request('/learner/official-exams/registrations', { method: 'GET' }),
 
-      register: (data: { examTemplateId: string }): Promise<ApiResponse<{
+      register: (data: {
+        examTemplateId: string;
+        profile?: {
+          fullName?: string;
+          identityNumber?: string;
+          birthday?: string;
+          phone?: string;
+          address?: string;
+          avatarUrl?: string;
+          avatarS3Key?: string;
+        };
+      }): Promise<ApiResponse<{
         registered: boolean;
         alreadyRegistered: boolean;
         registrationId: string;
@@ -1238,6 +1276,27 @@ class ApiClient {
         emailSent?: boolean;
         emailError?: string | null;
       }>> => this.request('/learner/official-exams/registrations', { method: 'POST', body: JSON.stringify(data) }),
+
+      createPaymentLink: (data: {
+        examTemplateId: string;
+        profile?: {
+          fullName?: string;
+          identityNumber?: string;
+          birthday?: string;
+          phone?: string;
+          address?: string;
+          avatarUrl?: string;
+          avatarS3Key?: string;
+        };
+      }): Promise<ApiResponse<{
+        alreadyRegistered: boolean;
+        registrationId: string | null;
+        examDate: string;
+        orderCode?: number;
+        amount: number;
+        checkoutUrl: string | null;
+        qrCode?: string | null;
+      }>> => this.request('/learner/official-exams/registrations/payment-link', { method: 'POST', body: JSON.stringify(data) }),
     },
 
     skillTasks: {

@@ -9,12 +9,14 @@ import {
   Award,
   CheckCircle2,
   Clock3,
+  Eye,
   FileCheck2,
   Loader2,
   Search,
   Send,
   ShieldCheck,
   Users,
+  X,
   XCircle,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
@@ -38,6 +40,8 @@ interface OfficialExamResultRow {
   studentEmail: string;
   examName: string;
   totalScore: number;
+  listeningScore: number;
+  readingScore: number;
   startedAt: string;
   submittedAt?: string | null;
   status: ResultStatus;
@@ -145,8 +149,39 @@ function formatDateTime(value?: string | null) {
   return `${hours}:${minutes} ${day}/${month}/${year}`;
 }
 
+function formatDateYmd(value?: string | null) {
+  if (!value) return "----/--/--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "----/--/--";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}/${month}/${day}`;
+}
+
+function addYearsToYmd(value?: string | null, years = 2) {
+  if (!value) return "----/--/--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "----/--/--";
+  date.setFullYear(date.getFullYear() + years);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}/${month}/${day}`;
+}
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat("vi-VN").format(value);
+}
+
+function formatCertificateCode(attemptId: string) {
+  return `TM-${attemptId.slice(0, 8).toUpperCase()}`;
+}
+
+function estimateToeicDomainScores(totalScore: number) {
+  const listening = Math.max(5, Math.min(495, Math.round(totalScore * 0.52)));
+  const reading = Math.max(5, Math.min(495, totalScore - listening));
+  return { listening, reading };
 }
 
 export default function AdminCertificatesPage() {
@@ -166,6 +201,9 @@ export default function AdminCertificatesPage() {
   const [rows, setRows] = useState<OfficialExamResultRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [issuingAttemptId, setIssuingAttemptId] = useState<string | null>(null);
+  const [bulkIssuing, setBulkIssuing] = useState(false);
+  const [previewRow, setPreviewRow] = useState<OfficialExamResultRow | null>(null);
   const activeTab: ActiveTab = searchParams?.get("tab") === "issuance" ? "issuance" : "results";
 
   const hydrateRowsFromApi = (
@@ -184,6 +222,8 @@ export default function AdminCertificatesPage() {
         studentEmail: attempt.user?.email ?? "N/A",
         examName: attempt.template?.name ?? "Đề thi chính thức",
         totalScore,
+        listeningScore: Number(attempt.listeningScore ?? 0),
+        readingScore: Number(attempt.readingScore ?? 0),
         startedAt: attempt.startedAt,
         submittedAt: attempt.submittedAt,
         status: toResultStatus(attempt.status),
@@ -349,6 +389,58 @@ export default function AdminCertificatesPage() {
       setIssuancePage(issuanceTotalPages);
     }
   }, [issuancePage, issuanceTotalPages]);
+
+  const markRowAsIssued = useCallback((attemptId: string) => {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === attemptId ? { ...row, issueStatus: "issued" } : row,
+      ),
+    );
+  }, []);
+
+  const handleIssueCertificate = useCallback(
+    async (row: OfficialExamResultRow) => {
+      if (row.issueStatus === "issued" || !row.isEligible || issuingAttemptId) {
+        return;
+      }
+
+      setIssuingAttemptId(row.id);
+      setError(null);
+      try {
+        await apiClient.admin.dashboard.issueOfficialResultCertificate(row.id);
+        markRowAsIssued(row.id);
+      } catch (err: any) {
+        setError(err?.message ?? "Cấp chứng chỉ thất bại. Vui lòng thử lại.");
+      } finally {
+        setIssuingAttemptId(null);
+      }
+    },
+    [issuingAttemptId, markRowAsIssued],
+  );
+
+  const handleBulkIssue = useCallback(async () => {
+    if (bulkIssuing || issuingAttemptId) return;
+    const targets = filteredIssuanceRows.filter(
+      (row) => row.issueStatus === "not_issued" && row.isEligible,
+    );
+    if (targets.length === 0) return;
+
+    setBulkIssuing(true);
+    setError(null);
+    try {
+      for (const row of targets) {
+        await apiClient.admin.dashboard.issueOfficialResultCertificate(row.id);
+        markRowAsIssued(row.id);
+      }
+    } catch (err: any) {
+      setError(
+        err?.message ??
+          "Có lỗi khi cấp hàng loạt. Những học viên đã cấp thành công vẫn được giữ kết quả.",
+      );
+    } finally {
+      setBulkIssuing(false);
+    }
+  }, [bulkIssuing, filteredIssuanceRows, issuingAttemptId, markRowAsIssued]);
 
   return (
     <div className="space-y-6">
@@ -526,7 +618,18 @@ export default function AdminCertificatesPage() {
                             <p className="text-xs text-slate-500">Bắt đầu: {formatDateTime(row.startedAt)}</p>
                           </td>
                           <td className="px-4 py-3 align-top">
-                            <p className="text-sm font-bold text-blue-700">{formatNumber(row.totalScore)}</p>
+                            <div className="group relative inline-block">
+                              <p className="text-sm font-bold text-blue-700">{formatNumber(row.totalScore)}</p>
+                              <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden min-w-[150px] rounded-lg border border-slate-200 bg-white p-2.5 text-xs shadow-lg group-hover:block">
+                                <p className="font-semibold text-slate-700">Chi tiết điểm</p>
+                                <p className="mt-1 text-slate-600">
+                                  L: <span className="font-bold text-slate-900">{formatNumber(row.listeningScore)}</span>
+                                </p>
+                                <p className="text-slate-600">
+                                  R: <span className="font-bold text-slate-900">{formatNumber(row.readingScore)}</span>
+                                </p>
+                              </div>
+                            </div>
                             <p className="text-xs text-slate-500">Ngưỡng đạt: {row.passThreshold}</p>
                           </td>
                           <td className="px-4 py-3 align-top text-sm text-slate-600">
@@ -630,9 +733,18 @@ export default function AdminCertificatesPage() {
           <AdminCard
             title="Cấp chứng chỉ cho học viên đủ điều kiện"
             rightSlot={
-              <button type="button" className="btn-primary" disabled>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => void handleBulkIssue()}
+                disabled={
+                  bulkIssuing ||
+                  issuingAttemptId !== null ||
+                  filteredIssuanceRows.every((row) => row.issueStatus === "issued")
+                }
+              >
                 <Send className="h-4 w-4" />
-                Cấp hàng loạt
+                {bulkIssuing ? "Đang cấp..." : "Cấp hàng loạt"}
               </button>
             }
           >
@@ -732,9 +844,25 @@ export default function AdminCertificatesPage() {
                             />
                           </td>
                           <td className="px-4 py-3 text-right align-top">
-                            <button type="button" className="btn-primary text-sm" disabled={row.issueStatus === "issued"}>
-                              {row.issueStatus === "issued" ? "Đã cấp" : "Cấp chứng chỉ"}
-                            </button>
+                            {row.issueStatus === "issued" ? (
+                              <button
+                                type="button"
+                                className="btn-secondary text-sm"
+                                onClick={() => setPreviewRow(row)}
+                              >
+                                <Eye className="h-4 w-4" />
+                                Xem chứng chỉ
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn-primary text-sm"
+                                onClick={() => void handleIssueCertificate(row)}
+                                disabled={issuingAttemptId !== null || bulkIssuing}
+                              >
+                                {issuingAttemptId === row.id ? "Đang cấp..." : "Cấp chứng chỉ"}
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -758,6 +886,181 @@ export default function AdminCertificatesPage() {
           </AdminCard>
         </>
       )}
+
+      {previewRow ? (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
+          onClick={() => setPreviewRow(null)}
+        >
+          <div
+            className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewRow(null)}
+              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:text-slate-700"
+              aria-label="Đóng xem chứng chỉ"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="relative overflow-hidden bg-[#eef4fb] p-5 md:p-7">
+              <div className="relative overflow-hidden rounded-xl border-[3px] border-[#cf9f47] bg-[#f8f4ea] shadow-[0_18px_36px_rgba(15,23,42,0.16)]">
+                <div className="border-b-2 border-[#d6b16f] px-4 py-2.5">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/logo/logo_website.svg"
+                      alt="TOEIC MASTER logo"
+                      className="h-14 w-auto object-contain"
+                    />
+                    <div className="flex-1 rounded-full bg-[#d0a24d] px-5 py-1 text-center">
+                      <p className="text-[11px] font-extrabold uppercase leading-4 tracking-[0.12em] text-[#1f2a44]">
+                        Listening and Reading
+                      </p>
+                      <p className="text-[17px] font-black uppercase leading-6 tracking-[0.06em] text-[#1f2a44]">
+                        Official Score Certificate
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 border-y-2 border-[#d6b16f] md:grid-cols-[1.55fr_1fr_160px]">
+                  <div className="grid grid-cols-[116px_1fr] border-r-2 border-[#3f3f3f] p-3">
+                    <div className="flex h-[170px] items-center justify-center border border-[#3f3f3f] bg-[#d6d6d6]">
+                      <div className="h-[126px] w-[86px] rounded-full bg-white/95" />
+                    </div>
+
+                    <div className="ml-3 border border-[#3f3f3f]">
+                      <div className="border-b border-[#3f3f3f] px-3 py-1.5">
+                        <p className="text-[22px] font-semibold leading-7 text-black">
+                          {previewRow.studentName}
+                        </p>
+                        <p className="text-[12px] text-black/85">Name</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 border-b border-[#3f3f3f]">
+                        <div className="border-r border-[#3f3f3f] px-3 py-1.5">
+                          <p className="text-[22px] font-semibold leading-7 text-black">
+                            {formatCertificateCode(previewRow.id).replace("TM-", "20")}
+                          </p>
+                          <p className="text-[12px] leading-4 text-black/85">
+                            Identification
+                            <br />
+                            Number
+                          </p>
+                        </div>
+                        <div className="px-3 py-1.5">
+                          <p className="text-[22px] font-semibold leading-7 text-black">2000/01/01</p>
+                          <p className="text-[12px] leading-4 text-black/85">
+                            Date of Birth
+                            <br />
+                            (yyyy/mm/dd)
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2">
+                        <div className="border-r border-[#3f3f3f] px-3 py-1.5">
+                          <p className="text-[22px] font-semibold leading-7 text-black">
+                            {formatDateYmd(previewRow.submittedAt)}
+                          </p>
+                          <p className="text-[12px] leading-4 text-black/85">
+                            Test Date
+                            <br />
+                            (yyyy/mm/dd)
+                          </p>
+                        </div>
+                        <div className="px-3 py-1.5">
+                          <p className="text-[22px] font-semibold leading-7 text-black">
+                            {addYearsToYmd(previewRow.submittedAt, 2)}
+                          </p>
+                          <p className="text-[12px] leading-4 text-black/85">
+                            Valid Until
+                            <br />
+                            (yyyy/mm/dd)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-r-2 border-[#3f3f3f]">
+                    {(() => {
+                      const domain = estimateToeicDomainScores(previewRow.totalScore);
+                      const listeningScore =
+                        previewRow.listeningScore > 0
+                          ? previewRow.listeningScore
+                          : domain.listening;
+                      const readingScore =
+                        previewRow.readingScore > 0 ? previewRow.readingScore : domain.reading;
+                      const renderDomain = (
+                        title: "LISTENING" | "READING",
+                        value: number,
+                        withBottomBorder: boolean,
+                      ) => (
+                        <div
+                          className={`px-4 py-3 ${withBottomBorder ? "border-b border-[#3f3f3f]" : ""}`}
+                        >
+                          <div className="inline-block bg-[#d0a24d] px-3 py-0.5 text-[22px] font-black leading-7 tracking-[0.04em] text-[#1f2a44]">
+                            {title}
+                          </div>
+                          <div className="mt-3 flex items-end justify-between">
+                            <p className="text-[24px] font-semibold leading-8 text-black">Your score</p>
+                            <div className="flex h-[58px] w-[58px] items-center justify-center rounded-full border-[3px] border-black bg-white text-[30px] font-black leading-none text-black">
+                              {value}
+                            </div>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className="text-[24px] font-semibold text-black">5</span>
+                            <div className="h-3 flex-1 rounded-[2px] bg-[#d8d8d8]">
+                              <div
+                                className="h-3 rounded-[2px] bg-[#232629]"
+                                style={{ width: `${Math.max(1, Math.min(100, (value / 495) * 100))}%` }}
+                              />
+                            </div>
+                            <span className="text-[24px] font-semibold text-black">495</span>
+                          </div>
+                        </div>
+                      );
+
+                      return (
+                        <>
+                          {renderDomain("LISTENING", listeningScore, true)}
+                          {renderDomain("READING", readingScore, false)}
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="p-3 text-center">
+                    <div className="mx-auto mt-1 inline-block bg-[#d0a24d] px-3 py-0.5 text-[22px] font-black leading-7 tracking-[0.04em] text-[#1f2a44]">
+                      TOTAL
+                      <br />
+                      SCORE
+                    </div>
+                    <div className="mx-auto mt-8 flex h-[98px] w-[98px] items-center justify-center rounded-full border-[4px] border-black bg-white">
+                      <span className="text-[40px] font-black leading-none text-black">
+                        {formatNumber(previewRow.totalScore)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden px-4 py-2">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_8px_8px,_rgba(199,140,39,0.35)_2px,transparent_2.5px)] [background-size:16px_16px] opacity-45" />
+                  <div className="relative flex items-center justify-between text-[11px] font-medium text-[#5f5850]">
+                    <span>
+                      Official Representatives of TOEIC MASTER · Vietnam · Lao · Cambodia · Myanmar
+                    </span>
+                    <span>VN2001</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
