@@ -1187,6 +1187,53 @@ class ApiClient {
           method: "POST",
           body: JSON.stringify(data),
         }),
+
+      /**
+       * POST /proctoring/face-verification
+       * Verify current webcam face against the official exam registration image.
+       */
+      verifyFaceIdentity: (data: {
+        examTemplateId?: string;
+        examAttemptId?: string;
+        webcamImageBase64: string;
+        checkpoint?: string;
+        webcamSnapshotUrl?: string;
+      }): Promise<
+        ApiResponse<{
+          userId: string;
+          examTemplateId: string;
+          examAttemptId: string | null;
+          checkpoint: string;
+          verified: boolean;
+          allowedToStart: boolean;
+          similarity: number;
+          threshold: number;
+          checkedAt: string;
+        }>
+      > =>
+        this.request("/proctoring/face-verification", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+
+      /**
+       * POST /proctoring/debug-log
+       * Store lightweight troubleshooting events for the proctoring flow.
+       */
+      logDebugEvent: (data: {
+        examId?: string;
+        examAttemptId?: string;
+        source: string;
+        event: string;
+        level?: "debug" | "info" | "warn" | "error";
+        message?: string;
+        metadata?: Record<string, unknown>;
+        timestamp?: string;
+      }): Promise<ApiResponse<{ logged: boolean }>> =>
+        this.request("/proctoring/debug-log", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
     },
   };
 

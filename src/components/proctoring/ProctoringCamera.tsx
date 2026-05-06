@@ -6,6 +6,8 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiClient } from "@/lib/api-client";
 
 const FRAME_CAPTURE_INTERVAL_MS = 1000;
+const FACE_VERIFICATION_INITIAL_DELAY_MS = 2500;
+const FACE_VERIFICATION_INTERVAL_MS = 5 * 60 * 1000;
 const BROWSER_VIOLATION_COOLDOWN_MS = 4000;
 const SPLIT_SCREEN_GRACE_MS = 1500;
 const MIN_DESKTOP_WIDTH_FOR_SPLIT_CHECK = 1024;
@@ -15,6 +17,8 @@ interface ProctoringCameraProps {
   userId: string;
   examId: string;
   examAttemptId?: string;
+  faceVerificationExamTemplateId?: string;
+  enableFaceVerification?: boolean;
   onViolation?: (violation: any) => void;
   onBlocked?: () => void;
   className?: string;
@@ -34,6 +38,8 @@ export const ProctoringCamera = ({
   userId,
   examId,
   examAttemptId,
+  faceVerificationExamTemplateId,
+  enableFaceVerification = false,
   onViolation,
   onBlocked,
   className = "",
@@ -42,9 +48,11 @@ export const ProctoringCamera = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const faceVerificationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isConnectedRef = useRef(false);
   const stoppedRef = useRef(false);
   const cameraRequestRef = useRef(0);
+  const faceVerificationInFlightRef = useRef(false);
   const lastFrameDataUrlRef = useRef<string>("");
   const lastBrowserViolationAtRef = useRef<Record<string, number>>({});
   const splitScreenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,6 +60,10 @@ export const ProctoringCamera = ({
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [warningCount, setWarningCount] = useState(0);
   const [isReporting, setIsReporting] = useState(false);
+  const [isVerifyingIdentity, setIsVerifyingIdentity] = useState(false);
+  const [lastIdentitySimilarity, setLastIdentitySimilarity] = useState<number | null>(null);
+  const debugLogsEnabled =
+    process.env.NEXT_PUBLIC_PROCTORING_DEBUG_LOGS !== "false";
 
   const wsUrl = useMemo(() => {
     const base = (
@@ -65,6 +77,35 @@ export const ProctoringCamera = ({
   useEffect(() => {
     isConnectedRef.current = isConnected;
   }, [isConnected]);
+
+  const logDebugEvent = useCallback(
+    async (
+      event: string,
+      options?: {
+        level?: "debug" | "info" | "warn" | "error";
+        message?: string;
+        metadata?: Record<string, unknown>;
+      },
+    ) => {
+      if (!debugLogsEnabled) return;
+
+      try {
+        await apiClient.admin.proctoring.logDebugEvent({
+          examId,
+          examAttemptId,
+          source: "frontend",
+          event,
+          level: options?.level ?? "debug",
+          message: options?.message,
+          metadata: options?.metadata,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.debug("Failed to write proctoring debug log:", error);
+      }
+    },
+    [debugLogsEnabled, examAttemptId, examId],
+  );
 
   const reportViolations = useCallback(
     async (violations: ProctoringViolationPayload[]) => {
@@ -88,9 +129,26 @@ export const ProctoringCamera = ({
           timestamp: new Date().toISOString(),
         });
 
+        void logDebugEvent("violation_reported", {
+          level: "warn",
+          message: "Frontend reported proctoring violations to backend",
+          metadata: {
+            violationCount: violations.length,
+            actions: violations.map((item) => item.action || "unknown"),
+          },
+        });
+
         violations.forEach((violation) => onViolation?.(violation));
       } catch (error) {
         console.error("Failed to report violations to backend:", error);
+        void logDebugEvent("violation_report_failed", {
+          level: "error",
+          message: "Frontend failed to report proctoring violations",
+          metadata: {
+            error: error instanceof Error ? error.message : String(error),
+            violationCount: violations.length,
+          },
+        });
         onViolation?.({
           message: `Detected violation but failed to report: ${error}`,
         });
@@ -98,7 +156,7 @@ export const ProctoringCamera = ({
         setIsReporting(false);
       }
     },
-    [examAttemptId, examId, onViolation, userId],
+    [examAttemptId, examId, logDebugEvent, onViolation, userId],
   );
 
   const captureCurrentFrame = useCallback(() => {
@@ -127,6 +185,15 @@ export const ProctoringCamera = ({
       if (now - last < BROWSER_VIOLATION_COOLDOWN_MS) return;
       lastBrowserViolationAtRef.current[action] = now;
 
+      void logDebugEvent("browser_violation_detected", {
+        level: "warn",
+        message: "Browser-side proctoring rule was triggered",
+        metadata: {
+          action,
+          severity: violation.severity ?? null,
+        },
+      });
+
       const snapshotImage = captureCurrentFrame() || lastFrameDataUrlRef.current || undefined;
       await reportViolations([
         {
@@ -137,7 +204,108 @@ export const ProctoringCamera = ({
         },
       ]);
     },
-    [captureCurrentFrame, reportViolations],
+    [captureCurrentFrame, logDebugEvent, reportViolations],
+  );
+
+  const verifyFaceIdentity = useCallback(
+    async (checkpoint: string) => {
+      if (!enableFaceVerification) return;
+      if (faceVerificationInFlightRef.current) return;
+      if (!examAttemptId && !faceVerificationExamTemplateId) return;
+
+      const webcamImageBase64 = captureCurrentFrame() || lastFrameDataUrlRef.current;
+      if (!webcamImageBase64) return;
+
+      faceVerificationInFlightRef.current = true;
+      setIsVerifyingIdentity(true);
+
+      void logDebugEvent("face_verification_started", {
+        level: "info",
+        message: "Frontend started face verification checkpoint",
+        metadata: {
+          checkpoint,
+          hasExamAttemptId: Boolean(examAttemptId),
+          hasExamTemplateId: Boolean(faceVerificationExamTemplateId),
+        },
+      });
+
+      try {
+        const response = await apiClient.admin.proctoring.verifyFaceIdentity({
+          examTemplateId: faceVerificationExamTemplateId,
+          examAttemptId,
+          webcamImageBase64,
+          checkpoint,
+          webcamSnapshotUrl: webcamImageBase64,
+        });
+        const result = response.data;
+
+        setLastIdentitySimilarity(
+          typeof result?.similarity === "number" ? result.similarity : null,
+        );
+
+        void logDebugEvent(
+          result?.verified
+            ? "face_verification_passed"
+            : "face_verification_failed",
+          {
+            level: result?.verified ? "info" : "warn",
+            message: "Frontend received face verification result",
+            metadata: {
+              checkpoint,
+              verified: Boolean(result?.verified),
+              similarity: result?.similarity ?? null,
+              threshold: result?.threshold ?? null,
+            },
+          },
+        );
+
+        if (result && !result.verified) {
+          const violation = {
+            action: "face_mismatch",
+            message: "Webcam face does not match the official registration image.",
+            severity: 5,
+            confidence: Math.max(0, Math.min(1, 1 - Number(result.similarity ?? 0))),
+            timestamp: result.checkedAt || new Date().toISOString(),
+            snapshotImage: webcamImageBase64,
+            screenshotUrl: webcamImageBase64,
+          };
+
+          onViolation?.(violation);
+          onBlocked?.();
+        }
+      } catch (error: any) {
+        console.error("Face verification failed:", error);
+        void logDebugEvent("face_verification_request_failed", {
+          level: "error",
+          message: "Frontend failed to call face verification endpoint",
+          metadata: {
+            checkpoint,
+            error: error?.message || String(error),
+          },
+        });
+        onViolation?.({
+          action: "face_verification_failed",
+          message:
+            error?.message ||
+            "Cannot verify identity from webcam frame. Please check camera and retry.",
+          severity: 3,
+          confidence: 1,
+          timestamp: new Date().toISOString(),
+        });
+      } finally {
+        faceVerificationInFlightRef.current = false;
+        setIsVerifyingIdentity(false);
+      }
+    },
+    [
+      captureCurrentFrame,
+      enableFaceVerification,
+      examAttemptId,
+      faceVerificationExamTemplateId,
+      logDebugEvent,
+      onBlocked,
+      onViolation,
+    ],
   );
 
   // Handle violations from YOLO service and report to backend
@@ -150,6 +318,16 @@ export const ProctoringCamera = ({
 
         // Report violations to backend API
         if (Array.isArray(data.violations) && data.violations.length > 0) {
+          void logDebugEvent("yolo_violations_received", {
+            level: "warn",
+            message: "Frontend received YOLO violations from websocket",
+            metadata: {
+              violationCount: data.violations.length,
+              warningCount: Number(data.warning_count) || 0,
+              blocked: Boolean(data.is_blocked),
+              actions: data.violations.map((item: any) => item?.action || "unknown"),
+            },
+          });
           await reportViolations(data.violations);
         }
 
@@ -158,15 +336,29 @@ export const ProctoringCamera = ({
 
         // Handle blocked event
         if (data.is_blocked) {
+          void logDebugEvent("yolo_blocked_received", {
+            level: "error",
+            message: "Frontend received blocked status from YOLO websocket",
+            metadata: {
+              warningCount: Number(data.warning_count) || 0,
+            },
+          });
           onBlocked?.();
         }
       } catch (error) {
         console.error("Invalid proctoring payload:", error);
+        void logDebugEvent("yolo_payload_invalid", {
+          level: "error",
+          message: "Frontend could not parse YOLO websocket payload",
+          metadata: {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
       }
     };
 
     reportViolationsToBackend();
-  }, [lastMessage, onBlocked, reportViolations]);
+  }, [lastMessage, logDebugEvent, onBlocked, reportViolations]);
 
   const stopMonitoring = useCallback(() => {
     stoppedRef.current = true;
@@ -175,6 +367,11 @@ export const ProctoringCamera = ({
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+    }
+
+    if (faceVerificationIntervalRef.current) {
+      clearInterval(faceVerificationIntervalRef.current);
+      faceVerificationIntervalRef.current = null;
     }
 
     if (streamRef.current) {
@@ -190,7 +387,11 @@ export const ProctoringCamera = ({
     }
 
     setIsMonitoring(false);
-  }, []);
+    void logDebugEvent("camera_stopped", {
+      level: "info",
+      message: "Proctoring camera stopped",
+    });
+  }, [logDebugEvent]);
 
   const startCapturing = useCallback(() => {
     if (intervalRef.current) {
@@ -213,8 +414,20 @@ export const ProctoringCamera = ({
     stoppedRef.current = false;
     const requestId = ++cameraRequestRef.current;
 
+    void logDebugEvent("camera_start_requested", {
+      level: "info",
+      message: "Browser requested camera access for proctoring",
+      metadata: {
+        requestId,
+      },
+    });
+
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
+        void logDebugEvent("camera_unavailable", {
+          level: "error",
+          message: "Camera API is not available in this browser",
+        });
         await reportViolations([
           {
             action: "camera_unavailable",
@@ -256,8 +469,23 @@ export const ProctoringCamera = ({
 
       setIsMonitoring(true);
       startCapturing();
+      void logDebugEvent("camera_started", {
+        level: "info",
+        message: "Proctoring camera stream started",
+        metadata: {
+          videoWidth: videoRef.current.videoWidth,
+          videoHeight: videoRef.current.videoHeight,
+        },
+      });
     } catch (error) {
       console.error("Camera error:", error);
+      void logDebugEvent("camera_permission_denied", {
+        level: "error",
+        message: "Browser denied or failed camera access",
+        metadata: {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
       await reportViolations([
         {
           action: "camera_permission_denied",
@@ -268,12 +496,32 @@ export const ProctoringCamera = ({
       ]);
       onBlocked?.();
     }
-  }, [onBlocked, reportViolations, startCapturing]);
+  }, [logDebugEvent, onBlocked, reportViolations, startCapturing]);
 
   useEffect(() => {
     startCamera();
     return () => stopMonitoring();
   }, [startCamera, stopMonitoring]);
+
+  useEffect(() => {
+    if (!enableFaceVerification || !isMonitoring) return;
+
+    const initialTimeout = setTimeout(() => {
+      void verifyFaceIdentity("exam_start");
+    }, FACE_VERIFICATION_INITIAL_DELAY_MS);
+
+    faceVerificationIntervalRef.current = setInterval(() => {
+      void verifyFaceIdentity("periodic_check");
+    }, FACE_VERIFICATION_INTERVAL_MS);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      if (faceVerificationIntervalRef.current) {
+        clearInterval(faceVerificationIntervalRef.current);
+        faceVerificationIntervalRef.current = null;
+      }
+    };
+  }, [enableFaceVerification, isMonitoring, verifyFaceIdentity]);
 
   useEffect(() => {
     const reportTabHidden = () => {
@@ -434,6 +682,16 @@ export const ProctoringCamera = ({
         {isReporting && (
           <div className="absolute top-8 right-1 px-2 py-0.5 bg-blue-500 text-white text-xs rounded">
             Reporting...
+          </div>
+        )}
+
+        {enableFaceVerification && (
+          <div className="absolute bottom-1 right-1 px-2 py-0.5 bg-slate-900/80 text-white text-xs rounded">
+            {isVerifyingIdentity
+              ? "Verifying ID..."
+              : lastIdentitySimilarity !== null
+                ? `ID ${lastIdentitySimilarity.toFixed(2)}`
+                : "ID check"}
           </div>
         )}
 
