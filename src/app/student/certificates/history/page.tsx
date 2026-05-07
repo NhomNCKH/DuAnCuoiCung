@@ -118,9 +118,9 @@ export default function OfficialExamRegistrationHistoryPage() {
     paymentHandledRef.current = true;
 
     const finalizePaymentIfNeeded = async () => {
-      const status = String(searchParams.get("status") || "").toUpperCase();
-      const cancel = String(searchParams.get("cancel") || "").toLowerCase() === "true";
-      const orderCode = Number(searchParams.get("orderCode") || 0);
+      const status = String(searchParams?.get("status") ?? "").toUpperCase();
+      const cancel = String(searchParams?.get("cancel") ?? "").toLowerCase() === "true";
+      const orderCode = Number(searchParams?.get("orderCode") ?? 0);
 
       if (cancel) {
         notify({
@@ -433,4 +433,3 @@ export default function OfficialExamRegistrationHistoryPage() {
     </div>
   );
 }
-
