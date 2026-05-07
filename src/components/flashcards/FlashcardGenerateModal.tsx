@@ -314,7 +314,7 @@ export default function FlashcardGenerateModal({
                   </h3>
                   <p className="mt-1 text-sm text-muted">
                     {deckTitle?.trim()
-                      ? `Lưu vào bộ: ${deckTitle}`
+                      ? `Bộ: ${deckTitle}`
                       : "Lưu trực tiếp vào bộ flashcard hiện tại sau khi xác nhận."}
                   </p>
                 </div>
