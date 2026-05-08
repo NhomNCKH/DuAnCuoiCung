@@ -501,15 +501,10 @@ export default function WritingPage() {
 
   async function suggestTranslation() {
     if (!activeTranslationSentence.trim()) return;
-    if (!activeTranslationAnswer.trim()) {
-      notify({ variant: "warning", title: "Chưa có bài dịch", message: "Hãy nhập bản dịch trước khi xem gợi ý." });
-      return;
-    }
     setTranslationSuggesting(true);
     try {
       const res = await apiClient.learner.ai.suggestTranslation({
         sourceText: activeTranslationSentence,
-        translation: activeTranslationAnswer,
         targetLanguage: "en",
       });
       const result = ((res as any)?.data?.result ?? (res as any)?.result ?? null) as TranslationSuggestion | null;
@@ -1156,7 +1151,7 @@ export default function WritingPage() {
               <button
                 type="button"
                 onClick={() => void suggestTranslation()}
-                disabled={translationSuggesting || !activeTranslationAnswer.trim()}
+                disabled={translationSuggesting}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {translationSuggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
@@ -1165,8 +1160,8 @@ export default function WritingPage() {
               <button
                 type="button"
                 onClick={() => void reviewTranslation()}
-                disabled={translationReviewing || !activeTranslationAnswer.trim()}
-                className="btn-primary inline-flex items-center gap-1.5"
+                disabled={translationReviewing}
+                className="btn-primary inline -flex items-center gap-1.5"
               >
                 {translationReviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Kiểm tra
@@ -1235,7 +1230,7 @@ export default function WritingPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-emerald-600">✓ Tốt!</p>
                   <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-sm font-bold text-indigo-700">
-                    {activeTranslationReview?.overallScore ?? 0}/10
+                    {Math.round((activeTranslationReview?.overallScore ?? 0) / 20)}/10
                   </span>
                 </div>
                 <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-sm text-emerald-800">

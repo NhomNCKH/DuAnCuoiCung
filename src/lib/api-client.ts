@@ -1741,7 +1741,7 @@ class ApiClient {
 
       suggestTranslation: (data: {
         sourceText: string;
-        translation: string;
+        translation?: string;
         targetLanguage?: string;
       }): Promise<
         ApiResponse<{
