@@ -1192,6 +1192,16 @@ class ApiClient {
       },
 
       /**
+       * DELETE /proctoring/violations/:id
+       * Delete one proctoring violation record (admin/proctor only).
+       */
+      deleteViolation: (violationId: string): Promise<ApiResponse> =>
+        this.request(
+          `/proctoring/violations/${encodeURIComponent(violationId)}`,
+          { method: "DELETE" },
+        ),
+
+      /**
        * POST /proctoring/report-violation
        * Submit detected violations from proctoring camera/YOLO service
        */
