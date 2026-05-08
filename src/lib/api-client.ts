@@ -20,7 +20,7 @@ import type {
   LearnerExamTemplateSummary,
   PaginatedData,
 } from "@/types/learner-exam";
-import type { AdminDashboardData, AdminOfficialExamResultListData } from "@/types/admin-dashboard";
+import type { AdminDashboardData, AdminOfficialExamResultListData, AdminExamRegistrationListData } from "@/types/admin-dashboard";
 import {
   clearAuthSession,
   getStoredAccessToken,
@@ -60,8 +60,8 @@ function getHealthURL(): string {
   const base =
     (apiUrl && apiUrl.trim() !== "" && apiUrl) ||
     (process.env.NODE_ENV !== "production" &&
-    localApiUrl &&
-    localApiUrl.trim() !== ""
+      localApiUrl &&
+      localApiUrl.trim() !== ""
       ? localApiUrl
       : "") ||
     (process.env.NODE_ENV === "production"
@@ -311,15 +311,37 @@ class ApiClient {
       }): Promise<ApiResponse<AdminOfficialExamResultListData>> => {
         const query = params
           ? Object.fromEntries(
-              Object.entries(params)
-                .filter(([, value]) => value !== undefined && value !== "")
-                .map(([key, value]) => [key, String(value)]),
-            )
+            Object.entries(params)
+              .filter(([, value]) => value !== undefined && value !== "")
+              .map(([key, value]) => [key, String(value)]),
+          )
           : {};
         const qs = Object.keys(query).length
           ? `?${new URLSearchParams(query as Record<string, string>).toString()}`
           : "";
         return this.request(`/admin/dashboard/official-results${qs}`, {
+          method: "GET",
+        });
+      },
+
+      listRegistrations: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        status?: string;
+        examTemplateId?: string;
+      }): Promise<ApiResponse<AdminExamRegistrationListData>> => {
+        const query = params
+          ? Object.fromEntries(
+            Object.entries(params)
+              .filter(([, value]) => value !== undefined && value !== "")
+              .map(([key, value]) => [key, String(value)]),
+          )
+          : {};
+        const qs = Object.keys(query).length
+          ? `?${new URLSearchParams(query as Record<string, string>).toString()}`
+          : "";
+        return this.request(`/admin/dashboard/registrations${qs}`, {
           method: "GET",
         });
       },
@@ -397,13 +419,13 @@ class ApiClient {
         };
         const qs = params
           ? "?" +
-            new URLSearchParams(
-              Object.fromEntries(
-                Object.entries(queryParams)
-                  .filter(([, v]) => v !== undefined && v !== "")
-                  .map(([k, v]) => [k, String(v)]),
-              ),
-            ).toString()
+          new URLSearchParams(
+            Object.fromEntries(
+              Object.entries(queryParams)
+                .filter(([, v]) => v !== undefined && v !== "")
+                .map(([k, v]) => [k, String(v)]),
+            ),
+          ).toString()
           : "";
         return this.request(`/admin/question-groups${qs}`, { method: "GET" });
       },
@@ -1201,13 +1223,13 @@ class ApiClient {
     }): Promise<ApiResponse<PaginatedData<LearnerExamTemplateSummary>>> => {
       const qs = params
         ? "?" +
-          new URLSearchParams(
-            Object.fromEntries(
-              Object.entries(params)
-                .filter(([, v]) => v !== undefined && v !== "")
-                .map(([k, v]) => [k, String(v)]),
-            ),
-          ).toString()
+        new URLSearchParams(
+          Object.fromEntries(
+            Object.entries(params)
+              .filter(([, v]) => v !== undefined && v !== "")
+              .map(([k, v]) => [k, String(v)]),
+          ),
+        ).toString()
         : "";
       return this.request(`/learner/exam-templates${qs}`, { method: "GET" });
     },
@@ -1345,20 +1367,20 @@ class ApiClient {
       listHistory: (params?: {
         examTemplateId?: string;
         status?: string;
-        page?: number; 
+        page?: number;
         limit?: number;
       }): Promise<
         ApiResponse<PaginatedData<LearnerExamAttemptHistoryItem>>
       > => {
         const qs = params
           ? "?" +
-            new URLSearchParams(
-              Object.fromEntries(
-                Object.entries(params)
-                  .filter(([, value]) => value !== undefined && value !== "")
-                  .map(([key, value]) => [key, String(value)]),
-              ),
-            ).toString()
+          new URLSearchParams(
+            Object.fromEntries(
+              Object.entries(params)
+                .filter(([, value]) => value !== undefined && value !== "")
+                .map(([key, value]) => [key, String(value)]),
+            ),
+          ).toString()
           : "";
         return this.request(`/learner/exam-attempts/history${qs}`, {
           method: "GET",
@@ -1622,6 +1644,68 @@ class ApiClient {
         }>
       > =>
         this.request('/learner/ai/vocabulary/lookup', { method: 'POST', body: JSON.stringify(data) }),
+
+      generateTranslationExercise: (data: {
+        sourceLanguage?: string;
+        targetLanguage?: string;
+        difficulty?: string;
+        purpose?: string;
+        topic?: string;
+        customTopic?: string;
+        exerciseType?: 'dialogue' | 'paragraph';
+      }): Promise<
+        ApiResponse<{
+          model: string;
+          text: string;
+          formatVersion?: string;
+          result?: {
+            title?: string;
+            sourceText?: string;
+            sourceLanguage?: string;
+            targetLanguage?: string;
+            glossary?: Array<{ source?: string; target?: string; note?: string }>;
+          };
+        }>
+      > =>
+        this.request('/learner/ai/translation/generate', { method: 'POST', body: JSON.stringify(data) }),
+
+      suggestTranslation: (data: {
+        sourceText: string;
+        translation: string;
+        targetLanguage?: string;
+      }): Promise<
+        ApiResponse<{
+          model: string;
+          text: string;
+          formatVersion?: string;
+          result?: {
+            vocabularyHints?: Array<{ word?: string; meaning?: string }>;
+            structureHints?: string[];
+          };
+        }>
+      > =>
+        this.request('/learner/ai/translation/suggest', { method: 'POST', body: JSON.stringify(data) }),
+
+      reviewTranslation: (data: {
+        sourceText: string;
+        translation: string;
+        targetLanguage?: string;
+      }): Promise<
+        ApiResponse<{
+          model: string;
+          text: string;
+          formatVersion?: string;
+          result?: {
+            overallScore?: number;
+            summary?: string;
+            grammarHint?: string;
+            vocabularyHint?: string;
+            suggestedPattern?: string;
+            improvedTranslation?: string;
+          };
+        }>
+      > =>
+        this.request('/learner/ai/translation/review', { method: 'POST', body: JSON.stringify(data) }),
     },
   };
 }

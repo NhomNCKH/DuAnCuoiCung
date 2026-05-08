@@ -121,3 +121,32 @@ export interface AdminOfficialExamResultListData {
     limit: number;
   };
 }
+
+export interface AdminExamRegistrationItem {
+  id: string;
+  status: "registered" | "cancelled";
+  examDate: string;
+  registeredAt: string;
+  confirmationSentAt: string | null;
+  reminderSentAt: string | null;
+  metadata: Record<string, unknown>;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  template: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
+}
+
+export interface AdminExamRegistrationListData {
+  items: AdminExamRegistrationItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+}

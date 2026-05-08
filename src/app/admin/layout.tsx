@@ -11,6 +11,7 @@ import {
   BarChart3,
   BookMarked,
   BookOpen,
+  CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -173,6 +174,13 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
         icon: ShieldCheck,
         label: "Cấp chứng chỉ",
         href: "/admin/certificates?tab=issuance",
+        permission: "credentials.manage",
+      },
+      {
+        id: "certificate-registrations",
+        icon: CalendarDays,
+        label: "Lịch sử đăng ký",
+        href: "/admin/certificates?tab=registrations",
         permission: "credentials.manage",
       },
     ],
@@ -384,11 +392,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const profileAvatarClassName = isDarkTheme
     ? "flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white"
     : "flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white";
-  const expandedRoleLabelClassName = `flex items-center gap-1 overflow-hidden whitespace-nowrap text-xs font-semibold transition-all duration-300 ${
-    profileMenuOpen
+  const expandedRoleLabelClassName = `flex items-center gap-1 overflow-hidden whitespace-nowrap text-xs font-semibold transition-all duration-300 ${profileMenuOpen
       ? "max-w-[120px] opacity-100"
       : "max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100"
-  }`;
+    }`;
   const roleIconClassName = isDarkTheme ? "h-3.5 w-3.5 text-slate-500" : "h-3.5 w-3.5 text-blue-600";
   const profileMenuClassName = isDarkTheme
     ? "absolute right-0 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg"
@@ -430,9 +437,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         initial={false}
         animate={{ width: sidebarCollapsed ? "72px" : "232px" }}
         transition={{ duration: 0.2 }}
-        className={`admin-sidebar fixed left-0 top-0 z-50 h-full border-r border-slate-200 bg-white text-slate-700 ${
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } transition-transform duration-200`}
+        className={`admin-sidebar fixed left-0 top-0 z-50 h-full border-r border-slate-200 bg-white text-slate-700 ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          } transition-transform duration-200`}
       >
         <div className="flex h-full flex-col">
           <div className="relative h-[72px] w-full overflow-hidden border-b border-slate-200">
@@ -470,15 +476,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <div key={item.id} className="space-y-1">
                     <button
                       onClick={() => setExpandedMenus((prev) => ({ ...prev, [item.id]: !isExpanded }))}
-                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors ${
-                        hasActiveChild
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors ${hasActiveChild
                           ? theme === "dark"
                             ? "bg-slate-800 text-slate-100"
                             : "bg-slate-100 text-slate-900"
                           : theme === "dark"
                             ? "text-slate-200 hover:bg-slate-800"
                             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                      }`}
+                        }`}
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       {!sidebarCollapsed && (
@@ -498,15 +503,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                               key={child.id}
                               href={child.href || "#"}
                               onClick={() => setMobileMenuOpen(false)}
-                              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition-colors ${
-                                childActive
+                              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition-colors ${childActive
                                   ? theme === "dark"
                                     ? "bg-slate-800 text-slate-100"
                                     : "bg-slate-100 text-slate-900"
                                   : theme === "dark"
                                     ? "text-slate-300 hover:bg-slate-800"
                                     : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                              }`}
+                                }`}
                             >
                               <child.icon className="h-3.5 w-3.5 shrink-0" />
                               <span className="truncate font-medium">{child.label}</span>
@@ -524,15 +528,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   key={item.id}
                   href={item.href || "#"}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors ${
-                    isActive
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors ${isActive
                       ? theme === "dark"
                         ? "bg-slate-800 text-slate-100"
                         : "bg-slate-100 text-slate-900"
                       : theme === "dark"
                         ? "text-slate-200 hover:bg-slate-800"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
                   {!sidebarCollapsed && <span className="truncate font-medium">{item.label}</span>}
