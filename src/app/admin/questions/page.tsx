@@ -94,6 +94,15 @@ function parseQuestionGroupsResponse(raw: any): {
 }
 
 const PARTS = ["P1","P2","P3","P4","P5","P6","P7"];
+const QUESTION_COUNT_PER_GROUP: Record<string, number> = {
+  P1: 1,
+  P2: 1,
+  P3: 3,
+  P4: 3,
+  P5: 1,
+  P6: 4,
+  P7: 3,
+};
 const LEVELS = ["easy","medium","hard","expert"];
 const STATUSES = ["draft","in_review","approved","published","archived"];
 const STATUS_LABEL: Record<string,string> = { draft:"Nháp", in_review:"Chờ duyệt", approved:"Đã duyệt", published:"Xuất bản", archived:"Lưu trữ" };
@@ -220,9 +229,26 @@ function QuestionGroupModal({
     audioFile?: File | null; audioUrl?: string; transcript?: string;
     metadata?: Record<string, unknown>;
   };
+  const normalizeOptionsForPart = (
+    part: string,
+    options: { optionKey: string; content: string; isCorrect: boolean }[],
+  ) => {
+    if (part !== "P2") return options;
+    return options
+      .filter(
+        (option) =>
+          option.optionKey !== "D" &&
+          option.content.trim().toUpperCase() !== "N/A",
+      )
+      .slice(0, 3);
+  };
   const [questions, setQuestions] = useState<QItem[]>(
     group?.questions?.map(q => ({ 
-      id: q.id, questionNo: q.questionNo, prompt: q.prompt, answerKey: q.answerKey, options: q.options,
+      id: q.id,
+      questionNo: q.questionNo,
+      prompt: q.prompt,
+      answerKey: q.answerKey,
+      options: normalizeOptionsForPart(group?.part ?? "", q.options),
       audioUrl: (q as any).metadata?.audioUrl,
       transcript: (q as any).metadata?.transcript,
       metadata: (q as any).metadata ?? {},
@@ -265,15 +291,7 @@ function QuestionGroupModal({
 
   type UploadableAssetKind = "audio" | "image";
 
-  // Số câu hỏi mặc định theo chuẩn TOEIC
-  const qCountPerGroup: Record<string, number> = { P1: 1, P2: 25, P3: 3, P4: 3, P5: 1, P6: 4, P7: 3 };
   const isFixedQCount = ["P1", "P2", "P3", "P4", "P5", "P6"].includes(form.part);
-
-  useEffect(() => {
-    if (!group && form.part) {
-      handlePartChange(form.part);
-    }
-  }, [form.part]);
 
   useEffect(() => {
     let cancelled = false;
@@ -324,22 +342,36 @@ function QuestionGroupModal({
     }));
   };
 
-  const handlePartChange = (newPart: string) => {
+  const handlePartChange = useCallback((newPart: string) => {
     setForm(prev => ({...prev, part: newPart}));
-    const count = qCountPerGroup[newPart] || 1;
+    const count = QUESTION_COUNT_PER_GROUP[newPart] || 1;
     const isP2 = newPart === "P2";
     
     const newQs = Array.from({ length: count }, (_, i) => ({
-      questionNo: i + 1, prompt: "", answerKey: "A",
-      options: [
-        { optionKey: "A", content: isP2 ? "Đáp án A" : "", isCorrect: true }, 
-        { optionKey: "B", content: isP2 ? "Đáp án B" : "", isCorrect: false },
-        { optionKey: "C", content: isP2 ? "Đáp án C" : "", isCorrect: false }, 
-        { optionKey: "D", content: isP2 ? "N/A" : "", isCorrect: false }
-      ]
+      questionNo: i + 1,
+      prompt: "",
+      answerKey: "A",
+      options: isP2
+        ? [
+            { optionKey: "A", content: "Đáp án A", isCorrect: true },
+            { optionKey: "B", content: "Đáp án B", isCorrect: false },
+            { optionKey: "C", content: "Đáp án C", isCorrect: false },
+          ]
+        : [
+            { optionKey: "A", content: "", isCorrect: true },
+            { optionKey: "B", content: "", isCorrect: false },
+            { optionKey: "C", content: "", isCorrect: false },
+            { optionKey: "D", content: "", isCorrect: false },
+          ],
     }));
     setQuestions(newQs);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!group && form.part) {
+      handlePartChange(form.part);
+    }
+  }, [form.part, group, handlePartChange]);
 
   const getUploadTarget = async (file: File, kind: UploadableAssetKind) => {
     if (group?.id) {
@@ -465,7 +497,12 @@ function QuestionGroupModal({
         questions: questions.map(q => ({
           questionNo: q.questionNo, prompt: q.prompt, answerKey: q.answerKey,
           metadata: q.metadata ?? {},
-          options: q.options.map((o, idx) => ({ optionKey: o.optionKey, content: o.content, isCorrect: o.isCorrect, sortOrder: idx + 1 }))
+          options: normalizeOptionsForPart(form.part, q.options).map((o, idx) => ({
+            optionKey: o.optionKey,
+            content: o.content,
+            isCorrect: o.isCorrect,
+            sortOrder: idx + 1,
+          }))
         })),
         assets: allAssets,
       };
@@ -614,7 +651,7 @@ function QuestionGroupModal({
                             {isP1
                               ? "Tải lên Audio cho câu hỏi"
                               : isP2
-                                ? "Tải lên 1 audio chung cho toàn bộ 25 câu của Part 2"
+                                ? "Tải lên audio cho câu hỏi Part 2"
                                 : "Tải lên Audio cho đoạn hội thoại"}
                           </span>
                           <input type="file" accept="audio/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setMedia({ ...media, audioFile: f, audioUrl: URL.createObjectURL(f) }); }} />
@@ -694,7 +731,7 @@ function QuestionGroupModal({
                 </h3>
                 <p className="text-[9px] text-blue-600 font-bold mt-0.5 italic">
                   {form.part === "P1" && "P1: 1 Ảnh + Audio = 1 Câu"}
-                  {form.part === "P2" && "P2: 1 Audio chung = 25 Câu (mỗi câu 3 đáp án)"}
+                  {form.part === "P2" && "P2: 1 Audio = 1 Câu (3 đáp án A/B/C)"}
                   {form.part === "P3" && "P3: 1 Hội thoại (+ ảnh nếu cần) = 3 Câu"}
                   {form.part === "P4" && "P4: 1 Bài nói (+ ảnh nếu cần) = 3 Câu"}
                   {form.part === "P5" && "P5: 1 Câu lẻ"}
