@@ -2806,7 +2806,7 @@ export default function MockTestExamPage() {
 
               <div
                 className={`flex flex-wrap gap-3 ${
-                  (((resolvedMedia.audioUrl && !mediaError.audio) ||
+                  ((resolvedMedia.audioUrl && !mediaError.audio) ||
                     hasAudioAsset ||
                     Boolean(groupedAudioAsset)) &&
                   !isLongListPart
