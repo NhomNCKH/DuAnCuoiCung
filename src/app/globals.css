@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Date range picker (admin filters) */
+@import "react-date-range/dist/styles.css";
+@import "react-date-range/dist/theme/default.css";
+
 :root {
   --bg: 239 247 255;
   --surface: 255 255 255;
@@ -771,6 +775,236 @@ a {
 
 .admin-dark .shared-table-body tr:hover td {
   background: #273355 !important;
+}
+
+/* ─── react-date-range: đồng bộ admin-dark (giống UI ảnh) ─── */
+.admin-dark .rdrDateRangeWrapper,
+.admin-dark .rdrCalendarWrapper {
+  background: #1b2542 !important;
+  color: var(--admin-text) !important;
+}
+
+/* Date range picker compact sizing (proctoring) */
+.proctoring-date-range .rdrCalendarWrapper {
+  font-size: 12px;
+}
+
+.proctoring-date-range .rdrMonthAndYearWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 44px 6px;
+}
+
+/* Header: hiển thị Month + Year trên cả 2 lịch (2 tháng) */
+.proctoring-date-range .rdrMonthName {
+  font-weight: 700 !important;
+  color: rgba(15, 23, 42, 0.86) !important;
+  letter-spacing: -0.01em;
+  padding: 0 !important;
+  line-height: 1.1;
+}
+
+.admin-dark .proctoring-date-range .rdrMonthName {
+  color: rgba(232, 237, 255, 0.88) !important;
+}
+
+/* Ẩn dropdown month/year mặc định (tránh select bật ra) */
+.proctoring-date-range .rdrMonthAndYearPickers {
+  display: none !important;
+}
+
+/* Canh lại mũi tên điều hướng: nằm đúng trong header */
+.proctoring-date-range .rdrNextPrevButton {
+  margin: 0 !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9999px !important;
+  background: #f1f5f9 !important;
+  top: 50% !important;
+  transform: translateY(-50%);
+  position: absolute !important;
+}
+
+.proctoring-date-range .rdrPprevButton {
+  left: 10px !important;
+}
+
+.proctoring-date-range .rdrNextButton {
+  right: 10px !important;
+}
+
+.admin-dark .proctoring-date-range .rdrNextPrevButton {
+  background: #253156 !important;
+}
+
+/* Tránh kiểu dropdown (caret) nếu lib vẫn render select */
+.proctoring-date-range .rdrMonthAndYearPickers select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: none !important;
+  padding-right: 0 !important;
+  pointer-events: none;
+  font-weight: 600;
+}
+
+.proctoring-date-range .rdrMonthAndYearPickers select::-ms-expand {
+  display: none;
+}
+
+.proctoring-date-range .rdrMonthAndYearPickers option {
+  color: inherit;
+}
+
+.proctoring-date-range .rdrMonth {
+  padding: 0 8px 8px;
+}
+
+.proctoring-date-range .rdrDay {
+  height: 34px;
+}
+
+.proctoring-date-range .rdrDayNumber span {
+  font-size: 12px;
+}
+
+/* Presets giống mẫu: ít chữ, nổi bật vàng */
+.proctoring-date-preset {
+  white-space: nowrap;
+  color: #f59e0b; /* amber-500-ish giống mẫu */
+}
+
+.proctoring-date-preset:hover {
+  background: transparent;
+}
+
+.proctoring-date-preset--active {
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #b45309; /* amber-700 */
+}
+
+.admin-dark .proctoring-date-preset {
+  color: #ffbf2f;
+}
+
+.admin-dark .proctoring-date-preset:hover {
+  background: transparent;
+}
+
+.admin-dark .proctoring-date-preset--active {
+  background: rgba(255, 191, 47, 0.16);
+  border: 1px solid rgba(255, 191, 47, 0.5);
+  color: #ffdf8a;
+}
+
+/* Màu selection vàng giống mẫu */
+.proctoring-date-range .rdrInRange,
+.proctoring-date-range .rdrStartEdge,
+.proctoring-date-range .rdrEndEdge {
+  background: #f7bc2f !important;
+}
+
+/* Bo tròn start/end như mẫu + giữ text nổi trên nền */
+.proctoring-date-range .rdrStartEdge,
+.proctoring-date-range .rdrEndEdge {
+  border-radius: 9999px !important;
+}
+
+.proctoring-date-range .rdrInRange {
+  border-radius: 0 !important;
+}
+
+.proctoring-date-range .rdrDayNumber {
+  z-index: 2;
+}
+
+.proctoring-date-range .rdrDayPassive .rdrInRange,
+.proctoring-date-range .rdrDayPassive .rdrStartEdge,
+.proctoring-date-range .rdrDayPassive .rdrEndEdge {
+  background: rgba(247, 188, 47, 0.24) !important;
+}
+
+.proctoring-date-range .rdrDayNumber span {
+  color: rgba(15, 23, 42, 0.88);
+}
+
+.admin-dark .proctoring-date-range .rdrDayNumber span {
+  color: rgba(232, 237, 255, 0.88) !important;
+}
+
+.admin-dark .proctoring-date-range .proctoring-date-nav-btn {
+  background: #253156;
+  color: rgba(232, 237, 255, 0.78);
+}
+
+.admin-dark .proctoring-date-range .proctoring-date-nav-label {
+  color: rgba(232, 237, 255, 0.88);
+}
+
+.admin-dark .rdrMonthAndYearWrapper,
+.admin-dark .rdrWeekDays,
+.admin-dark .rdrMonths {
+  background: transparent !important;
+}
+
+.admin-dark .rdrDayNumber span {
+  color: rgba(232, 237, 255, 0.82) !important;
+}
+
+.admin-dark .rdrDayDisabled .rdrDayNumber span {
+  color: rgba(155, 168, 205, 0.38) !important;
+}
+
+.admin-dark .rdrMonthName,
+.admin-dark .rdrWeekDay {
+  color: rgba(155, 168, 205, 0.9) !important;
+}
+
+.admin-dark .rdrNextPrevButton {
+  background: #253156 !important;
+}
+
+.admin-dark .rdrNextPrevButton i {
+  border-color: rgba(232, 237, 255, 0.72) !important;
+}
+
+.admin-dark .rdrDefinedRangesWrapper {
+  background: #18223b !important;
+  border-right: 1px solid var(--admin-border) !important;
+}
+
+.admin-dark .rdrStaticRangeLabel {
+  color: rgba(232, 237, 255, 0.85) !important;
+}
+
+.admin-dark .rdrStaticRange:hover,
+.admin-dark .rdrStaticRange:focus {
+  background: #253156 !important;
+}
+
+.admin-dark .rdrInputRanges,
+.admin-dark .rdrInputRange,
+.admin-dark .rdrDateDisplayWrapper,
+.admin-dark .rdrDateDisplayItem,
+.admin-dark .rdrDateDisplayItem input {
+  background: transparent !important;
+  color: var(--admin-text) !important;
+  border-color: var(--admin-border) !important;
+}
+
+.admin-dark .rdrDayToday .rdrDayNumber span:after {
+  background: var(--admin-accent) !important;
+}
+
+.admin-dark .rdrDayStartPreview,
+.admin-dark .rdrDayEndPreview,
+.admin-dark .rdrDayInPreview,
+.admin-dark .rdrDayStartOfMonth,
+.admin-dark .rdrDayEndOfMonth {
+  border-color: rgba(255, 191, 47, 0.6) !important;
 }
 
 /* Exams workflow: keep light mode original, apply yellow style only in dark mode */

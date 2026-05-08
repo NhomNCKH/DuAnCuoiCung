@@ -11,17 +11,20 @@
     "test:flashcards": "rm -rf .tmp-tests && tsc -p tsconfig.test.json && node --test .tmp-tests/*.spec.js && rm -rf .tmp-tests"
   },
   "dependencies": {
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
     "html2canvas": "^1.4.1",
     "lottie-web": "^5.13.0",
     "lucide-react": "^0.577.0",
     "next": "13.5.11",
     "react": "^18",
+    "react-date-range": "^2.0.1",
     "react-dom": "^18"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
+    "@types/react-date-range": "^1.4.10",
     "@types/react-dom": "^18",
     "autoprefixer": "^10",
     "eslint": "^8",

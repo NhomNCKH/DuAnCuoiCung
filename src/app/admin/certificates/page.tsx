@@ -259,7 +259,7 @@ export default function AdminCertificatesPage() {
     return items.map((attempt) => {
       const totalScore = Number(attempt.totalScore ?? 0);
       const passThreshold = Number(attempt.passThreshold ?? DEFAULT_PASS_THRESHOLD);
-      const isEligible = totalScore > DEFAULT_PASS_THRESHOLD;
+      const isEligible = totalScore >= passThreshold;
 
       return {
         id: attempt.id,

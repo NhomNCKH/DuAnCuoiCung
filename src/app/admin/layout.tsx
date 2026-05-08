@@ -188,7 +188,7 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
   {
     id: "proctoring",
     icon: AlertTriangle,
-    label: "Gian lan",
+    label: "Gian lận",
     href: "/admin/proctoring",
   },
   {

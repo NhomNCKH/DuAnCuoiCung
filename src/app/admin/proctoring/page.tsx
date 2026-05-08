@@ -2,8 +2,29 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Eye, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CalendarDays,
+  ChevronDown,
+  Eye,
+  Loader2,
+  RefreshCw,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import { DateRange } from "react-date-range";
+import { addDays, format, startOfDay } from "date-fns";
+import { enUS } from "date-fns/locale";
 import { apiClient } from "@/lib/api-client";
+import { AdminCard, AdminEmptyState } from "@/components/admin";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { EnhancedStatCard } from "@/components/ui/EnhancedStatCard";
+import { SharedTable, SharedTableBody, SharedTableHead } from "@/components/ui/shared-table";
+import { SharedDropdown } from "@/components/ui/shared-dropdown";
+import { useToast } from "@/hooks/useToast";
 
 type ProctoringViolation = {
   id: string;
@@ -116,6 +137,10 @@ function getSeverityClass(severity: number) {
   return "bg-slate-100 text-slate-700";
 }
 
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("vi-VN").format(value);
+}
+
 function groupViolations(rows: ProctoringViolation[]): ViolationGroup[] {
   const map = new Map<string, ViolationGroup>();
 
@@ -170,30 +195,77 @@ function groupViolations(rows: ProctoringViolation[]): ViolationGroup[] {
 }
 
 export default function ProctoringAdminPage() {
+  useToast();
   const [userId, setUserId] = useState("");
-  const [examId, setExamId] = useState("");
-  const [limit, setLimit] = useState(50);
+  const [selectedExamName, setSelectedExamName] = useState("");
+  const limit = 50;
   const [offset, setOffset] = useState(0);
+  const [dateFilterOpen, setDateFilterOpen] = useState(false);
+  const todayYmd = format(new Date(), "yyyy-MM-dd");
+  const [dateFrom, setDateFrom] = useState<string>(todayYmd);
+  const [dateTo, setDateTo] = useState<string>(todayYmd);
+  const [draftRange, setDraftRange] = useState<{
+    startDate: Date;
+    endDate: Date;
+    key: "selection";
+  }>({
+    startDate: startOfDay(new Date()),
+    endDate: startOfDay(new Date()),
+    key: "selection",
+  });
+
+  useEffect(() => {
+    if (!dateFilterOpen) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      // Đóng khi click ra ngoài popover.
+      if (!target.closest("[data-date-range-popover-root]")) {
+        setDateFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [dateFilterOpen]);
 
   const [violations, setViolations] = useState<ProctoringViolation[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<ViolationGroup | null>(null);
 
-  const groups = useMemo(() => groupViolations(violations), [violations]);
+  const dateFilteredViolations = useMemo(() => {
+    const from = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+    const to = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null;
+    if (!from && !to) return violations;
+
+    return violations.filter((item) => {
+      const tValue = getTimeValue(item);
+      if (!tValue) return false;
+      const t = new Date(tValue).getTime();
+      if (Number.isNaN(t)) return false;
+      if (from && t < from) return false;
+      if (to && t > to) return false;
+      if (selectedExamName) {
+        const label = (item.examName || item.examCode || "").trim();
+        if (label !== selectedExamName) return false;
+      }
+      return true;
+    });
+  }, [dateFrom, dateTo, selectedExamName, violations]);
+
+  const groups = useMemo(() => groupViolations(dateFilteredViolations), [dateFilteredViolations]);
 
   const stats = useMemo(() => {
-    const severeCount = violations.filter((item) => Number(item.severity) >= 4).length;
-    const affectedCandidates = new Set(violations.map((item) => item.userId)).size;
+    const severeCount = dateFilteredViolations.filter((item) => Number(item.severity) >= 4).length;
+    const affectedCandidates = new Set(dateFilteredViolations.map((item) => item.userId)).size;
     return {
-      total: total || violations.length,
+      total: total || dateFilteredViolations.length,
       cases: groups.length,
       candidates: affectedCandidates,
       severe: severeCount,
     };
-  }, [groups.length, total, violations]);
+  }, [dateFilteredViolations, groups.length, total]);
 
   const fetchViolations = useCallback(async () => {
     setLoading(true);
@@ -202,7 +274,8 @@ export default function ProctoringAdminPage() {
     try {
       const res = await apiClient.admin.proctoring.listViolations({
         userId: userId.trim() || undefined,
-        examId: examId.trim() || undefined,
+        // Lưu ý: examId ở BE đang đại diện "phiên/lượt thi", không phải "tên đề".
+        // UI dropdown lọc theo examName/examCode sẽ filter phía client.
         limit,
         offset,
       });
@@ -217,245 +290,331 @@ export default function ProctoringAdminPage() {
       setViolations([]);
       setTotal(0);
       setSelectedGroup(null);
-      setError(err?.message || "Khong tai duoc du lieu gian lan.");
+      setError(err?.message || "Không tải được dữ liệu gian lận.");
     } finally {
       setLoading(false);
     }
-  }, [examId, limit, offset, userId]);
+  }, [limit, offset, userId]);
 
-  const handleDeleteGroup = useCallback(async (group: ViolationGroup) => {
-    const ok = window.confirm(
-      `Xoa ${group.total} hanh vi gian lan cua ${group.userName}? Hanh dong nay khong the hoan tac.`,
-    );
-
-    if (!ok) return;
-
-    setDeletingKey(group.key);
-    setError(null);
-
-    try {
-      await Promise.all(
-        group.violations.map((violation) =>
-          apiClient.admin.proctoring.deleteViolation(violation.id),
-        ),
-      );
-
-      const deletedIds = new Set(group.violations.map((violation) => violation.id));
-      setViolations((current) =>
-        current.filter((violation) => !deletedIds.has(violation.id)),
-      );
-      setTotal((current) => Math.max(0, current - deletedIds.size));
-      setSelectedGroup((current) =>
-        current?.key === group.key ? null : current,
-      );
-    } catch (err: any) {
-      setError(err?.message || "Khong xoa duoc hanh vi gian lan.");
-    } finally {
-      setDeletingKey(null);
-    }
-  }, []);
+  // Đã bỏ thao tác xoá theo yêu cầu.
 
   useEffect(() => {
     void fetchViolations();
   }, [fetchViolations]);
 
+  const totalPages = Math.max(1, Math.ceil((total || dateFilteredViolations.length) / limit));
+  const currentPage = Math.min(totalPages, Math.max(1, Math.floor(offset / limit) + 1));
+
+  const examOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of violations) {
+      const label = (v.examName || v.examCode || "").trim();
+      if (label) set.add(label);
+    }
+    return [
+      { value: "", label: "Tất cả bài thi" },
+      ...Array.from(set.values())
+        .sort((a, b) => a.localeCompare(b, "vi"))
+        .map((label) => ({ value: label, label })),
+    ];
+  }, [violations]);
+
+  const activePresetKey = useMemo(() => {
+    const end = startOfDay(new Date());
+    const start = startOfDay(addDays(end, -6));
+    const start30 = startOfDay(addDays(end, -29));
+    const start60 = startOfDay(addDays(end, -59));
+    const start90 = startOfDay(addDays(end, -89));
+
+    const s = startOfDay(draftRange.startDate).getTime();
+    const e = startOfDay(draftRange.endDate).getTime();
+    const endMs = end.getTime();
+
+    if (s === endMs && e === endMs) return "today";
+    if (s === start.getTime() && e === endMs) return "last7";
+    if (s === start30.getTime() && e === endMs) return "last30";
+    if (s === start60.getTime() && e === endMs) return "last60";
+    if (s === start90.getTime() && e === endMs) return "last90";
+    return "custom";
+  }, [draftRange.endDate, draftRange.startDate]);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold text-slate-900">Kiem tra gian lan</h1>
-        <p className="text-sm text-slate-600">
-          Danh sach tong quan gom theo nguoi thi va bai thi. Bam xem chi tiet de xem tung hanh vi vi pham.
-        </p>
-      </div>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <EnhancedStatCard icon={AlertTriangle} label="Tổng vi phạm" value={formatNumber(stats.total)} change="" color="from-slate-600 to-slate-800" bgColor="bg-white" compact tone="red" />
+        <EnhancedStatCard icon={AlertCircle} label="Hồ sơ gian lận" value={formatNumber(stats.cases)} change="" color="from-blue-500 to-indigo-600" bgColor="bg-white" compact tone="blue" />
+        <EnhancedStatCard icon={Eye} label="Thí sinh ảnh hưởng" value={formatNumber(stats.candidates)} change="" color="from-emerald-500 to-teal-600" bgColor="bg-white" compact tone="green" />
+        <EnhancedStatCard icon={Trash2} label="Nghiêm trọng (>=4)" value={formatNumber(stats.severe)} change="" color="from-rose-500 to-pink-600" bgColor="bg-white" compact tone="red" />
+      </motion.div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">User ID</span>
+      <AdminCard>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               value={userId}
               onChange={(event) => setUserId(event.target.value)}
-              placeholder="Nhap userId"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
+              placeholder="Tìm theo userId..."
+              className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none transition-colors focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
             />
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Exam/Attempt ID</span>
-            <input
-              value={examId}
-              onChange={(event) => setExamId(event.target.value)}
-              placeholder="Nhap examId"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
-            />
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Limit</span>
-            <input
-              type="number"
-              min={1}
-              max={200}
-              value={limit}
-              onChange={(event) => setLimit(Math.max(1, Number(event.target.value) || 1))}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
-            />
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Offset</span>
-            <input
-              type="number"
-              min={0}
-              value={offset}
-              onChange={(event) => setOffset(Math.max(0, Number(event.target.value) || 0))}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
-            />
-          </label>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => void fetchViolations()}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Search className="h-4 w-4" />
-            {loading ? "Dang tai..." : "Kiem tra gian lan"}
-          </button>
-
-          <button
-            onClick={() => {
-              setUserId("");
-              setExamId("");
-              setOffset(0);
-              setViolations([]);
-              setTotal(0);
-              setSelectedGroup(null);
-              setError(null);
-            }}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Reset
-          </button>
-        </div>
-
-        {error && (
-          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            {error}
           </div>
-        )}
-      </div>
+          <SharedDropdown
+            value={selectedExamName}
+            onChange={(value) => {
+              setSelectedExamName(value);
+              setOffset(0);
+            }}
+            options={examOptions}
+            placeholder="Tất cả bài thi"
+            className="w-full min-w-[220px] lg:w-[320px]"
+          />
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              className="btn-secondary px-3"
+              onClick={() => {
+                setUserId("");
+                setSelectedExamName("");
+                setDateFrom("");
+                setDateTo("");
+                setDateFilterOpen(false);
+                setOffset(0);
+                void fetchViolations();
+              }}
+              disabled={loading}
+              aria-label="Reset"
+              title="Reset"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+            <div className="relative" data-date-range-popover-root>
+              <button
+                type="button"
+                className="inline-flex h-[42px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 admin-dark:border-[var(--admin-border)] admin-dark:bg-[#253156] admin-dark:text-[var(--admin-text)] admin-dark:hover:bg-[var(--admin-surface-2)]"
+                onClick={() => {
+                  const today = new Date();
+                  const start = dateFrom ? new Date(`${dateFrom}T00:00:00`) : addDays(today, -6);
+                  const end = dateTo ? new Date(`${dateTo}T00:00:00`) : today;
+                  const nextDraft = {
+                    startDate: startOfDay(start),
+                    endDate: startOfDay(end),
+                    key: "selection",
+                  } as const;
+                  setDraftRange(nextDraft);
+                  setDateFilterOpen((prev) => !prev);
+                }}
+                disabled={loading}
+                aria-label="Chọn khoảng ngày"
+                title="Chọn khoảng ngày"
+              >
+                <CalendarDays className="h-4 w-4 text-slate-500 admin-dark:text-[var(--admin-muted)]" />
+                <span className="whitespace-nowrap">
+                  {dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : "Tất cả thời gian"}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform admin-dark:text-[var(--admin-muted)] ${dateFilterOpen ? "rotate-180" : ""}`} />
+              </button>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tong vi pham</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{stats.total}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ho so gian lan</p>
-          <p className="mt-1 text-2xl font-bold text-blue-600">{stats.cases}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nguoi thi bi anh huong</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{stats.candidates}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Muc nghiem trong</p>
-          <p className="mt-1 text-2xl font-bold text-red-600">{stats.severe}</p>
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-slate-700">Thoi gian</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-700">Ten nguoi thi</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-700">Ten bai thi</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-700">Co hanh vi gian lan</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-700">Xem chi tiet</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-              {groups.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                    Chua co du lieu gian lan.
-                  </td>
-                </tr>
-              ) : (
-                groups.map((group) => (
-                  <tr key={group.key} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-700">{formatTime(group.latestTime)}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">{group.userName}</div>
-                      {group.userEmail ? <div className="text-xs text-slate-500">{group.userEmail}</div> : null}
-                      <div className="text-xs text-slate-400">{group.userId}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">{group.examName}</div>
-                      <div className="text-xs text-slate-400">{group.examId}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        Co, {group.total} vi pham
+              {dateFilterOpen ? (
+                <div className="absolute right-0 top-full z-[120] mt-2 w-[760px] max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl admin-dark:border-[var(--admin-border)] admin-dark:bg-[var(--admin-surface)]">
+                  <div className="flex">
+                      <div className="w-[220px] border-r border-slate-200 px-4 py-4 admin-dark:border-[var(--admin-border)]">
+                      <div className="flex flex-col items-start gap-1.5">
+                        {[
+                        { key: "today", label: "Today", days: 0 },
+                        { key: "last7", label: "Last 7 days", days: 6 },
+                        { key: "last30", label: "Last 30 days", days: 29 },
+                        { key: "last60", label: "Last 60 days", days: 59 },
+                        { key: "last90", label: "Last 90 days", days: 89 },
+                        ].map((p) => (
+                          <button
+                            key={p.key}
+                            type="button"
+                            className={`proctoring-date-preset rounded-xl px-3 py-2 text-left text-sm font-semibold ${
+                              activePresetKey === p.key ? "proctoring-date-preset--active" : ""
+                            }`}
+                            onClick={() => {
+                              const end = startOfDay(new Date());
+                              const start = startOfDay(addDays(end, -p.days));
+                              setDraftRange({ startDate: start, endDate: end, key: "selection" });
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
                       </div>
+                    </div>
+
+                    <div className="flex min-w-0 flex-1 flex-col px-3 pt-3">
+                      <div className="proctoring-date-range min-w-0 flex-1 text-sm">
+                        <DateRange
+                          ranges={[draftRange]}
+                          onChange={(item: any) => {
+                            const next = item.selection;
+                            if (!next?.startDate || !next?.endDate) return;
+                            setDraftRange({
+                              startDate: startOfDay(next.startDate),
+                              endDate: startOfDay(next.endDate),
+                              key: "selection",
+                            });
+                          }}
+                          months={2}
+                          direction="horizontal"
+                          showDateDisplay={false}
+                          showMonthAndYearPickers={false}
+                          showMonthArrow
+                          weekStartsOn={1}
+                          weekdayDisplayFormat="EEE"
+                          locale={enUS}
+                          rangeColors={["#f7bc2f"]}
+                          monthDisplayFormat="MMMM yyyy"
+                          moveRangeOnFirstSelection={false}
+                        />
+                      </div>
+
+                      <div className="flex justify-end border-t border-slate-100 bg-white px-3 py-3 admin-dark:border-[var(--admin-border)] admin-dark:bg-[var(--admin-surface)]">
+                        <button
+                          type="button"
+                          className="inline-flex h-9 items-center justify-center rounded-xl bg-[#f7bc2f] px-5 text-sm font-semibold text-slate-900 shadow-sm transition-all hover:brightness-[0.98] active:scale-[0.99] admin-dark:text-[#1b2542]"
+                          onClick={() => {
+                            setDateFrom(format(draftRange.startDate, "yyyy-MM-dd"));
+                            setDateTo(format(draftRange.endDate, "yyyy-MM-dd"));
+                            setDateFilterOpen(false);
+                          }}
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void fetchViolations()}
+              disabled={loading}
+            >
+              <Search className="h-4 w-4" />
+              {loading ? "Đang tải..." : "Tìm kiếm"}
+            </button>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <AlertCircle className="mt-0.5 h-4 w-4" />
+            <div className="min-w-0">
+              <p className="font-semibold">Có lỗi</p>
+              <p className="mt-0.5 break-words">{error}</p>
+            </div>
+            <button type="button" onClick={() => void fetchViolations()} className="ml-auto text-sm underline">
+              Thử lại
+            </button>
+          </div>
+        ) : null}
+      </AdminCard>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-14 text-slate-600">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          Đang tải dữ liệu...
+        </div>
+      ) : groups.length === 0 ? (
+        <AdminEmptyState
+          icon={AlertTriangle}
+          title="Chưa có dữ liệu gian lận"
+          description="Thử nhập bộ lọc hoặc bấm Làm mới để tải lại."
+          action={
+            <button type="button" className="btn-primary" onClick={() => void fetchViolations()}>
+              <RefreshCw className="h-4 w-4" />
+              Làm mới
+            </button>
+          }
+        />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <SharedTable className="text-sm">
+              <SharedTableHead>
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Thời gian</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Thí sinh</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Bài thi</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Vi phạm</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Thao tác</th>
+                </tr>
+              </SharedTableHead>
+              <SharedTableBody>
+                {groups.map((group) => (
+                  <tr key={group.key} className="border-t border-slate-100 hover:bg-slate-50/70">
+                    <td className="px-4 py-3 align-top text-slate-700">{formatTime(group.latestTime)}</td>
+                    <td className="px-4 py-3 align-top">
+                      <p className="text-sm font-semibold text-slate-800">{group.userName}</p>
+                      {group.userEmail ? <p className="text-xs text-slate-500">{group.userEmail}</p> : null}
+                      <p className="text-xs text-slate-400">{group.userId}</p>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
+                    <td className="px-4 py-3 align-top">
+                      <p className="text-sm font-semibold text-slate-800">{group.examName}</p>
+                      <p className="text-xs text-slate-400">{group.examId}</p>
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <span className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Có, {group.total} vi phạm
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 align-top text-right">
+                      <div className="inline-flex flex-wrap items-center justify-end gap-2">
                         <button
                           type="button"
                           onClick={() => setSelectedGroup(group)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                          className="btn-secondary px-3 py-1.5 text-xs"
                         >
-                          <Eye className="h-4 w-4" />
-                          Xem chi tiet
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteGroup(group)}
-                          disabled={deletingKey === group.key}
-                          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          {deletingKey === group.key ? "Dang xoa..." : "Xoa"}
+                          <Eye className="h-3.5 w-3.5" />
+                          Xem
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </SharedTableBody>
+            </SharedTable>
+          </div>
+
+          <AdminPagination
+            className="border-t border-slate-100"
+            page={currentPage}
+            totalPages={totalPages}
+            total={total || violations.length}
+            limit={limit}
+            onPageChange={(page) => setOffset((page - 1) * limit)}
+            itemLabel="vi phạm"
+          />
         </div>
-      </div>
+      )}
 
       {selectedGroup ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <button
+            className="absolute inset-0 bg-black/50 backdrop-blur-[1.5px]"
+            onClick={() => setSelectedGroup(null)}
+            aria-label="close violation details"
+          />
+          <div className="surface relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Chi tiet hanh vi gian lan</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  {selectedGroup.userName} - {selectedGroup.examName}
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-slate-900">Chi tiết hành vi gian lận</h2>
+                <p className="mt-1 truncate text-sm text-slate-600">
+                  {selectedGroup.userName} · {selectedGroup.examName}
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  Tong so vi pham: {selectedGroup.total}
-                </p>
+                <p className="mt-1 text-xs text-slate-400">Tổng số vi phạm: {selectedGroup.total}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedGroup(null)}
                 className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                aria-label="Dong chi tiet"
+                aria-label="Đóng chi tiết"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -465,19 +624,17 @@ export default function ProctoringAdminPage() {
               <div className="grid gap-4">
                 {selectedGroup.violations.map((violation) => {
                   const severity = Number(violation.severity) || 0;
+                  const imageUrl = violation.screenshotUrl || violation.snapshotImage || "";
+
                   return (
-                    <div key={violation.id} className="rounded-xl border border-slate-200 p-4">
-                      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                        <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                          {violation.screenshotUrl || violation.snapshotImage ? (
-                            <img
-                              src={violation.screenshotUrl || violation.snapshotImage || ""}
-                              alt="Anh chup hanh vi vi pham"
-                              className="h-40 w-full object-cover"
-                            />
+                    <div key={violation.id} className="rounded-2xl border border-slate-200 p-4">
+                      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt="Ảnh chụp vi phạm" className="h-44 w-full object-cover" loading="lazy" />
                           ) : (
-                            <div className="flex h-40 items-center justify-center px-4 text-center text-sm text-slate-500">
-                              Chua co anh chup man hinh cho vi pham nay
+                            <div className="flex h-44 items-center justify-center px-4 text-center text-sm text-slate-500">
+                              Chưa có ảnh chụp màn hình
                             </div>
                           )}
                         </div>
@@ -488,28 +645,28 @@ export default function ProctoringAdminPage() {
                               {getActionLabel(violation.violationType)}
                             </span>
                             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getSeverityClass(severity)}`}>
-                              Muc do {severity}
+                              Mức độ {severity}
                             </span>
                             {typeof violation.confidence === "number" ? (
                               <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                                Tin cay {Math.round(violation.confidence * 100)}%
+                                Tin cậy {Math.round(violation.confidence * 100)}%
                               </span>
                             ) : null}
                           </div>
 
                           <dl className="grid gap-3 text-sm md:grid-cols-2">
                             <div>
-                              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Vao luc</dt>
+                              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Thời gian</dt>
                               <dd className="mt-1 text-slate-900">{formatTime(getTimeValue(violation))}</dd>
                             </div>
                             <div>
-                              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hanh vi</dt>
+                              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hành vi</dt>
                               <dd className="mt-1 text-slate-900">{getActionLabel(violation.violationType)}</dd>
                             </div>
                             <div className="md:col-span-2">
-                              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Message</dt>
-                              <dd className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-slate-800">
-                                {violation.message || "(khong co message)"}
+                              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Thông điệp</dt>
+                              <dd className="mt-1 rounded-xl bg-slate-50 px-3 py-2 text-slate-800">
+                                {violation.message || "—"}
                               </dd>
                             </div>
                           </dl>
@@ -523,6 +680,7 @@ export default function ProctoringAdminPage() {
           </div>
         </div>
       ) : null}
+
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React from "react";
 
 interface AdminPageHeaderProps {
-  title: string;
+  title: React.ReactNode;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
