@@ -102,10 +102,12 @@ const PROCTORING_ACTION_LABEL: Record<string, string> = {
 
 function getProctoringNoticeMessage(violation: any) {
   const action = String(violation?.action || "unknown");
-  const fallback = PROCTORING_ACTION_LABEL[action] ?? PROCTORING_ACTION_LABEL.unknown;
-  const message = typeof violation?.message === "string" && violation.message.trim()
-    ? violation.message.trim()
-    : fallback;
+  const fallback =
+    PROCTORING_ACTION_LABEL[action] ?? PROCTORING_ACTION_LABEL.unknown;
+  const message =
+    typeof violation?.message === "string" && violation.message.trim()
+      ? violation.message.trim()
+      : fallback;
   const severity = Number(violation?.severity ?? 1);
 
   return {
@@ -290,11 +292,7 @@ function Study4LikeP1Audio({
       ref={hostRef}
       className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-600/40 dark:bg-transparent"
     >
-      <audio
-        controls
-        className="w-full"
-        onError={() => setFailed(true)}
-      >
+      <audio controls className="w-full" onError={() => setFailed(true)}>
         <source src={url} />
       </audio>
     </div>
@@ -325,7 +323,9 @@ function getAssetCacheKey(asset?: MockExamSharedAsset): string | null {
   return asset.storageKey ?? asset.publicUrl ?? asset.id ?? null;
 }
 
-function deriveStorageKeyFromPublicUrl(publicUrl?: string | null): string | null {
+function deriveStorageKeyFromPublicUrl(
+  publicUrl?: string | null,
+): string | null {
   if (!publicUrl) return null;
 
   try {
@@ -366,7 +366,10 @@ function getVisibleOptions(question: MockExamQuestion) {
   });
 }
 
-function getOptionText(question: MockExamQuestion, option: { key: string; text: string }) {
+function getOptionText(
+  question: MockExamQuestion,
+  option: { key: string; text: string },
+) {
   const text = option.text.trim();
 
   if (question.part === "P2") {
@@ -397,7 +400,9 @@ function getAssetContentText(
   assets: LearnerAttemptSessionAsset[] | undefined,
   kind: string,
 ) {
-  return assets?.find((asset) => asset.kind === kind)?.contentText?.trim() ?? "";
+  return (
+    assets?.find((asset) => asset.kind === kind)?.contentText?.trim() ?? ""
+  );
 }
 
 function formatAttemptDuration(durationSec?: number | null) {
@@ -507,7 +512,13 @@ function extractApiData<T = any>(raw: any): T | null {
 
 function getFloatingPosition(
   rect: DOMRect,
-  options?: { width?: number; height?: number; gap?: number; padding?: number; safeTop?: number },
+  options?: {
+    width?: number;
+    height?: number;
+    gap?: number;
+    padding?: number;
+    safeTop?: number;
+  },
 ) {
   const width = options?.width ?? 360;
   const height = options?.height ?? 460;
@@ -518,7 +529,10 @@ function getFloatingPosition(
   const viewportW = typeof window !== "undefined" ? window.innerWidth : 1200;
   const viewportH = typeof window !== "undefined" ? window.innerHeight : 800;
 
-  const left = Math.max(padding, Math.min(rect.left, viewportW - width - padding));
+  const left = Math.max(
+    padding,
+    Math.min(rect.left, viewportW - width - padding),
+  );
 
   const topBelow = rect.bottom + gap;
   const topAbove = rect.top - height - gap;
@@ -567,7 +581,10 @@ function CreateFlashcardFromSelectionModal({
       .then((res: any) => {
         const payload = res?.data?.data ?? res?.data ?? res;
         const items = payload?.items ?? payload?.data?.items ?? [];
-        const next = (items ?? []).map((d: any) => ({ id: d.id, title: d.title }));
+        const next = (items ?? []).map((d: any) => ({
+          id: d.id,
+          title: d.title,
+        }));
         if (!cancelled) {
           setDecks(next);
           setDeckId(next[0]?.id ?? "");
@@ -620,7 +637,8 @@ function CreateFlashcardFromSelectionModal({
                 Tạo flashcard từ đoạn bôi đen
               </h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Đoạn chọn sẽ được điền vào mặt trước. Bạn bổ sung nghĩa và lưu vào bộ.
+                Đoạn chọn sẽ được điền vào mặt trước. Bạn bổ sung nghĩa và lưu
+                vào bộ.
               </p>
             </div>
           </div>
@@ -680,14 +698,20 @@ function CreateFlashcardFromSelectionModal({
                     if (!title) return;
                     setLoading(true);
                     try {
-                      const res: any = await apiClient.learner.flashcards.createDeck({ title });
+                      const res: any =
+                        await apiClient.learner.flashcards.createDeck({
+                          title,
+                        });
                       const payload = res?.data?.data ?? res?.data ?? res;
                       const created = { id: payload.id, title: payload.title };
                       setDecks((prev) => [created, ...prev]);
                       setDeckId(created.id);
                       setCreatingDeck(false);
                       setNewDeckTitle("");
-                      notify({ variant: "success", title: "Đã tạo bộ flashcard" });
+                      notify({
+                        variant: "success",
+                        title: "Đã tạo bộ flashcard",
+                      });
                     } catch (e: any) {
                       notify({
                         variant: "error",
@@ -793,7 +817,11 @@ function CreateFlashcardFromSelectionModal({
             }}
             className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
             Lưu flashcard
           </button>
         </div>
@@ -804,7 +832,9 @@ function CreateFlashcardFromSelectionModal({
 
 export default function MockTestExamPage() {
   const { user } = useAuth();
-  const [proctoringNotices, setProctoringNotices] = useState<ProctoringNotice[]>([]);
+  const [proctoringNotices, setProctoringNotices] = useState<
+    ProctoringNotice[]
+  >([]);
 
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
@@ -817,13 +847,16 @@ export default function MockTestExamPage() {
   const [pageState, setPageState] = useState<PageState>("loading");
   const [attempt, setAttempt] = useState<MockExamAttemptView | null>(null);
   const [result, setResult] = useState<MockExamResultView | null>(null);
-  const [resultPayload, setResultPayload] = useState<LearnerAttemptResultData | null>(null);
+  const [resultPayload, setResultPayload] =
+    useState<LearnerAttemptResultData | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [allQuestions, setAllQuestions] = useState<MockExamQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [attemptHistory, setAttemptHistory] = useState<LearnerExamAttemptHistoryItem[]>([]);
+  const [attemptHistory, setAttemptHistory] = useState<
+    LearnerExamAttemptHistoryItem[]
+  >([]);
   const [reviewExpanded, setReviewExpanded] = useState(false);
   const [isReviewLoading, setIsReviewLoading] = useState(false);
   const [proctoringActive, setProctoringActive] = useState(false);
@@ -834,12 +867,21 @@ export default function MockTestExamPage() {
   const [vocabLookupOpen, setVocabLookupOpen] = useState(false);
   const [vocabLookupLoading, setVocabLookupLoading] = useState(false);
   const [vocabLookupError, setVocabLookupError] = useState("");
-  const [vocabLookupResult, setVocabLookupResult] = useState<VocabularyLookupResult | null>(null);
+  const [vocabLookupResult, setVocabLookupResult] =
+    useState<VocabularyLookupResult | null>(null);
   const [vocabLookupExpression, setVocabLookupExpression] = useState("");
-  const [vocabPopupPos, setVocabPopupPos] = useState<{ top: number; left: number } | null>(null);
-  const [vocabTriggerPos, setVocabTriggerPos] = useState<{ top: number; left: number } | null>(null);
+  const [vocabPopupPos, setVocabPopupPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const [vocabTriggerPos, setVocabTriggerPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [vocabSaving, setVocabSaving] = useState(false);
-  const [vocabDeckChoices, setVocabDeckChoices] = useState<Array<{ id: string; title: string }>>([]);
+  const [vocabDeckChoices, setVocabDeckChoices] = useState<
+    Array<{ id: string; title: string }>
+  >([]);
   const [vocabSelectedDeckId, setVocabSelectedDeckId] = useState("");
   const vocabLookupSeqRef = useRef(0);
   const vocabPopupRef = useRef<HTMLDivElement | null>(null);
@@ -869,8 +911,14 @@ export default function MockTestExamPage() {
       setVocabSelectedDeckId("");
 
       setVocabPopupPos(getFloatingPosition(rect));
-      const triggerTop = Math.min(window.innerHeight - 54, Math.max(8, rect.bottom + 6));
-      const triggerLeft = Math.min(window.innerWidth - 54, Math.max(8, rect.right - 18));
+      const triggerTop = Math.min(
+        window.innerHeight - 54,
+        Math.max(8, rect.bottom + 6),
+      );
+      const triggerLeft = Math.min(
+        window.innerWidth - 54,
+        Math.max(8, rect.right - 18),
+      );
       setVocabTriggerPos({ top: triggerTop, left: triggerLeft });
     };
     window.addEventListener("mouseup", onMouseUp);
@@ -892,7 +940,11 @@ export default function MockTestExamPage() {
     if (!vocabLookupOpen && !vocabTriggerPos) return;
     const onMouseDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
-      if (vocabPopupRef.current && target && !vocabPopupRef.current.contains(target)) {
+      if (
+        vocabPopupRef.current &&
+        target &&
+        !vocabPopupRef.current.contains(target)
+      ) {
         setVocabLookupOpen(false);
         setVocabTriggerPos(null);
         setVocabDeckChoices([]);
@@ -925,17 +977,29 @@ export default function MockTestExamPage() {
     const safeTop = 74;
     const nextTop = Math.max(
       safeTop,
-      Math.min(vocabPopupPos.top, window.innerHeight - el.offsetHeight - padding),
+      Math.min(
+        vocabPopupPos.top,
+        window.innerHeight - el.offsetHeight - padding,
+      ),
     );
     const nextLeft = Math.max(
       padding,
-      Math.min(vocabPopupPos.left, window.innerWidth - el.offsetWidth - padding),
+      Math.min(
+        vocabPopupPos.left,
+        window.innerWidth - el.offsetWidth - padding,
+      ),
     );
 
     if (nextTop !== vocabPopupPos.top || nextLeft !== vocabPopupPos.left) {
       setVocabPopupPos({ top: nextTop, left: nextLeft });
     }
-  }, [vocabLookupOpen, vocabPopupPos, vocabLookupLoading, vocabLookupError, vocabLookupResult]);
+  }, [
+    vocabLookupOpen,
+    vocabPopupPos,
+    vocabLookupLoading,
+    vocabLookupError,
+    vocabLookupResult,
+  ]);
 
   useEffect(() => {
     if (!vocabLookupOpen || !vocabPopupPos) return;
@@ -947,11 +1011,17 @@ export default function MockTestExamPage() {
       const safeTop = 74;
       const nextTop = Math.max(
         safeTop,
-        Math.min(vocabPopupPos.top, window.innerHeight - el.offsetHeight - padding),
+        Math.min(
+          vocabPopupPos.top,
+          window.innerHeight - el.offsetHeight - padding,
+        ),
       );
       const nextLeft = Math.max(
         padding,
-        Math.min(vocabPopupPos.left, window.innerWidth - el.offsetWidth - padding),
+        Math.min(
+          vocabPopupPos.left,
+          window.innerWidth - el.offsetWidth - padding,
+        ),
       );
       if (nextTop !== vocabPopupPos.top || nextLeft !== vocabPopupPos.left) {
         setVocabPopupPos({ top: nextTop, left: nextLeft });
@@ -1005,16 +1075,18 @@ export default function MockTestExamPage() {
     const notice = getProctoringNoticeMessage(violation);
     const id = `${notice.action}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    setProctoringNotices((prev) => [
-      {
-        id,
-        action: notice.title,
-        message: notice.message,
-        severity: notice.severity,
-        confidence: notice.confidence,
-      },
-      ...prev,
-    ].slice(0, 4));
+    setProctoringNotices((prev) =>
+      [
+        {
+          id,
+          action: notice.title,
+          message: notice.message,
+          severity: notice.severity,
+          confidence: notice.confidence,
+        },
+        ...prev,
+      ].slice(0, 4),
+    );
 
     window.setTimeout(() => {
       setProctoringNotices((prev) => prev.filter((item) => item.id !== id));
@@ -1054,7 +1126,8 @@ export default function MockTestExamPage() {
     }
 
     let resolvedUrl: string | null = null;
-    const storageKey = asset.storageKey ?? deriveStorageKeyFromPublicUrl(asset.publicUrl);
+    const storageKey =
+      asset.storageKey ?? deriveStorageKeyFromPublicUrl(asset.publicUrl);
 
     if (storageKey) {
       resolvedUrl = await getSignedMediaUrl(storageKey);
@@ -1121,7 +1194,9 @@ export default function MockTestExamPage() {
       clearAutoSaveInterval();
 
       try {
-        const resultRes = await apiClient.learner.examAttempt.getResult(attempt.id);
+        const resultRes = await apiClient.learner.examAttempt.getResult(
+          attempt.id,
+        );
         showResultView(resultRes.data);
         return true;
       } catch {
@@ -1143,7 +1218,8 @@ export default function MockTestExamPage() {
 
       try {
         if (reviewAttemptId) {
-          const resultRes = await apiClient.learner.examAttempt.getResult(reviewAttemptId);
+          const resultRes =
+            await apiClient.learner.examAttempt.getResult(reviewAttemptId);
           if (resultRes.data.attempt.examTemplateId !== id) {
             throw new Error("Kết quả này không thuộc đề thi hiện tại");
           }
@@ -1221,7 +1297,12 @@ export default function MockTestExamPage() {
     if (typeof window === "undefined") return;
     if (!attempt?.id) return;
     const key = `mock-test:review-flags:${attempt.id}`;
-    setReviewFlags(safeJsonParse<Record<string, boolean>>(window.localStorage.getItem(key), {}));
+    setReviewFlags(
+      safeJsonParse<Record<string, boolean>>(
+        window.localStorage.getItem(key),
+        {},
+      ),
+    );
   }, [attempt?.id]);
 
   const toggleReviewFlag = useCallback(
@@ -1256,7 +1337,10 @@ export default function MockTestExamPage() {
         lastSavedRef.current = {
           ...lastSavedRef.current,
           ...Object.fromEntries(
-            payload.map((item) => [item.questionId, item.selectedOptionKey ?? ""]),
+            payload.map((item) => [
+              item.questionId,
+              item.selectedOptionKey ?? "",
+            ]),
           ),
         };
         return true;
@@ -1289,7 +1373,13 @@ export default function MockTestExamPage() {
     }, 30000);
 
     return () => clearAutoSaveInterval();
-  }, [attempt?.id, clearAutoSaveInterval, getChangedAnswerPayload, pageState, saveAnswers]);
+  }, [
+    attempt?.id,
+    clearAutoSaveInterval,
+    getChangedAnswerPayload,
+    pageState,
+    saveAnswers,
+  ]);
 
   const handleAnswer = (questionId: string, optionKey: string) => {
     setAnswers((prev) => {
@@ -1320,9 +1410,12 @@ export default function MockTestExamPage() {
           throw error;
         }
 
-        const submitRes = await apiClient.learner.examAttempt.submit(attempt.id, {
-          metadata: { source: autoSubmit ? "auto-timeout" : "submit-button" },
-        });
+        const submitRes = await apiClient.learner.examAttempt.submit(
+          attempt.id,
+          {
+            metadata: { source: autoSubmit ? "auto-timeout" : "submit-button" },
+          },
+        );
 
         showResultView(submitRes.data);
       } catch (err: any) {
@@ -1392,15 +1485,18 @@ export default function MockTestExamPage() {
   );
 
   const currentSection =
-    sectionsWithQuestions.find((section) => section.id === currentQuestion?.sectionId) ??
+    sectionsWithQuestions.find(
+      (section) => section.id === currentQuestion?.sectionId,
+    ) ??
     sectionsWithQuestions.find((section) =>
       section.questions.some((question) => question.id === currentQuestion?.id),
     ) ??
     null;
 
   const currentGroup =
-    currentSection?.questionGroups.find((group) => group.id === currentQuestion?.groupId) ??
-    null;
+    currentSection?.questionGroups.find(
+      (group) => group.id === currentQuestion?.groupId,
+    ) ?? null;
 
   const currentPart = currentSection?.part ?? currentQuestion?.part ?? "";
 
@@ -1424,10 +1520,12 @@ export default function MockTestExamPage() {
         return;
       }
       const imageAsset = isGroupedListening
-        ? getAssetByKind(currentGroup?.assets, "image") ?? getAssetByKind(currentQuestion.assets, "image")
+        ? (getAssetByKind(currentGroup?.assets, "image") ??
+          getAssetByKind(currentQuestion.assets, "image"))
         : getAssetByKind(currentQuestion.assets, "image");
       const audioAsset = isGroupedListening
-        ? getAssetByKind(currentGroup?.assets, "audio") ?? getAssetByKind(currentQuestion.assets, "audio")
+        ? (getAssetByKind(currentGroup?.assets, "audio") ??
+          getAssetByKind(currentQuestion.assets, "audio"))
         : getAssetByKind(currentQuestion.assets, "audio");
       const [imageUrl, audioUrl] = await Promise.all([
         resolveAssetUrl(imageAsset),
@@ -1446,9 +1544,10 @@ export default function MockTestExamPage() {
     };
   }, [currentGroup?.assets, currentPart, currentQuestion, resolveAssetUrl]);
   const currentPartTabLabel = currentPart
-    ? PART_TAB_LABEL[currentPart] ?? PART_LABEL[currentPart] ?? currentPart
+    ? (PART_TAB_LABEL[currentPart] ?? PART_LABEL[currentPart] ?? currentPart)
     : "Đề thi";
-  const isLongListPart = currentPart === "P1" || currentPart === "P2" || currentPart === "P5";
+  const isLongListPart =
+    currentPart === "P1" || currentPart === "P2" || currentPart === "P5";
   const isCurrentListeningPart = isListeningPart(currentPart);
   const isCurrentGroupedPart = isGroupedPart(currentPart);
 
@@ -1461,10 +1560,14 @@ export default function MockTestExamPage() {
   const hasAudioAsset = Boolean(audioAsset);
   const hasImageAsset = Boolean(imageAsset);
   const isStudy4P3P4 = currentPart === "P3" || currentPart === "P4";
-  const groupedAudioAsset = isStudy4P3P4 ? getAssetByKind(currentGroup?.assets, "audio") : undefined;
+  const groupedAudioAsset = isStudy4P3P4
+    ? getAssetByKind(currentGroup?.assets, "audio")
+    : undefined;
 
   const jumpToQuestion = (questionId: string) => {
-    const nextIndex = allQuestions.findIndex((question) => question.id === questionId);
+    const nextIndex = allQuestions.findIndex(
+      (question) => question.id === questionId,
+    );
     if (nextIndex >= 0) {
       setCurrentIdx(nextIndex);
 
@@ -1486,7 +1589,9 @@ export default function MockTestExamPage() {
   };
 
   const jumpToSection = (sectionId: string) => {
-    const firstQuestion = allQuestions.find((question) => question.sectionId === sectionId);
+    const firstQuestion = allQuestions.find(
+      (question) => question.sectionId === sectionId,
+    );
     if (firstQuestion) {
       setCurrentIdx(firstQuestion.displayNumber - 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1498,26 +1603,34 @@ export default function MockTestExamPage() {
       isLongListPart
         ? currentSection?.questions ?? []
         : isCurrentGroupedPart && (currentGroup?.questions.length ?? 0) > 1
-          ? currentGroup?.questions ?? []
-          : currentQuestion
-            ? [currentQuestion]
-            : [];
+        ? currentGroup?.questions ?? []
+        : currentQuestion
+          ? [currentQuestion]
+          : [];
 
-    return rawQuestions.filter(
-      (question): question is MockExamQuestion => Boolean(question),
+    return rawQuestions.filter((question): question is MockExamQuestion =>
+      Boolean(question),
     );
-  }, [currentGroup?.questions, currentQuestion, currentSection?.questions, isCurrentGroupedPart, isLongListPart]);
+  }, [
+    currentGroup?.questions,
+    currentQuestion,
+    currentSection?.questions,
+    isCurrentGroupedPart,
+    isLongListPart,
+  ]);
 
   const currentGroupStartIndex =
     displayedQuestions.length > 0
-      ? allQuestions.findIndex((question) => question.id === displayedQuestions[0]?.id)
+      ? allQuestions.findIndex(
+          (question) => question.id === displayedQuestions[0]?.id,
+        )
       : currentIdx;
   const currentGroupEndIndex =
     displayedQuestions.length > 0
       ? allQuestions.findIndex(
-        (question) =>
-          question.id === displayedQuestions[displayedQuestions.length - 1]?.id,
-      )
+          (question) =>
+            question.id === displayedQuestions[displayedQuestions.length - 1]?.id,
+        )
       : currentIdx;
 
   const previousIndex = (() => {
@@ -1543,7 +1656,11 @@ export default function MockTestExamPage() {
       return currentIdx < totalCount - 1 ? currentIdx + 1 : -1;
     }
 
-    for (let index = currentGroupEndIndex + 1; index < allQuestions.length; index += 1) {
+    for (
+      let index = currentGroupEndIndex + 1;
+      index < allQuestions.length;
+      index += 1
+    ) {
       if (allQuestions[index]?.groupId !== currentQuestion.groupId) {
         return index;
       }
@@ -1554,7 +1671,8 @@ export default function MockTestExamPage() {
 
   const showTranscript = !isCurrentListeningPart && Boolean(transcript);
   const showStem = !isCurrentListeningPart && Boolean(stem);
-  const showImage = Boolean(resolvedMedia.imageUrl) || (currentPart === "P1" && hasImageAsset);
+  const showImage =
+    Boolean(resolvedMedia.imageUrl) || (currentPart === "P1" && hasImageAsset);
   const hasSharedContext = showImage || showTranscript || showStem;
   const useReadingSplitLayout =
     (currentPart === "P6" || currentPart === "P7") && hasSharedContext;
@@ -1591,17 +1709,14 @@ export default function MockTestExamPage() {
       setReviewExpanded(true);
       scrollToReviewSection();
     } catch (error: any) {
-      setErrorMsg(getRequestErrorMessage(error, "Không thể tải đáp án chi tiết"));
+      setErrorMsg(
+        getRequestErrorMessage(error, "Không thể tải đáp án chi tiết"),
+      );
       setPageState("error");
     } finally {
       setIsReviewLoading(false);
     }
-  }, [
-    isReviewLoading,
-    resultPayload,
-    scrollToReviewSection,
-    showResultView,
-  ]);
+  }, [isReviewLoading, resultPayload, scrollToReviewSection, showResultView]);
 
   const lookupVocabularyNow = useCallback(async () => {
     if (!vocabLookupExpression.trim()) return;
@@ -1630,7 +1745,11 @@ export default function MockTestExamPage() {
   }, [allQuestions, currentIdx, vocabLookupExpression]);
 
   const saveSelectionToFlashcard = useCallback(async () => {
-    const expression = (vocabLookupResult?.expression || vocabLookupExpression || flashcardSeedText).trim();
+    const expression = (
+      vocabLookupResult?.expression ||
+      vocabLookupExpression ||
+      flashcardSeedText
+    ).trim();
     if (!expression) return;
 
     const meta = toVocabMetaFromLookup(vocabLookupResult ?? null, expression);
@@ -1652,7 +1771,9 @@ export default function MockTestExamPage() {
         order: "DESC",
       });
       const deckPayload = extractApiData<any>(deckRes);
-      const deckItems = (deckPayload?.items ?? deckPayload?.data?.items ?? []) as Array<{
+      const deckItems = (deckPayload?.items ??
+        deckPayload?.data?.items ??
+        []) as Array<{
         id: string;
         title: string;
       }>;
@@ -1667,11 +1788,15 @@ export default function MockTestExamPage() {
       } else if (deckItems.length === 1) {
         deck = deckItems[0];
       } else {
-        const safeSelectedId = deckItems.some((d) => d.id === vocabSelectedDeckId)
+        const safeSelectedId = deckItems.some(
+          (d) => d.id === vocabSelectedDeckId,
+        )
           ? vocabSelectedDeckId
           : deckItems[0].id;
         if (!vocabSelectedDeckId) {
-          setVocabDeckChoices(deckItems.map((d) => ({ id: d.id, title: d.title })));
+          setVocabDeckChoices(
+            deckItems.map((d) => ({ id: d.id, title: d.title })),
+          );
           setVocabSelectedDeckId(safeSelectedId);
           notify({
             variant: "warning",
@@ -1682,7 +1807,8 @@ export default function MockTestExamPage() {
         }
         deck = deckItems.find((d) => d.id === safeSelectedId) ?? deckItems[0];
       }
-      if (!deck?.id) throw new Error("Không xác định được bộ flashcard để lưu.");
+      if (!deck?.id)
+        throw new Error("Không xác định được bộ flashcard để lưu.");
 
       await apiClient.learner.flashcards.createCard(deck.id, {
         front: expression,
@@ -1724,8 +1850,13 @@ export default function MockTestExamPage() {
     const isFlagged = Boolean(reviewFlags[question.id]);
     const isStudy4P1 = question.part === "P1";
     const isStudy4P2 = question.part === "P2";
-    const imageAssetForQuestion = isStudy4P1 ? getAssetByKind(question.assets, "image") : undefined;
-    const audioAssetForQuestion = (isStudy4P1 || isStudy4P2) ? getAssetByKind(question.assets, "audio") : undefined;
+    const imageAssetForQuestion = isStudy4P1
+      ? getAssetByKind(question.assets, "image")
+      : undefined;
+    const audioAssetForQuestion =
+      isStudy4P1 || isStudy4P2
+        ? getAssetByKind(question.assets, "audio")
+        : undefined;
 
     return (
       <div
@@ -1751,8 +1882,14 @@ export default function MockTestExamPage() {
             </button>
             <div className="min-w-0 flex-1">
               <div className="space-y-3">
-                <Study4LikeP1Audio asset={audioAssetForQuestion} resolveAssetUrl={resolveAssetUrl} />
-                <Study4LikeP1Image asset={imageAssetForQuestion} resolveAssetUrl={resolveAssetUrl} />
+                <Study4LikeP1Audio
+                  asset={audioAssetForQuestion}
+                  resolveAssetUrl={resolveAssetUrl}
+                />
+                <Study4LikeP1Image
+                  asset={imageAssetForQuestion}
+                  resolveAssetUrl={resolveAssetUrl}
+                />
               </div>
             </div>
           </div>
@@ -1773,12 +1910,23 @@ export default function MockTestExamPage() {
           </button>
         )}
 
-        <div className={isStudy4P1 ? "min-w-0 space-y-3 pl-[3.75rem]" : "min-w-0 flex-1 space-y-3"}>
+        <div
+          className={
+            isStudy4P1
+              ? "min-w-0 space-y-3 pl-[3.75rem]"
+              : "min-w-0 flex-1 space-y-3"
+          }
+        >
           {isStudy4P2 ? (
-            <Study4LikeP1Audio asset={audioAssetForQuestion} resolveAssetUrl={resolveAssetUrl} />
+            <Study4LikeP1Audio
+              asset={audioAssetForQuestion}
+              resolveAssetUrl={resolveAssetUrl}
+            />
           ) : null}
           {prompt ? (
-            <p className="text-[18px] font-medium leading-8 text-slate-900 dark:text-slate-100">{prompt}</p>
+            <p className="text-[18px] font-medium leading-8 text-slate-900 dark:text-slate-100">
+              {prompt}
+            </p>
           ) : null}
 
           {options.length > 0 ? (
@@ -1790,8 +1938,9 @@ export default function MockTestExamPage() {
                   <button
                     key={option.key}
                     onClick={() => handleAnswer(question.id, option.key)}
-                    className={`flex w-full items-start gap-3 rounded-2xl px-1 py-1 text-left ${selected ? "text-amber-800 dark:text-amber-200" : "text-slate-800 dark:text-slate-100"
-                      }`}
+                    className={`flex w-full items-start gap-3 rounded-2xl px-1 py-1 text-left ${
+                      selected ? "text-amber-800 dark:text-amber-200" : "text-slate-800 dark:text-slate-100"
+                    }`}
                   >
                     <span
                       className={`mt-1 inline-flex h-5 w-5 shrink-0 rounded-full border ${selected
@@ -1802,7 +1951,9 @@ export default function MockTestExamPage() {
                     <span className="flex-1 text-[17px] leading-8">
                       <span className="font-medium">{option.key}.</span>
                       {!hideOptionCopy && (
-                        <span className="ml-2">{getOptionText(question, option)}</span>
+                        <span className="ml-2">
+                          {getOptionText(question, option)}
+                        </span>
                       )}
                     </span>
                   </button>
@@ -1833,12 +1984,14 @@ export default function MockTestExamPage() {
                 src={resolvedMedia.imageUrl}
                 alt="Question illustration"
                 className="max-h-[420px] w-full object-contain"
-                onError={() => setMediaError((prev) => ({ ...prev, image: true }))}
+                onError={() =>
+                  setMediaError((prev) => ({ ...prev, image: true }))
+                }
               />
             ) : (
               <div className="px-4 py-5 text-sm leading-7 text-amber-800">
-                Hình ảnh của nhóm câu hỏi này chưa tải được. Reload lại trang sau
-                khi media đã sẵn sàng.
+                Hình ảnh của nhóm câu hỏi này chưa tải được. Reload lại trang
+                sau khi media đã sẵn sàng.
               </div>
             )}
           </div>
@@ -1867,7 +2020,8 @@ export default function MockTestExamPage() {
     question: LearnerAttemptReviewQuestion,
     part?: string,
   ) => {
-    const selectedOptionKey = question.selectedOptionKey?.trim().toUpperCase() ?? null;
+    const selectedOptionKey =
+      question.selectedOptionKey?.trim().toUpperCase() ?? null;
     const correctOptionKey = question.correctOptionKey?.trim().toUpperCase();
 
     return (
@@ -1959,9 +2113,7 @@ export default function MockTestExamPage() {
     const group = item.questionGroup;
     const transcript = getAssetContentText(group.assets, "transcript");
     const passage =
-      group.stem?.trim() ||
-      getAssetContentText(group.assets, "passage") ||
-      "";
+      group.stem?.trim() || getAssetContentText(group.assets, "passage") || "";
 
     return (
       <div
@@ -2013,7 +2165,9 @@ export default function MockTestExamPage() {
         ) : null}
 
         <div className="space-y-4">
-          {group.questions.map((question) => renderReviewQuestion(question, part))}
+          {group.questions.map((question) =>
+            renderReviewQuestion(question, part),
+          )}
         </div>
       </div>
     );
@@ -2090,7 +2244,9 @@ export default function MockTestExamPage() {
             <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
               {result.totalScore !== undefined && (
                 <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-white/5">
-                  <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">{result.totalScore}</div>
+                  <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
+                    {result.totalScore}
+                  </div>
                   <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                     Tổng điểm
                   </div>
@@ -2140,7 +2296,8 @@ export default function MockTestExamPage() {
               {typeof resultPayload?.attempt.answeredCount === "number" && (
                 <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-white/5">
                   <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                    {resultPayload.attempt.answeredCount}/{resultPayload.attempt.totalQuestions}
+                    {resultPayload.attempt.answeredCount}/
+                    {resultPayload.attempt.totalQuestions}
                   </div>
                   <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                     Câu đã trả lời
@@ -2153,10 +2310,11 @@ export default function MockTestExamPage() {
               resultPayload.attempt.answeredCount > 0 &&
               result.correctAnswers === 0 && (
                 <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm leading-7 text-amber-900">
-                  Hệ thống đã ghi nhận {resultPayload.attempt.answeredCount} câu trả lời,
-                  nhưng kết quả hiện tại là 0 câu đúng. Bạn có thể kéo xuống phần đáp án
-                  chi tiết để đối chiếu đáp án đúng của từng câu và kiểm tra lại dữ liệu
-                  đề trong admin nếu kết quả bất thường.
+                  Hệ thống đã ghi nhận {resultPayload.attempt.answeredCount} câu
+                  trả lời, nhưng kết quả hiện tại là 0 câu đúng. Bạn có thể kéo
+                  xuống phần đáp án chi tiết để đối chiếu đáp án đúng của từng
+                  câu và kiểm tra lại dữ liệu đề trong admin nếu kết quả bất
+                  thường.
                 </div>
               )}
 
@@ -2164,7 +2322,10 @@ export default function MockTestExamPage() {
               <button
                 onClick={() => {
                   if (typeof window !== "undefined") {
-                    window.sessionStorage.setItem(`mock-test-force-new:${id}`, "1");
+                    window.sessionStorage.setItem(
+                      `mock-test-force-new:${id}`,
+                      "1",
+                    );
                   }
                   router.push(`/student/mock-test/${id}`);
                 }}
@@ -2218,18 +2379,25 @@ export default function MockTestExamPage() {
                       <th className="px-4 py-3 font-semibold">Thời gian làm</th>
                       <th className="px-4 py-3 font-semibold">Kết quả</th>
                       <th className="px-4 py-3 font-semibold">Thời điểm</th>
-                      <th className="px-4 py-3 font-semibold text-right">Chi tiết</th>
+                      <th className="px-4 py-3 font-semibold text-right">
+                        Chi tiết
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-600/30 dark:bg-transparent">
                     {attemptHistory.map((historyItem) => {
-                      const isCurrentAttempt = historyItem.id === currentAttemptId;
+                      const isCurrentAttempt =
+                        historyItem.id === currentAttemptId;
                       const hasResult = historyItem.status === "graded";
 
                       return (
                         <tr
                           key={historyItem.id}
-                          className={isCurrentAttempt ? "bg-amber-50/60 dark:bg-amber-500/10" : ""}
+                          className={
+                            isCurrentAttempt
+                              ? "bg-amber-50/60 dark:bg-amber-500/10"
+                              : ""
+                          }
                         >
                           <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">
                             Lần {historyItem.attemptNo}
@@ -2272,7 +2440,9 @@ export default function MockTestExamPage() {
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => router.push(`/student/mock-test/${id}`)}
+                                onClick={() =>
+                                  router.push(`/student/mock-test/${id}`)
+                                }
                                 className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
                               >
                                 Tiếp tục làm
@@ -2295,7 +2465,8 @@ export default function MockTestExamPage() {
                   Đáp án và lời giải
                 </h3>
                 <p className="mt-2 text-slate-500">
-                  Xem lại đáp án bạn đã chọn, đáp án đúng và giải thích cho từng câu.
+                  Xem lại đáp án bạn đã chọn, đáp án đúng và giải thích cho từng
+                  câu.
                 </p>
               </div>
 
@@ -2303,20 +2474,28 @@ export default function MockTestExamPage() {
                 .slice()
                 .sort((left, right) => left.sectionOrder - right.sectionOrder)
                 .map((section) => (
-                  <div key={`${section.part}-${section.sectionOrder}`} className="space-y-4">
+                  <div
+                    key={`${section.part}-${section.sectionOrder}`}
+                    className="space-y-4"
+                  >
                     <div className="flex items-center gap-3">
                       <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
                         {PART_TAB_LABEL[section.part] ?? section.part}
                       </span>
                       {section.instructions && (
-                        <p className="text-sm text-slate-500">{section.instructions}</p>
+                        <p className="text-sm text-slate-500">
+                          {section.instructions}
+                        </p>
                       )}
                     </div>
 
                     <div className="space-y-4">
                       {section.items
                         .slice()
-                        .sort((left, right) => left.displayOrder - right.displayOrder)
+                        .sort(
+                          (left, right) =>
+                            left.displayOrder - right.displayOrder,
+                        )
                         .map((item) => renderReviewGroup(item, section.part))}
                     </div>
                   </div>
@@ -2332,7 +2511,9 @@ export default function MockTestExamPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
         <AlertCircle className="h-12 w-12 text-amber-500" />
-        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Đề thi không có câu hỏi</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          Đề thi không có câu hỏi
+        </h2>
         <button
           onClick={() => router.push("/student/mock-test")}
           className="rounded-2xl bg-amber-500 px-6 py-3 font-semibold text-slate-900 transition hover:bg-amber-400"
@@ -2374,7 +2555,9 @@ export default function MockTestExamPage() {
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-xs text-slate-500 dark:text-slate-300">Từ được chọn</p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-300">
+                Từ được chọn
+              </p>
               <p className="truncate text-2xl font-bold leading-tight text-slate-900 dark:text-slate-100">
                 {vocabLookupResult?.expression || vocabLookupExpression}
                 {vocabLookupResult?.partOfSpeech ? (
@@ -2411,37 +2594,59 @@ export default function MockTestExamPage() {
           ) : (
             <div className="mt-3 max-h-[42vh] space-y-3 overflow-y-auto pr-1">
               {vocabLookupResult?.meaningVi ? (
-                <p className="text-xl font-semibold leading-8 text-amber-500 dark:text-amber-300">{vocabLookupResult.meaningVi}</p>
+                <p className="text-xl font-semibold leading-8 text-amber-500 dark:text-amber-300">
+                  {vocabLookupResult.meaningVi}
+                </p>
               ) : null}
 
-              {Array.isArray(vocabLookupResult?.phrasalVerbs) && vocabLookupResult.phrasalVerbs.length ? (
+              {Array.isArray(vocabLookupResult?.phrasalVerbs) &&
+              vocabLookupResult.phrasalVerbs.length ? (
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Phrasal verbs</p>
-                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{vocabLookupResult.phrasalVerbs.slice(0, 3).join(" • ")}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Phrasal verbs
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                    {vocabLookupResult.phrasalVerbs.slice(0, 3).join(" • ")}
+                  </p>
                 </div>
               ) : null}
 
-              {Array.isArray(vocabLookupResult?.synonyms) && vocabLookupResult.synonyms.length ? (
+              {Array.isArray(vocabLookupResult?.synonyms) &&
+              vocabLookupResult.synonyms.length ? (
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Đồng nghĩa</p>
-                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{vocabLookupResult.synonyms.slice(0, 6).join(", ")}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Đồng nghĩa
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                    {vocabLookupResult.synonyms.slice(0, 6).join(", ")}
+                  </p>
                 </div>
               ) : null}
 
-              {Array.isArray(vocabLookupResult?.antonyms) && vocabLookupResult.antonyms.length ? (
+              {Array.isArray(vocabLookupResult?.antonyms) &&
+              vocabLookupResult.antonyms.length ? (
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Trái nghĩa</p>
-                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{vocabLookupResult.antonyms.slice(0, 6).join(", ")}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Trái nghĩa
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                    {vocabLookupResult.antonyms.slice(0, 6).join(", ")}
+                  </p>
                 </div>
               ) : null}
 
-              {Array.isArray(vocabLookupResult?.examples) && vocabLookupResult.examples.length ? (
+              {Array.isArray(vocabLookupResult?.examples) &&
+              vocabLookupResult.examples.length ? (
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Ví dụ</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Ví dụ
+                  </p>
                   <p className="mt-1 text-sm italic text-slate-700 dark:text-slate-200">
                     {vocabLookupResult.examples[0]?.en}
                   </p>
-                  <p className="text-sm text-slate-600 dark:text-slate-300">{vocabLookupResult.examples[0]?.vi}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    {vocabLookupResult.examples[0]?.vi}
+                  </p>
                 </div>
               ) : null}
             </div>
@@ -2473,7 +2678,11 @@ export default function MockTestExamPage() {
               disabled={vocabSaving || vocabLookupLoading}
               className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-amber-400 disabled:opacity-60"
             >
-              {vocabSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {vocabSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
               flashcard
             </button>
           </div>
@@ -2503,11 +2712,17 @@ export default function MockTestExamPage() {
                       Mức {notice.severity}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm font-medium leading-5">{notice.message}</p>
+                  <p className="mt-1 text-sm font-medium leading-5">
+                    {notice.message}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setProctoringNotices((prev) => prev.filter((item) => item.id !== notice.id))}
+                  onClick={() =>
+                    setProctoringNotices((prev) =>
+                      prev.filter((item) => item.id !== notice.id),
+                    )
+                  }
                   className="rounded-lg p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
                   aria-label="Đóng thông báo vi phạm"
                 >
@@ -2540,7 +2755,11 @@ export default function MockTestExamPage() {
           <div className="min-w-0 space-y-4">
             {/* Audio + part tabs (Study4-like) */}
             <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-600/40 dark:bg-transparent">
-              {currentPart !== "P1" && currentPart !== "P2" && !isStudy4P3P4 && ((resolvedMedia.audioUrl && !mediaError.audio) || hasAudioAsset) ? (
+              {currentPart !== "P1" &&
+              currentPart !== "P2" &&
+              !isStudy4P3P4 &&
+              ((resolvedMedia.audioUrl && !mediaError.audio) ||
+                hasAudioAsset) ? (
                 <div>
                   <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
                     <Headphones className="h-4 w-4" />
@@ -2551,7 +2770,9 @@ export default function MockTestExamPage() {
                     <audio
                       controls
                       className="w-full"
-                      onError={() => setMediaError((prev) => ({ ...prev, audio: true }))}
+                      onError={() =>
+                        setMediaError((prev) => ({ ...prev, audio: true }))
+                      }
                     >
                       <source src={resolvedMedia.audioUrl} />
                     </audio>
@@ -2571,7 +2792,10 @@ export default function MockTestExamPage() {
                   </div>
 
                   {groupedAudioAsset ? (
-                    <Study4LikeP1Audio asset={groupedAudioAsset} resolveAssetUrl={resolveAssetUrl} />
+                    <Study4LikeP1Audio
+                      asset={groupedAudioAsset}
+                      resolveAssetUrl={resolveAssetUrl}
+                    />
                   ) : (
                     <div className="text-sm text-amber-800 dark:text-amber-200">
                       Nhóm câu hỏi này chưa có audio.
@@ -2581,10 +2805,11 @@ export default function MockTestExamPage() {
               ) : null}
 
               <div
-                className={`flex flex-wrap gap-3 ${(((resolvedMedia.audioUrl && !mediaError.audio) ||
+                className={`flex flex-wrap gap-3 ${
+                  (((resolvedMedia.audioUrl && !mediaError.audio) ||
                     hasAudioAsset ||
                     Boolean(groupedAudioAsset)) &&
-                    !isLongListPart)
+                  !isLongListPart
                     ? "mt-4 border-t border-slate-100 pt-4 dark:border-slate-600/30"
                     : ""
                   }`}
@@ -2630,7 +2855,10 @@ export default function MockTestExamPage() {
                 </button>
               </div>
 
-              {proctoringActive && !isDesktopExamLayout && user?.id && attempt?.id ? (
+              {proctoringActive &&
+              !isDesktopExamLayout &&
+              user?.id &&
+              attempt?.id ? (
                 <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-600/30">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
@@ -2645,7 +2873,9 @@ export default function MockTestExamPage() {
                     examId={attempt.id}
                     examAttemptId={attempt.id}
                     faceVerificationExamTemplateId={attempt.examTemplateId}
-                    enableFaceVerification={attempt.templateMode === "official_exam"}
+                    enableFaceVerification={
+                      attempt.templateMode === "official_exam"
+                    }
                     onViolation={handleProctoringViolation}
                     onBlocked={handleProctoringBlocked}
                   />
@@ -2671,8 +2901,9 @@ export default function MockTestExamPage() {
                       role="switch"
                       aria-checked={highlightEnabled}
                       onClick={() => setHighlightEnabled((v) => !v)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${highlightEnabled ? "bg-amber-500" : "bg-slate-300 dark:bg-white/15"
-                        }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                        highlightEnabled ? "bg-amber-500" : "bg-slate-300 dark:bg-white/15"
+                      }`}
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${highlightEnabled ? "translate-x-5" : "translate-x-1"
@@ -2728,22 +2959,22 @@ export default function MockTestExamPage() {
 
             {!isLongListPart && (
               <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => previousIndex >= 0 && setCurrentIdx(previousIndex)}
-                  disabled={previousIndex < 0}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  {displayedQuestions.length > 1 ? "Nhóm trước" : "Câu trước"}
-                </button>
-                <button
-                  onClick={() => nextIndex >= 0 && setCurrentIdx(nextIndex)}
-                  disabled={nextIndex < 0}
-                  className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-amber-500 dark:text-slate-900 dark:hover:bg-amber-400"
-                >
-                  {displayedQuestions.length > 1 ? "Nhóm tiếp" : "Câu tiếp"}
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+              <button
+                onClick={() => previousIndex >= 0 && setCurrentIdx(previousIndex)}
+                disabled={previousIndex < 0}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                {displayedQuestions.length > 1 ? "Nhóm trước" : "Câu trước"}
+              </button>
+              <button
+                onClick={() => nextIndex >= 0 && setCurrentIdx(nextIndex)}
+                disabled={nextIndex < 0}
+                className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-amber-500 dark:text-slate-900 dark:hover:bg-amber-400"
+              >
+                {displayedQuestions.length > 1 ? "Nhóm tiếp" : "Câu tiếp"}
+                <ChevronRight className="h-4 w-4" />
+              </button>
               </div>
             )}
           </div>
@@ -2753,17 +2984,23 @@ export default function MockTestExamPage() {
               <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-600/40 dark:bg-transparent">
                 {timeLeft !== null && (
                   <div>
-                    <p className="text-sm font-semibold text-slate-500">Thời gian còn lại</p>
+                    <p className="text-sm font-semibold text-slate-500">
+                      Thời gian còn lại
+                    </p>
                     <p
-                      className={`mt-1 font-mono text-3xl font-bold leading-none ${timeLeft < 300 ? "text-red-600 dark:text-rose-200" : "text-slate-900 dark:text-slate-100"
-                        }`}
+                      className={`mt-1 font-mono text-3xl font-bold leading-none ${
+                        timeLeft < 300 ? "text-red-600 dark:text-rose-200" : "text-slate-900 dark:text-slate-100"
+                      }`}
                     >
                       {formatTime(timeLeft)}
                     </p>
                   </div>
                 )}
 
-                {proctoringActive && isDesktopExamLayout && user?.id && attempt?.id ? (
+                {proctoringActive &&
+                isDesktopExamLayout &&
+                user?.id &&
+                attempt?.id ? (
                   <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-600/30">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
@@ -2778,7 +3015,9 @@ export default function MockTestExamPage() {
                       examId={attempt.id}
                       examAttemptId={attempt.id}
                       faceVerificationExamTemplateId={attempt.examTemplateId}
-                      enableFaceVerification={attempt.templateMode === "official_exam"}
+                      enableFaceVerification={
+                        attempt.templateMode === "official_exam"
+                      }
                       onViolation={handleProctoringViolation}
                       onBlocked={handleProctoringBlocked}
                     />
@@ -2798,10 +3037,14 @@ export default function MockTestExamPage() {
                   onClick={async () => {
                     if (!attempt?.id) return;
                     try {
-                      await saveAnswers(answersRef.current, { suppressErrors: false });
+                      await saveAnswers(answersRef.current, {
+                        suppressErrors: false,
+                      });
                     } catch (e: any) {
                       if (await recoverClosedAttemptResult(e)) return;
-                      setErrorMsg(getRequestErrorMessage(e, "Không thể lưu bài làm"));
+                      setErrorMsg(
+                        getRequestErrorMessage(e, "Không thể lưu bài làm"),
+                      );
                       setPageState("error");
                     }
                   }}
@@ -2811,7 +3054,8 @@ export default function MockTestExamPage() {
                 </button>
 
                 <p className="mt-3 text-[13px] italic font-semibold text-amber-600 dark:text-amber-200">
-                  Chú ý: bạn có thể click vào số thứ tự câu hỏi trong bài để đánh dấu review
+                  Chú ý: bạn có thể click vào số thứ tự câu hỏi trong bài để
+                  đánh dấu review
                 </p>
 
                 <p className="mt-4 text-sm text-slate-500">
@@ -2872,4 +3116,3 @@ export default function MockTestExamPage() {
     </div>
   );
 }
-

@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Eye, RefreshCw, Search, X } from "lucide-react";
+import { AlertTriangle, Eye, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 
 type ProctoringViolation = {
@@ -178,6 +178,7 @@ export default function ProctoringAdminPage() {
   const [violations, setViolations] = useState<ProctoringViolation[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<ViolationGroup | null>(null);
 
@@ -221,6 +222,38 @@ export default function ProctoringAdminPage() {
       setLoading(false);
     }
   }, [examId, limit, offset, userId]);
+
+  const handleDeleteGroup = useCallback(async (group: ViolationGroup) => {
+    const ok = window.confirm(
+      `Xoa ${group.total} hanh vi gian lan cua ${group.userName}? Hanh dong nay khong the hoan tac.`,
+    );
+
+    if (!ok) return;
+
+    setDeletingKey(group.key);
+    setError(null);
+
+    try {
+      await Promise.all(
+        group.violations.map((violation) =>
+          apiClient.admin.proctoring.deleteViolation(violation.id),
+        ),
+      );
+
+      const deletedIds = new Set(group.violations.map((violation) => violation.id));
+      setViolations((current) =>
+        current.filter((violation) => !deletedIds.has(violation.id)),
+      );
+      setTotal((current) => Math.max(0, current - deletedIds.size));
+      setSelectedGroup((current) =>
+        current?.key === group.key ? null : current,
+      );
+    } catch (err: any) {
+      setError(err?.message || "Khong xoa duoc hanh vi gian lan.");
+    } finally {
+      setDeletingKey(null);
+    }
+  }, []);
 
   useEffect(() => {
     void fetchViolations();
@@ -377,14 +410,25 @@ export default function ProctoringAdminPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedGroup(group)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        <Eye className="h-4 w-4" />
-                        Xem chi tiet
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGroup(group)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Xem chi tiet
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteGroup(group)}
+                          disabled={deletingKey === group.key}
+                          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {deletingKey === group.key ? "Dang xoa..." : "Xoa"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

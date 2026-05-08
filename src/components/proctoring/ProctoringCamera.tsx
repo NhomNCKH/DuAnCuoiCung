@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiClient } from "@/lib/api-client";
+import html2canvas from 'html2canvas';
 
 const FRAME_CAPTURE_INTERVAL_MS = 1000;
 const FACE_VERIFICATION_INITIAL_DELAY_MS = 2500;
@@ -176,6 +177,24 @@ export const ProctoringCamera = ({
     return imageData;
   }, []);
 
+  const captureScreenshot = useCallback(async () => {
+    try {
+      const canvas = await html2canvas(document.body, {
+        useCORS: true,
+        allowTaint: false,
+        scale: 0.5, // Reduce quality for smaller file size
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+      const imageData = canvas.toDataURL("image/jpeg", 0.45);
+      lastFrameDataUrlRef.current = imageData;
+      return imageData;
+    } catch (error) {
+      console.error("Failed to capture screenshot:", error);
+      return "";
+    }
+  }, []);
+
   const reportBrowserViolation = useCallback(
     async (violation: ProctoringViolationPayload) => {
       const action = violation.action || "unknown";
@@ -194,7 +213,7 @@ export const ProctoringCamera = ({
         },
       });
 
-      const snapshotImage = captureCurrentFrame() || lastFrameDataUrlRef.current || undefined;
+      const snapshotImage = await captureScreenshot() || lastFrameDataUrlRef.current || undefined;
       await reportViolations([
         {
           ...violation,
@@ -204,7 +223,7 @@ export const ProctoringCamera = ({
         },
       ]);
     },
-    [captureCurrentFrame, logDebugEvent, reportViolations],
+    [captureScreenshot, logDebugEvent, reportViolations],
   );
 
   const verifyFaceIdentity = useCallback(
