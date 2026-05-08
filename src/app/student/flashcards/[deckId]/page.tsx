@@ -17,6 +17,7 @@ import {
   X,
   Volume2,
   VolumeX,
+  Sparkles,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useToast } from "@/hooks/useToast";
@@ -27,6 +28,7 @@ import {
   serializeVocabMeta,
   VocabFlashcardMeta,
 } from "@/lib/flashcard-vocab";
+import FlashcardGenerateModal from "@/components/flashcards/FlashcardGenerateModal";
 
 type Deck = { id: string; title: string; description?: string | null };
 type Card = {
@@ -53,6 +55,12 @@ function pickLookupWord(front: string) {
   // Take first token; keep hyphenated words.
   const token = cleaned.split(" ")[0] ?? "";
   return token.replace(/[^a-zA-Z\-']/g, "").toLowerCase();
+}
+
+function resolveLookupText(front: string, note?: string | null) {
+  const meta = parseVocabMeta(note);
+  const candidate = meta?.expression?.trim() || front.trim();
+  return candidate;
 }
 
 async function fetchIpa(word: string): Promise<string | null> {
@@ -145,22 +153,26 @@ function CardModal({
     return () => synth.removeEventListener?.("voiceschanged", markReady as any);
   }, [open]);
 
+  const availableVoices = useMemo(() => {
+    void voicesReady;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return [];
+    return window.speechSynthesis.getVoices?.() ?? [];
+  }, [voicesReady]);
+
   const resolveEnglishVoice = useMemo(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-    const voices = window.speechSynthesis.getVoices?.() ?? [];
-    if (!voices.length) return null;
+    if (!availableVoices.length) return null;
     const prefer = (predicate: (v: SpeechSynthesisVoice) => boolean) =>
-      voices.find(predicate) ?? null;
+      availableVoices.find(predicate) ?? null;
     return (
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-us") && /google|microsoft/i.test(v.name)) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-gb") && /google|microsoft/i.test(v.name)) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-us")) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-gb")) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en")) ||
-      voices[0] ||
+      availableVoices[0] ||
       null
     );
-  }, [voicesReady]); // recompute when voices list becomes ready
+  }, [availableVoices]); // recompute when voices list becomes ready
 
   const speakFront = () => {
     if (speakSupport !== "supported") return;
@@ -469,6 +481,7 @@ export default function FlashcardDeckPage() {
   const [speakingCardId, setSpeakingCardId] = useState<string | null>(null);
 
   const [creating, setCreating] = useState(false);
+  const [creatingWithAi, setCreatingWithAi] = useState(false);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [savingCard, setSavingCard] = useState(false);
   const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
@@ -533,26 +546,31 @@ export default function FlashcardDeckPage() {
     return () => synth.removeEventListener?.("voiceschanged", markReady as any);
   }, []);
 
+  const availableVoices = useMemo(() => {
+    void voicesReady;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return [];
+    return window.speechSynthesis.getVoices?.() ?? [];
+  }, [voicesReady]);
+
   const resolveEnglishVoice = useMemo(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-    const voices = window.speechSynthesis.getVoices?.() ?? [];
-    if (!voices.length) return null;
+    if (!availableVoices.length) return null;
     const prefer = (predicate: (v: SpeechSynthesisVoice) => boolean) =>
-      voices.find(predicate) ?? null;
+      availableVoices.find(predicate) ?? null;
     return (
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-us") && /google|microsoft/i.test(v.name)) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-gb") && /google|microsoft/i.test(v.name)) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-us")) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en-gb")) ||
       prefer((v) => v.lang?.toLowerCase?.().startsWith("en")) ||
-      voices[0] ||
+      availableVoices[0] ||
       null
     );
-  }, [voicesReady]);
+  }, [availableVoices]);
 
   const speakWord = (card: Card) => {
     if (speakSupport !== "supported") return;
-    const word = pickLookupWord(card.front) || card.front.trim();
+    const lookupText = resolveLookupText(card.front, card.note);
+    const word = pickLookupWord(lookupText) || lookupText.trim();
     if (!word) return;
     try {
       const synth = window.speechSynthesis;
@@ -581,7 +599,10 @@ export default function FlashcardDeckPage() {
     // Lazy hydrate IPA for visible rows (cached).
     const visible = filtered.slice(0, 80);
     const toFetch = visible
-      .map((c) => ({ id: c.id, word: pickLookupWord(c.front) }))
+      .map((c) => ({
+        id: c.id,
+        word: pickLookupWord(resolveLookupText(c.front, c.note)),
+      }))
       .filter((x) => x.word && !ipaByCardId[x.id] && !ipaLoadingIds.has(x.id));
     if (!toFetch.length) return;
 
@@ -659,6 +680,14 @@ export default function FlashcardDeckPage() {
             </Link>
             <button
               type="button"
+              onClick={() => setCreatingWithAi(true)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20"
+            >
+              <Sparkles className="h-4 w-4" />
+              Tạo bằng AI
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setEditingCard(null);
                 setCreating(true);
@@ -723,9 +752,9 @@ export default function FlashcardDeckPage() {
             {/* Desktop: table-like */}
             <div className="hidden md:block">
               <div className="grid grid-cols-[0.95fr,0.85fr,1.2fr,auto] gap-4 bg-slate-50/80 px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-500 dark:bg-white/5 dark:text-slate-300">
-                <div>Từ vựng</div>
-                <div>Nghĩa chính</div>
-                <div>Thông tin tra từ</div>
+                <div>Mặt trước</div>
+                <div>Mặt sau</div>
+                <div>Chi tiết</div>
                 <div className="text-right"> </div>
               </div>
               <div className="divide-y divide-slate-200/80 dark:divide-white/10">
@@ -734,6 +763,14 @@ export default function FlashcardDeckPage() {
                     const meta = parseVocabMeta(c.note);
                     const displayPronunciation = meta?.pronunciation || ipaByCardId[c.id] || "";
                     const showIpaLoading = !meta?.pronunciation && ipaLoadingIds.has(c.id);
+                    const secondaryExpression =
+                      meta?.expression?.trim() && meta.expression.trim() !== c.front.trim()
+                        ? meta.expression.trim()
+                        : "";
+                    const secondaryMeaningEn =
+                      meta?.meaningEn?.trim() && meta.meaningEn.trim() !== c.back.trim()
+                        ? meta.meaningEn.trim()
+                        : "";
                     return (
                   <div
                     key={c.id}
@@ -743,7 +780,7 @@ export default function FlashcardDeckPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                            {meta?.expression || c.front}
+                            {c.front}
                           </div>
                         </div>
                         <button
@@ -770,13 +807,23 @@ export default function FlashcardDeckPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="line-clamp-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                        {meta?.meaningVi || c.back}
+                        {c.back}
                       </div>
-                      {meta?.meaningEn ? <div className="mt-1 line-clamp-2 text-xs text-muted">{meta.meaningEn}</div> : null}
+                      {secondaryMeaningEn ? (
+                        <div className="mt-1 line-clamp-2 text-xs text-muted">
+                          {secondaryMeaningEn}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="min-w-0">
                       {meta ? (
                         <div className="space-y-1.5 text-xs text-muted">
+                          {secondaryExpression ? (
+                            <p className="line-clamp-1">
+                              <span className="font-semibold">Expression:</span>{" "}
+                              {secondaryExpression}
+                            </p>
+                          ) : null}
                           {meta.synonyms?.length ? (
                             <p className="line-clamp-1">
                               <span className="font-semibold">Đồng nghĩa:</span> {meta.synonyms.slice(0, 5).join(", ")}
@@ -844,6 +891,14 @@ export default function FlashcardDeckPage() {
                 const meta = parseVocabMeta(c.note);
                 const displayPronunciation = meta?.pronunciation || ipaByCardId[c.id] || "";
                 const showIpaLoading = !meta?.pronunciation && ipaLoadingIds.has(c.id);
+                const secondaryExpression =
+                  meta?.expression?.trim() && meta.expression.trim() !== c.front.trim()
+                    ? meta.expression.trim()
+                    : "";
+                const secondaryMeaningEn =
+                  meta?.meaningEn?.trim() && meta.meaningEn.trim() !== c.back.trim()
+                    ? meta.meaningEn.trim()
+                    : "";
                 return (
                 <div key={c.id} className="p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -851,7 +906,7 @@ export default function FlashcardDeckPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                            {meta?.expression || c.front}
+                            {c.front}
                           </div>
                         </div>
                         <button
@@ -868,13 +923,19 @@ export default function FlashcardDeckPage() {
                           )}
                         </button>
                       </div>
-                      <div className="mt-1 text-sm text-slate-900 dark:text-slate-100">{meta?.meaningVi || c.back}</div>
-                      {meta?.meaningEn ? <div className="mt-1 text-xs text-muted">{meta.meaningEn}</div> : null}
+                      <div className="mt-1 text-sm text-slate-900 dark:text-slate-100">{c.back}</div>
+                      {secondaryMeaningEn ? <div className="mt-1 text-xs text-muted">{secondaryMeaningEn}</div> : null}
                       {meta?.partOfSpeech || displayPronunciation || showIpaLoading ? (
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {meta?.partOfSpeech ? <span className="chip text-[11px] font-bold">{meta.partOfSpeech}</span> : null}
                           {displayPronunciation ? <span className="text-xs font-mono text-muted">{displayPronunciation}</span> : null}
                           {showIpaLoading ? <span className="text-xs text-muted">IPA…</span> : null}
+                        </div>
+                      ) : null}
+                      {secondaryExpression ? (
+                        <div className="mt-2 text-xs text-muted line-clamp-1">
+                          <span className="font-semibold">Expression:</span>{" "}
+                          {secondaryExpression}
                         </div>
                       ) : null}
                       {meta?.synonyms?.length ? (
@@ -967,6 +1028,14 @@ export default function FlashcardDeckPage() {
         }}
       />
 
+      <FlashcardGenerateModal
+        open={creatingWithAi}
+        deckId={deckId}
+        deckTitle={deck?.title}
+        onClose={() => setCreatingWithAi(false)}
+        onSaved={load}
+      />
+
       {deletingCardId ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
           <button
@@ -1012,4 +1081,3 @@ export default function FlashcardDeckPage() {
     </div>
   );
 }
-

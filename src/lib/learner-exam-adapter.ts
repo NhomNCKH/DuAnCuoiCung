@@ -59,6 +59,7 @@ export interface MockExamSection {
 export interface MockExamAttemptView {
   id: string;
   examTemplateId: string;
+  templateMode?: string;
   templateCode?: string;
   templateName?: string;
   status: string;
@@ -189,6 +190,7 @@ export function mapAttemptSessionToMockExam(raw: LearnerAttemptSessionData): {
     attemptData: {
       id: raw.attempt.id,
       examTemplateId: raw.attempt.examTemplateId,
+      templateMode: raw.template.template?.mode,
       templateCode: raw.template.template?.code,
       templateName: raw.template.template?.name,
       status: raw.attempt.status,

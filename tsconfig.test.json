@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".tmp-tests",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2020",
+    "incremental": false,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": [
+    "src/lib/flashcard-ai.ts",
+    "src/lib/flashcard-generate.ts",
+    "src/lib/flashcard-generate.spec.ts",
+    "src/lib/flashcard-vocab.ts",
+    "src/lib/flashcard-vocab.spec.ts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}

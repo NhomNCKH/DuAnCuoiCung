@@ -79,6 +79,8 @@ const PART_LABEL: Record<string, string> = {
 };
 
 const PROCTORING_ACTION_LABEL: Record<string, string> = {
+  face_mismatch: "Danh tinh khong khop voi anh dang ky",
+  face_verification_failed: "Khong xac minh duoc danh tinh",
   leaving_frame: "Rời khỏi khung hình",
   multiple_faces: "Có nhiều người trong khung hình",
   phone_usage: "Sử dụng điện thoại",
@@ -2642,6 +2644,8 @@ export default function MockTestExamPage() {
                     userId={user.id}
                     examId={attempt.id}
                     examAttemptId={attempt.id}
+                    faceVerificationExamTemplateId={attempt.examTemplateId}
+                    enableFaceVerification={attempt.templateMode === "official_exam"}
                     onViolation={handleProctoringViolation}
                     onBlocked={handleProctoringBlocked}
                   />
@@ -2773,6 +2777,8 @@ export default function MockTestExamPage() {
                       userId={user.id}
                       examId={attempt.id}
                       examAttemptId={attempt.id}
+                      faceVerificationExamTemplateId={attempt.examTemplateId}
+                      enableFaceVerification={attempt.templateMode === "official_exam"}
                       onViolation={handleProctoringViolation}
                       onBlocked={handleProctoringBlocked}
                     />

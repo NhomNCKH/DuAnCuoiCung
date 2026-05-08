@@ -64,11 +64,10 @@ type Violation = {
 };
 
 export default function ExamPage() {
-  const params = useParams();
+  const params = useParams<{ id: string | string[] }>();
   const router = useRouter();
   const { user } = useAuth();
-  const id = params?.id;
-  const examId = Array.isArray(id) ? id[0] : id ?? "";
+  const examId = Array.isArray(params?.id) ? params.id[0] ?? "" : params?.id ?? "";
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -164,7 +163,16 @@ export default function ExamPage() {
 
     setIsSubmitted(true);
     router.push(`/student/exam/result/${examId}?score=${Math.round(percentage)}`);
-  }, [answers, examId, isBlocked, isSubmitted, router, totalQuestions, user?.id, violations.length]);
+  }, [
+    answers,
+    examId,
+    isBlocked,
+    isSubmitted,
+    router,
+    totalQuestions,
+    user?.id,
+    violations.length,
+  ]);
 
   useEffect(() => {
     if (isSubmitted || isBlocked) return;

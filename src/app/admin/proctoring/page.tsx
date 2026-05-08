@@ -45,6 +45,8 @@ type ViolationsResponseData = {
 };
 
 const ACTION_LABEL: Record<string, string> = {
+  face_mismatch: "Danh tinh khong khop voi anh dang ky",
+  face_verification_failed: "Khong xac minh duoc danh tinh",
   leaving_frame: "Roi khoi khung hinh",
   multiple_faces: "Nhieu nguoi trong khung hinh",
   phone_usage: "Su dung dien thoai",

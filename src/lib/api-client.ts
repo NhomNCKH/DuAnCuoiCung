@@ -27,6 +27,11 @@ import {
   getStoredRefreshToken,
   persistAuthSession,
 } from "@/lib/auth-session";
+import type {
+  BulkCreateFlashcardsPayload,
+  PreviewFlashcardsFromAiPayload,
+  PreviewFlashcardsFromJsonPayload,
+} from "@/lib/flashcard-ai";
 
 // Chọn base URL theo env
 function getBaseURL(): string {
@@ -1209,6 +1214,53 @@ class ApiClient {
           method: "POST",
           body: JSON.stringify(data),
         }),
+
+      /**
+       * POST /proctoring/face-verification
+       * Verify current webcam face against the official exam registration image.
+       */
+      verifyFaceIdentity: (data: {
+        examTemplateId?: string;
+        examAttemptId?: string;
+        webcamImageBase64: string;
+        checkpoint?: string;
+        webcamSnapshotUrl?: string;
+      }): Promise<
+        ApiResponse<{
+          userId: string;
+          examTemplateId: string;
+          examAttemptId: string | null;
+          checkpoint: string;
+          verified: boolean;
+          allowedToStart: boolean;
+          similarity: number;
+          threshold: number;
+          checkedAt: string;
+        }>
+      > =>
+        this.request("/proctoring/face-verification", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+
+      /**
+       * POST /proctoring/debug-log
+       * Store lightweight troubleshooting events for the proctoring flow.
+       */
+      logDebugEvent: (data: {
+        examId?: string;
+        examAttemptId?: string;
+        source: string;
+        event: string;
+        level?: "debug" | "info" | "warn" | "error";
+        message?: string;
+        metadata?: Record<string, unknown>;
+        timestamp?: string;
+      }): Promise<ApiResponse<{ logged: boolean }>> =>
+        this.request("/proctoring/debug-log", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
     },
   };
 
@@ -1485,11 +1537,29 @@ class ApiClient {
       createCard: (deckId: string, data: { front: string; back: string; note?: string; tags?: string[] }): Promise<ApiResponse> =>
         this.request(`/learner/flashcard-decks/${deckId}/flashcards`, { method: 'POST', body: JSON.stringify(data) }),
 
+      bulkCreateCards: (deckId: string, data: BulkCreateFlashcardsPayload): Promise<ApiResponse> =>
+        this.request(`/learner/flashcard-decks/${deckId}/flashcards/bulk`, {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+
       updateCard: (cardId: string, data: { front?: string; back?: string; note?: string; tags?: string[] }): Promise<ApiResponse> =>
         this.request(`/learner/flashcards/${cardId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
       deleteCard: (cardId: string): Promise<ApiResponse> =>
         this.request(`/learner/flashcards/${cardId}`, { method: 'DELETE' }),
+
+      previewFromJson: (data: PreviewFlashcardsFromJsonPayload): Promise<ApiResponse> =>
+        this.request('/learner/flashcards/preview-from-json', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+
+      previewFromAi: (data: PreviewFlashcardsFromAiPayload): Promise<ApiResponse> =>
+        this.request('/learner/flashcards/preview-from-ai', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
 
       getStudyQueue: (params: { deckId: string; limit?: number; newLimit?: number }): Promise<ApiResponse> => {
         const qs = `?${new URLSearchParams(
