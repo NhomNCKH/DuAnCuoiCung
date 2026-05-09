@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
@@ -48,7 +48,9 @@ export default function OfficialExamPage() {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
   const [networkChecking, setNetworkChecking] = useState(false);
   const [networkOk, setNetworkOk] = useState(false);
+  const [networkMessage, setNetworkMessage] = useState<string>("");
   const [audioPlayed, setAudioPlayed] = useState(false);
+  const [audioHeard, setAudioHeard] = useState<boolean | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [faceChecking, setFaceChecking] = useState(false);
   const [faceVerified, setFaceVerified] = useState(false);
@@ -165,7 +167,9 @@ export default function OfficialExamPage() {
     setPrecheckTemplate(null);
     setActiveStep(1);
     setNetworkOk(false);
+    setNetworkMessage("");
     setAudioPlayed(false);
+    setAudioHeard(null);
     setFaceVerified(false);
     setFaceError("");
     setRegistrationProfile(null);
@@ -190,14 +194,16 @@ export default function OfficialExamPage() {
 
   const runNetworkCheck = useCallback(async () => {
     setNetworkChecking(true);
+    setNetworkMessage("");
     try {
       const online = typeof navigator !== "undefined" ? navigator.onLine : true;
-      if (!online) throw new Error("Thiết bị đang offline. Vui lòng kiểm tra kết nối mạng.");
+      if (!online) throw new Error("Kết nối không ổn định.");
       await apiClient.health();
       setNetworkOk(true);
+      setNetworkMessage("Kết nối mạng ổn định.");
     } catch (e: any) {
       setNetworkOk(false);
-      setFaceError(e?.message || "Không thể kết nối máy chủ lúc này.");
+      setNetworkMessage(e?.message || "Kết nối không ổn định.");
     } finally {
       setNetworkChecking(false);
     }
@@ -206,6 +212,8 @@ export default function OfficialExamPage() {
   const playAudioTest = useCallback(async () => {
     try {
       setAudioPlaying(true);
+      setAudioHeard(null);
+      setAudioPlayed(false);
       const Ctx = window.AudioContext || (window as any).webkitAudioContext;
       if (!Ctx) throw new Error("Trình duyệt không hỗ trợ audio test.");
       const ctx = audioCtxRef.current ?? new Ctx();
@@ -328,7 +336,9 @@ export default function OfficialExamPage() {
     setPrecheckOpen(true);
     setActiveStep(1);
     setNetworkOk(false);
+    setNetworkMessage("");
     setAudioPlayed(false);
+    setAudioHeard(null);
     setFaceVerified(false);
     setFaceError("");
     setRegistrationProfile(null);
@@ -336,10 +346,10 @@ export default function OfficialExamPage() {
 
   const proceedToExam = useCallback(() => {
     if (!precheckTemplate) return;
-    if (!(networkOk && audioPlayed && faceVerified)) return;
+    if (!(networkOk && audioHeard === true && faceVerified)) return;
     closePrecheckModal();
     router.push(`/student/mock-test/${precheckTemplate.id}`);
-  }, [audioPlayed, closePrecheckModal, faceVerified, networkOk, precheckTemplate, router]);
+  }, [audioHeard, closePrecheckModal, faceVerified, networkOk, precheckTemplate, router]);
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-10">
@@ -595,6 +605,17 @@ export default function OfficialExamPage() {
                       </span>
                     ) : null}
                   </div>
+                  {networkMessage ? (
+                    <div
+                      className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
+                        networkOk
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-amber-200 bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {networkOk ? networkMessage : "Kết nối không ổn định"}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -611,13 +632,44 @@ export default function OfficialExamPage() {
                     <button type="button" className="btn-primary" onClick={() => void playAudioTest()} disabled={audioPlaying}>
                       {audioPlaying ? "Đang phát 10s..." : "Phát âm thanh kiểm tra"}
                     </button>
-                    {audioPlayed ? (
-                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700">
-                        <CheckCircle2 className="h-4 w-4" />
-                        Đã nghe được âm thanh
-                      </span>
-                    ) : null}
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={audioPlaying}
+                      onClick={() => {
+                        setAudioHeard(true);
+                        setAudioPlayed(true);
+                      }}
+                      className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                        audioHeard === true
+                          ? "bg-emerald-600 text-white"
+                          : "border border-slate-300 bg-white text-slate-700"
+                      }`}
+                    >
+                      Đã nghe được âm thanh
+                    </button>
+                    <button
+                      type="button"
+                      disabled={audioPlaying}
+                      onClick={() => {
+                        setAudioHeard(false);
+                        setAudioPlayed(false);
+                      }}
+                      className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                        audioHeard === false
+                          ? "bg-rose-600 text-white"
+                          : "border border-slate-300 bg-white text-slate-700"
+                      }`}
+                    >
+                      Không nghe được âm thanh
+                    </button>
+                  </div>
+                  {audioHeard === false ? (
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                      Vui lòng kiểm tra lại loa/tai nghe hoặc đổi thiết bị rồi thử lại.
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -630,8 +682,36 @@ export default function OfficialExamPage() {
                   <p className="text-sm text-slate-600">
                     Hệ thống sẽ đối chiếu khuôn mặt hiện tại với ảnh đã đăng ký thi chính thức.
                   </p>
-                  <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-900">
-                    <video ref={videoRef} autoPlay muted playsInline className="h-[220px] w-full object-cover" />
+                  <div className="mt-3 flex justify-center">
+                    <div className="relative h-56 w-56">
+                      <div
+                        className={`absolute inset-0 rounded-full border-4 ${
+                          faceVerified
+                            ? "border-emerald-300"
+                            : faceError
+                              ? "border-rose-300"
+                              : "border-violet-300"
+                        }`}
+                      />
+                      {faceChecking ? (
+                        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-violet-500 animate-spin" />
+                      ) : null}
+                      <div className="absolute inset-2 overflow-hidden rounded-full border border-slate-200 bg-slate-900">
+                        <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+                      </div>
+                      {faceVerified ? (
+                        <div className="absolute inset-0 grid place-items-center">
+                          <div className="rounded-full bg-emerald-500/25 p-3 text-emerald-600">
+                            <CheckCircle2 className="h-10 w-10" />
+                          </div>
+                        </div>
+                      ) : null}
+                      {!faceVerified && faceError ? (
+                        <div className="absolute inset-0 grid place-items-center">
+                          <div className="rounded-full bg-rose-500/20 p-3 text-rose-600 text-4xl font-bold leading-none">×</div>
+                        </div>
+                      ) : null}
+                    </div>
                     <canvas ref={canvasRef} className="hidden" />
                   </div>
                   <div className="mt-3 flex items-center gap-3">
@@ -678,7 +758,7 @@ export default function OfficialExamPage() {
                     type="button"
                     className="btn-primary"
                     onClick={() => setActiveStep((prev) => ((prev + 1) as 1 | 2 | 3))}
-                    disabled={(activeStep === 1 && !networkOk) || (activeStep === 2 && !audioPlayed)}
+                    disabled={(activeStep === 1 && !networkOk) || (activeStep === 2 && audioHeard !== true)}
                   >
                     Tiếp tục
                   </button>
@@ -687,7 +767,7 @@ export default function OfficialExamPage() {
                     type="button"
                     className="btn-primary"
                     onClick={proceedToExam}
-                    disabled={!(networkOk && audioPlayed && faceVerified)}
+                    disabled={!(networkOk && audioHeard === true && faceVerified)}
                   >
                     Vào thi chính thức
                   </button>
