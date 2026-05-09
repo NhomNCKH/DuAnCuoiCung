@@ -54,11 +54,14 @@ async function proxyRequest(
         ? undefined
         : Buffer.from(await request.arrayBuffer());
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort('Proxy timeout'), 20000);
     const response = await fetch(url, {
       method,
       headers: buildProxyHeaders(request),
       body,
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     const responseHeaders = new Headers();
     const contentType = response.headers.get('content-type');
@@ -82,6 +85,12 @@ async function proxyRequest(
     });
   } catch (error) {
     console.error('Proxy error:', error);
+    if ((error as any)?.name === 'AbortError') {
+      return NextResponse.json(
+        { error: 'Gateway timeout', message: 'Backend response timeout' },
+        { status: 504 },
+      );
+    }
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 },

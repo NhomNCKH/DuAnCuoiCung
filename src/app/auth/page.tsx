@@ -402,6 +402,7 @@ export default function AuthPage() {
                         <input
                           type="email"
                           placeholder="Email"
+                          autoComplete="username"
                           value={loginEmail}
                           onChange={(e) => setLoginEmail(e.target.value)}
                           className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-4 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
@@ -415,6 +416,7 @@ export default function AuthPage() {
                         <input
                           type={showPassword ? "text" : "password"}
                           placeholder="Mật khẩu"
+                          autoComplete="current-password"
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
                           className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-12 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
@@ -495,6 +497,7 @@ export default function AuthPage() {
                         <input
                           type="email"
                           placeholder="Email"
+                          autoComplete="username"
                           value={regEmail}
                           onChange={(e) => setRegEmail(e.target.value)}
                           className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-4 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
@@ -508,6 +511,7 @@ export default function AuthPage() {
                         <input
                           type={showPassword ? "text" : "password"}
                           placeholder="Mật khẩu"
+                          autoComplete="current-password"
                           value={regPassword}
                           onChange={(e) => handlePasswordChange(e.target.value)}
                           className="w-full rounded-xl border border-white/10 bg-white/10 py-3 pl-12 pr-12 text-white transition-all placeholder:text-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
@@ -572,7 +576,8 @@ export default function AuthPage() {
                         <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-[#FBFB24]" />
                         <input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Xác nhận mật khẩu"
+                          placeholder="Mật khẩu"
+                          autoComplete="current-password"
                           value={regConfirmPassword}
                           onChange={(e) =>
                             setRegConfirmPassword(e.target.value)
@@ -694,3 +699,5 @@ export default function AuthPage() {
     </div>
   );
 }
+
+

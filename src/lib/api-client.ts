@@ -79,6 +79,7 @@ class ApiClient {
   readonly baseURL = getBaseURL();
   private healthURL = getHealthURL();
   private refreshPromise: Promise<boolean> | null = null;
+  private requestTimeoutMs = 20000;
 
   private getAuthHeaders(): Record<string, string> {
     const token = getStoredAccessToken();
@@ -140,24 +141,54 @@ class ApiClient {
       ...(options.headers ?? {}),
     };
 
-    const execute = () =>
-      fetch(url, {
-        ...options,
-        headers,
-      });
+    const execute = async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort("Request timeout"),
+        this.requestTimeoutMs,
+      );
+      try {
+        return await fetch(url, {
+          ...options,
+          headers,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
 
-    let response = await execute();
+    let response: Response;
+    try {
+      response = await execute();
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        throw {
+          statusCode: 408,
+          message:
+            "Yeu cau den may chu bi qua han. Vui long thu lai sau it phut.",
+          error: "Request timeout",
+        };
+      }
+      throw error;
+    }
 
     if (response.status === 401 && !isRefreshRequest) {
       const refreshed = await this.tryRefreshToken();
       if (refreshed) {
-        response = await fetch(url, {
-          ...options,
-          headers: {
-            ...this.getAuthHeaders(),
-            ...(options.headers ?? {}),
-          },
-        });
+        try {
+          response = await execute();
+        } catch (error: any) {
+          if (error?.name === "AbortError") {
+            throw {
+              statusCode: 408,
+              message:
+                "Yeu cau den may chu bi qua han. Vui long thu lai sau it phut.",
+              error: "Request timeout",
+            };
+          }
+          throw error;
+        }
       }
     }
 
