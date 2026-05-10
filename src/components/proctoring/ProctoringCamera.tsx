@@ -6,11 +6,12 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiClient } from "@/lib/api-client";
 import html2canvas from "html2canvas";
 
-const FRAME_CAPTURE_INTERVAL_MS = 2000; // Increased from 1000ms to 2000ms to reduce spam
+const FRAME_CAPTURE_INTERVAL_MS = 1000;
 const FACE_VERIFICATION_INITIAL_DELAY_MS = 2500;
 const FACE_VERIFICATION_INTERVAL_MS = 5 * 60 * 1000;
 const BROWSER_VIOLATION_COOLDOWN_MS = 4000;
-const YOLO_VIOLATION_COOLDOWN_MS = 5000; // 5 seconds cooldown for YOLO violations
+const YOLO_VIOLATION_COOLDOWN_MS = 2500;
+const UI_VIOLATION_COOLDOWN_MS = 3000;
 const SPLIT_SCREEN_GRACE_MS = 1500;
 const MIN_DESKTOP_WIDTH_FOR_SPLIT_CHECK = 1024;
 const MIN_WINDOW_SCREEN_RATIO = 0.82;
@@ -66,6 +67,7 @@ export const ProctoringCamera = ({
   const lastFrameDataUrlRef = useRef<string>("");
   const lastBrowserViolationAtRef = useRef<Record<string, number>>({});
   const lastYoloViolationAtRef = useRef<Record<string, number>>({});
+  const lastUiViolationAtRef = useRef<Record<string, number>>({});
   const yoloViolationResetTimerRef = useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
@@ -202,7 +204,6 @@ export const ProctoringCamera = ({
           },
         });
 
-        violations.forEach((violation) => onViolation?.(violation));
         console.log(
           "ProctoringCamera YOLO violations reported after cooldown:",
           violations.map((v) => v.action),
@@ -224,7 +225,7 @@ export const ProctoringCamera = ({
         setIsReporting(false);
       }
     },
-    [examAttemptId, examId, logDebugEvent, onViolation, userId],
+    [examAttemptId, examId, logDebugEvent, userId],
   );
 
   const captureCurrentFrame = useCallback(() => {
@@ -423,6 +424,18 @@ export const ProctoringCamera = ({
               ),
             },
           });
+          const now = Date.now();
+          const violationsForUi = data.violations.filter((item: any) => {
+            const action = item?.action || "unknown";
+            const last = lastUiViolationAtRef.current[action] ?? 0;
+            if (now - last < UI_VIOLATION_COOLDOWN_MS) {
+              return false;
+            }
+            lastUiViolationAtRef.current[action] = now;
+            return true;
+          });
+
+          violationsForUi.forEach((violation: any) => onViolation?.(violation));
           await reportViolations(data.violations);
         }
 
