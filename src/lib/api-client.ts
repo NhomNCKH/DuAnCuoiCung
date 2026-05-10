@@ -1378,6 +1378,81 @@ class ApiClient {
       delete: (id: string): Promise<ApiResponse> =>
         this.request(`/admin/shadowing/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     },
+
+    dailyDictation: {
+      importYoutube: (data: {
+        youtubeUrl: string;
+        title?: string;
+        level: string;
+        topics?: string[];
+      }): Promise<ApiResponse> =>
+        this.request('/admin/daily-dictation/import-youtube', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+
+      list: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        level?: string;
+        topic?: string;
+        status?: string;
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+          if (params.level) query.level = params.level;
+          if (params.topic) query.topic = params.topic;
+          if (params.status) query.status = params.status;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/admin/daily-dictation${qs}`, { method: 'GET' });
+      },
+
+      getDetail: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/daily-dictation/${encodeURIComponent(id)}`, { method: 'GET' }),
+
+      update: (
+        id: string,
+        data: { title?: string; level?: string; topics?: string[]; status?: string },
+      ): Promise<ApiResponse> =>
+        this.request(`/admin/daily-dictation/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        }),
+
+      replaceSegments: (
+        id: string,
+        data: {
+          segments: Array<{
+            order: number;
+            startSec: number;
+            endSec: number;
+            textEn: string;
+            textVi?: string | null;
+          }>;
+        },
+      ): Promise<ApiResponse> =>
+        this.request(`/admin/daily-dictation/${encodeURIComponent(id)}/segments`, {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }),
+
+      publish: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/daily-dictation/${encodeURIComponent(id)}/publish`, { method: 'POST' }),
+
+      reimportEnglish: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/daily-dictation/${encodeURIComponent(id)}/reimport-en`, { method: 'POST' }),
+
+      translate: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/daily-dictation/${encodeURIComponent(id)}/translate`, { method: 'POST' }),
+
+      delete: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/daily-dictation/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    },
   };
 
   // ---- Learner: Exam Attempts (/learner/exam-attempts) ----
@@ -1918,6 +1993,32 @@ class ApiClient {
 
       getDetail: (id: string): Promise<ApiResponse> =>
         this.request(`/learner/shadowing/${encodeURIComponent(id)}`, { method: 'GET' }),
+    },
+
+    dailyDictation: {
+      list: (params?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        level?: string;
+        topic?: string;
+        sort?: string;
+      }): Promise<ApiResponse> => {
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword?.trim()) query.keyword = params.keyword.trim();
+          if (params.level) query.level = params.level;
+          if (params.topic) query.topic = params.topic;
+          if (params.sort) query.sort = params.sort;
+        }
+        const qs = Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : '';
+        return this.request(`/learner/daily-dictation${qs}`, { method: 'GET' });
+      },
+
+      getDetail: (id: string): Promise<ApiResponse> =>
+        this.request(`/learner/daily-dictation/${encodeURIComponent(id)}`, { method: 'GET' }),
     },
   };
 }

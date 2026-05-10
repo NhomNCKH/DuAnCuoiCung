@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { StudentNavItem } from "./config";
-import { BookOpen, Mic, PenTool, ChevronDown } from "lucide-react";
+import { BookOpen, Mic, PenTool, ChevronDown, Headphones } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -16,7 +16,8 @@ export function StudentMobileNav({ open, onClose, pathname, router, items }: Pro
   const [practiceOpen, setPracticeOpen] = useState(false);
   const practiceActive =
     pathname === "/student/speaking" ||
-    pathname === "/student/writing";
+    pathname === "/student/writing" ||
+    pathname === "/student/daily-dictation";
 
   if (!open) return null;
 
@@ -94,6 +95,19 @@ export function StudentMobileNav({ open, onClose, pathname, router, items }: Pro
                 >
                   <PenTool className="h-4 w-4" />
                   Luyện Viết
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    router.push("/student/daily-dictation");
+                    onClose();
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    pathname === "/student/daily-dictation" ? "bg-white text-blue-700" : "text-slate-700 hover:bg-white"
+                  }`}
+                >
+                  <Headphones className="h-4 w-4" />
+                  Luyện DailyDictation
                 </button>
               </div>
             ) : null}

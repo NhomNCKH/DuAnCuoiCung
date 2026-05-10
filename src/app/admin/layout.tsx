@@ -18,6 +18,7 @@ import {
   Dumbbell,
   FileCheck2,
   FileText,
+  Headphones,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -133,6 +134,20 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
         label: "Từ vựng",
         href: "/admin/practice/vocabulary",
         permission: "vocabulary.manage",
+      },
+      {
+        id: "practice-shadowing",
+        icon: Headphones,
+        label: "Luyện Shadowing",
+        href: "/admin/practice/shadowing",
+        permission: "dashboard.view",
+      },
+      {
+        id: "practice-daily-dictation",
+        icon: FileText,
+        label: "Luyện DailyDictation",
+        href: "/admin/practice/daily-dictation",
+        permission: "dashboard.view",
       },
       {
         id: "practice-speaking",
@@ -338,11 +353,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [targetPath, queryString] = href.split("?");
     const path = pathname ?? "";
     const qs = searchParams ?? new URLSearchParams();
-    /** Trang chi tiết bộ từ: /admin/practice/vocabulary/[id] vẫn coi là mục «Từ vựng» active */
-    if (targetPath === "/admin/practice/vocabulary") {
-      const onVocab =
-        path === targetPath || path.startsWith(`${targetPath}/`);
-      if (!onVocab) return false;
+    const allowNestedChildren = new Set([
+      "/admin/practice/vocabulary",
+      "/admin/practice/shadowing",
+      "/admin/practice/daily-dictation",
+      "/admin/practice/speaking",
+      "/admin/practice/writing",
+    ]);
+    if (allowNestedChildren.has(targetPath)) {
+      const onSection = path === targetPath || path.startsWith(`${targetPath}/`);
+      if (!onSection) return false;
       if (!queryString) return true;
       const expectedParams = new URLSearchParams(queryString);
       return Array.from(expectedParams.entries()).every(

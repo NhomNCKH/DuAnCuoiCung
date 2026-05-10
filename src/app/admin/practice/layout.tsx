@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { BookMarked, Headphones, Mic, PenLine } from "lucide-react";
+import { BookMarked, FileText, Headphones, Mic, PenLine } from "lucide-react";
 
 const PRACTICE_TABS = [
   {
@@ -18,6 +18,12 @@ const PRACTICE_TABS = [
     label: "Luyện Shadowing",
     icon: Headphones,
     isActive: (p: string) => p.startsWith("/admin/practice/shadowing"),
+  },
+  {
+    href: "/admin/practice/daily-dictation",
+    label: "Luyện DailyDictation",
+    icon: FileText,
+    isActive: (p: string) => p.startsWith("/admin/practice/daily-dictation"),
   },
   {
     href: "/admin/practice/speaking",
