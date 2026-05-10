@@ -348,7 +348,7 @@ export default function OfficialExamPage() {
     if (!precheckTemplate) return;
     if (!(networkOk && audioHeard === true && faceVerified)) return;
     closePrecheckModal();
-    router.push(`/student/mock-test/${precheckTemplate.id}`);
+    router.push(`/student/mock-test/${precheckTemplate.id}?official=1`);
   }, [audioHeard, closePrecheckModal, faceVerified, networkOk, precheckTemplate, router]);
 
   return (

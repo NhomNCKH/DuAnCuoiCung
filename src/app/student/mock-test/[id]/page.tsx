@@ -843,6 +843,7 @@ export default function MockTestExamPage() {
   const searchParams = useSearchParams();
   const qs = searchParams ?? new URLSearchParams();
   const reviewAttemptId = qs.get("attemptId")?.trim() ?? "";
+  const officialFullscreenMode = qs.get("official") === "1";
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [attempt, setAttempt] = useState<MockExamAttemptView | null>(null);
@@ -860,6 +861,7 @@ export default function MockTestExamPage() {
   const [reviewExpanded, setReviewExpanded] = useState(false);
   const [isReviewLoading, setIsReviewLoading] = useState(false);
   const [proctoringActive, setProctoringActive] = useState(false);
+  const [fullscreenRequired, setFullscreenRequired] = useState(false);
   const [isDesktopExamLayout, setIsDesktopExamLayout] = useState(false);
   const [highlightEnabled, setHighlightEnabled] = useState(true);
   const [flashcardCreateOpen, setFlashcardCreateOpen] = useState(false);
@@ -935,6 +937,43 @@ export default function MockTestExamPage() {
     query.addEventListener("change", syncLayout);
     return () => query.removeEventListener("change", syncLayout);
   }, []);
+
+  useEffect(() => {
+    if (!officialFullscreenMode || pageState !== "exam") {
+      setFullscreenRequired(false);
+      return;
+    }
+    if (typeof document === "undefined") return;
+
+    const ensureFullscreen = async () => {
+      if (document.fullscreenElement) {
+        setFullscreenRequired(false);
+        return;
+      }
+      try {
+        await document.documentElement.requestFullscreen();
+        setFullscreenRequired(false);
+      } catch {
+        setFullscreenRequired(true);
+      }
+    };
+
+    void ensureFullscreen();
+  }, [officialFullscreenMode, pageState]);
+
+  useEffect(() => {
+    if (!officialFullscreenMode || pageState !== "exam") return;
+    if (typeof document === "undefined") return;
+
+    const onFullscreenChange = () => {
+      const exited = !document.fullscreenElement;
+      setFullscreenRequired(exited);
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, [officialFullscreenMode, pageState]);
 
   useEffect(() => {
     if (!vocabLookupOpen && !vocabTriggerPos) return;
@@ -2535,6 +2574,30 @@ export default function MockTestExamPage() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-transparent dark:text-slate-100">
+      {officialFullscreenMode && fullscreenRequired ? (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-950/80 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 text-center text-white shadow-2xl">
+            <h3 className="text-xl font-bold">Yeu cau toan man hinh</h3>
+            <p className="mt-2 text-sm text-slate-200">
+              De thi chinh thuc can che do toan man hinh. Vui long bat lai fullscreen de tiep tuc.
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await document.documentElement.requestFullscreen();
+                  setFullscreenRequired(false);
+                } catch {
+                  setFullscreenRequired(true);
+                }
+              }}
+              className="mt-5 inline-flex items-center justify-center rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-amber-300"
+            >
+              Bat toan man hinh
+            </button>
+          </div>
+        </div>
+      ) : null}
       {highlightEnabled && vocabTriggerPos && !vocabLookupOpen ? (
         <div
           className="fixed z-[96] flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-1 py-1 shadow-xl dark:border-slate-600/40 dark:bg-slate-900"
