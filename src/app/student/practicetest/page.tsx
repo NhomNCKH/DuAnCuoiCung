@@ -49,6 +49,7 @@ export default function OfficialExamPage() {
   const [networkChecking, setNetworkChecking] = useState(false);
   const [networkOk, setNetworkOk] = useState(false);
   const [networkMessage, setNetworkMessage] = useState<string>("");
+  const [deviceChecks, setDeviceChecks] = useState<Array<{ label: string; ok: boolean; detail?: string }>>([]);
   const [audioPlayed, setAudioPlayed] = useState(false);
   const [audioHeard, setAudioHeard] = useState<boolean | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
@@ -199,11 +200,39 @@ export default function OfficialExamPage() {
       const online = typeof navigator !== "undefined" ? navigator.onLine : true;
       if (!online) throw new Error("Kết nối không ổn định.");
       await apiClient.health();
-      setNetworkOk(true);
-      setNetworkMessage("Kết nối mạng ổn định.");
+
+      let cameraOk = false;
+      let micOk = false;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        cameraOk = stream.getVideoTracks().length > 0;
+        micOk = stream.getAudioTracks().length > 0;
+        stream.getTracks().forEach((t) => t.stop());
+      } catch {
+        cameraOk = false;
+        micOk = false;
+      }
+
+      const browser = navigator.userAgent;
+      const platform = navigator.platform || "Unknown";
+      const viewport = `${window.innerWidth}x${window.innerHeight}`;
+      const checks = [
+        { label: "Mạng", ok: true, detail: "Kết nối ổn định" },
+        { label: "Camera", ok: cameraOk, detail: cameraOk ? "Sẵn sàng" : "Không truy cập được" },
+        { label: "Micro", ok: micOk, detail: micOk ? "Sẵn sàng" : "Không truy cập được" },
+        { label: "Trình duyệt", ok: true, detail: browser },
+        { label: "Hệ điều hành", ok: true, detail: platform },
+        { label: "Kích thước màn hình", ok: true, detail: viewport },
+      ];
+      setDeviceChecks(checks);
+
+      const allPassed = checks.every((item) => item.ok);
+      setNetworkOk(allPassed);
+      setNetworkMessage(allPassed ? "Thông tin máy đã sẵn sàng." : "Thông tin máy chưa đạt yêu cầu.");
     } catch (e: any) {
       setNetworkOk(false);
       setNetworkMessage(e?.message || "Kết nối không ổn định.");
+      setDeviceChecks([{ label: "Mạng", ok: false, detail: "Không ổn định" }]);
     } finally {
       setNetworkChecking(false);
     }
@@ -538,7 +567,7 @@ export default function OfficialExamPage() {
                 <div className="mt-3 px-1">
                   <div className="grid grid-cols-3">
                     {[
-                      { index: 1, label: "Kiểm tra mạng", active: activeStep === 1, done: networkOk },
+                      { index: 1, label: "Kiểm tra thông tin máy", active: activeStep === 1, done: networkOk },
                       { index: 2, label: "Kiểm tra âm thanh", active: activeStep === 2, done: audioPlayed },
                       { index: 3, label: "Xác minh Face ID", active: activeStep === 3, done: faceVerified },
                     ].map((step, idx, arr) => (
@@ -583,10 +612,10 @@ export default function OfficialExamPage() {
                 <div className="rounded-xl border border-slate-200 p-4">
                   <p className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-900">
                     <Wifi className="h-4 w-4 text-violet-600" />
-                    Kiểm tra kết nối mạng
+                    Kiểm tra thông tin máy
                   </p>
                   <p className="text-sm text-slate-600">
-                    Vui lòng kiểm tra kết nối trước khi bắt đầu thi để tránh gián đoạn.
+                    Hệ thống kiểm tra mạng, thiết bị và môi trường trình duyệt trước khi thi.
                   </p>
                   <div className="mt-4 flex items-center gap-3">
                     <button
@@ -596,7 +625,7 @@ export default function OfficialExamPage() {
                       disabled={networkChecking}
                     >
                       {networkChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      {networkChecking ? "Đang kiểm tra..." : "Kiểm tra mạng"}
+                      {networkChecking ? "Đang kiểm tra..." : "Kiểm tra thông tin máy"}
                     </button>
                     {networkOk ? (
                       <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700">
@@ -614,6 +643,23 @@ export default function OfficialExamPage() {
                       }`}
                     >
                       {networkOk ? networkMessage : "Kết nối không ổn định"}
+                    </div>
+                  ) : null}
+                  {deviceChecks.length > 0 ? (
+                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {deviceChecks.map((item) => (
+                        <div
+                          key={item.label}
+                          className={`rounded-lg border px-3 py-2 text-xs ${
+                            item.ok
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-rose-200 bg-rose-50 text-rose-700"
+                          }`}
+                        >
+                          <p className="font-semibold">{item.label}</p>
+                          <p className="mt-0.5 line-clamp-2">{item.detail || (item.ok ? "OK" : "Fail")}</p>
+                        </div>
+                      ))}
                     </div>
                   ) : null}
                 </div>
@@ -682,37 +728,49 @@ export default function OfficialExamPage() {
                   <p className="text-sm text-slate-600">
                     Hệ thống sẽ đối chiếu khuôn mặt hiện tại với ảnh đã đăng ký thi chính thức.
                   </p>
-                  <div className="mt-3 flex justify-center">
-                    <div className="relative h-56 w-56">
-                      <div
-                        className={`absolute inset-0 rounded-full border-4 ${
-                          faceVerified
-                            ? "border-emerald-300"
-                            : faceError
-                              ? "border-rose-300"
-                              : "border-violet-300"
-                        }`}
-                      />
-                      {faceChecking ? (
-                        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-violet-500 animate-spin" />
-                      ) : null}
-                      <div className="absolute inset-2 overflow-hidden rounded-full border border-slate-200 bg-slate-900">
-                        <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-                      </div>
-                      {faceVerified ? (
-                        <div className="absolute inset-0 grid place-items-center">
-                          <div className="rounded-full bg-emerald-500/25 p-3 text-emerald-600">
-                            <CheckCircle2 className="h-10 w-10" />
+                  <div className={`mt-3 grid gap-4 ${faceVerified ? "lg:grid-cols-2" : "grid-cols-1"}`}>
+                    <div className="flex justify-center">
+                      <div className="relative h-56 w-56">
+                        <div
+                          className={`absolute inset-0 rounded-full border-4 ${
+                            faceVerified
+                              ? "border-emerald-300"
+                              : faceError
+                                ? "border-rose-300"
+                                : "border-violet-300"
+                          }`}
+                        />
+                        {faceChecking ? (
+                          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-violet-500 animate-spin" />
+                        ) : null}
+                        <div className="absolute inset-2 overflow-hidden rounded-full border border-slate-200 bg-slate-900">
+                          <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+                        </div>
+                        {faceVerified ? (
+                          <div className="absolute inset-0 grid place-items-center">
+                            <div className="rounded-full bg-emerald-500/25 p-3 text-emerald-600">
+                              <CheckCircle2 className="h-10 w-10" />
+                            </div>
                           </div>
-                        </div>
-                      ) : null}
-                      {!faceVerified && faceError ? (
-                        <div className="absolute inset-0 grid place-items-center">
-                          <div className="rounded-full bg-rose-500/20 p-3 text-rose-600 text-4xl font-bold leading-none">×</div>
-                        </div>
-                      ) : null}
+                        ) : null}
+                        {!faceVerified && faceError ? (
+                          <div className="absolute inset-0 grid place-items-center">
+                            <div className="rounded-full bg-rose-500/20 p-3 text-rose-600 text-4xl font-bold leading-none">×</div>
+                          </div>
+                        ) : null}
+                      </div>
+                      <canvas ref={canvasRef} className="hidden" />
                     </div>
-                    <canvas ref={canvasRef} className="hidden" />
+                    {faceVerified ? (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                        <p className="font-bold">Thông tin người đăng ký</p>
+                        <p className="mt-1">Họ tên: {registrationProfile?.fullName || user?.name || "—"}</p>
+                        <p>Số định danh: {registrationProfile?.identityNumber || "—"}</p>
+                        <p>Ngày sinh: {registrationProfile?.birthday || "—"}</p>
+                        <p>Số điện thoại: {registrationProfile?.phone || "—"}</p>
+                        <p>Địa chỉ: {registrationProfile?.address || "—"}</p>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="mt-3 flex items-center gap-3">
                     <button type="button" className="btn-primary" disabled={!cameraReady || faceChecking} onClick={() => void handleFaceVerify()}>
@@ -730,15 +788,7 @@ export default function OfficialExamPage() {
                       {faceError}
                     </div>
                   ) : null}
-                  {faceVerified ? (
-                    <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                      <p className="font-bold">Thông tin người đăng ký</p>
-                      <p className="mt-1">Họ tên: {registrationProfile?.fullName || user?.name || "—"}</p>
-                      <p>Số định danh: {registrationProfile?.identityNumber || "—"}</p>
-                      <p>Ngày sinh: {registrationProfile?.birthday || "—"}</p>
-                      <p>Số điện thoại: {registrationProfile?.phone || "—"}</p>
-                    </div>
-                  ) : null}
+                  
                 </div>
               ) : null}
             </div>
