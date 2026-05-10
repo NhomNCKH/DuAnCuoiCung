@@ -725,9 +725,6 @@ export default function OfficialExamPage() {
                     <Camera className="h-4 w-4 text-violet-600" />
                     Xác minh Face ID
                   </p>
-                  <p className="text-sm text-slate-600">
-                    Hệ thống sẽ đối chiếu khuôn mặt hiện tại với ảnh đã đăng ký thi chính thức.
-                  </p>
                   <div className={`mt-3 grid gap-4 ${faceVerified ? "lg:grid-cols-2" : "grid-cols-1"}`}>
                     <div className="flex justify-center">
                       <div className="relative h-56 w-56">
