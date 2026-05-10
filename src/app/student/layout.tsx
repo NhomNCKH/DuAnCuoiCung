@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
 import Footer from "@/components/User/Footer";
@@ -21,6 +21,7 @@ import GlobalVocabularyLookup from "@/features/student/shell/GlobalVocabularyLoo
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const safePathname = pathname ?? "";
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -89,6 +90,20 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
   if (isLoading) return <StudentLayoutLoading />;
   if (!isAuthenticated) return null;
+
+  const isOfficialExamFullscreen =
+    safePathname.startsWith("/student/mock-test/") &&
+    searchParams?.get("official") === "1";
+
+  if (isOfficialExamFullscreen) {
+    return (
+      <div
+        className={`student-app student-theme min-h-screen bg-gray-50 admin-theme ${theme === "dark" ? "admin-dark" : "admin-light"}`}
+      >
+        <main className="min-h-screen">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div

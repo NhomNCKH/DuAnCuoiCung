@@ -843,6 +843,7 @@ export default function MockTestExamPage() {
   const searchParams = useSearchParams();
   const qs = searchParams ?? new URLSearchParams();
   const reviewAttemptId = qs.get("attemptId")?.trim() ?? "";
+  const officialFullscreenMode = qs.get("official") === "1";
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [attempt, setAttempt] = useState<MockExamAttemptView | null>(null);
@@ -860,6 +861,7 @@ export default function MockTestExamPage() {
   const [reviewExpanded, setReviewExpanded] = useState(false);
   const [isReviewLoading, setIsReviewLoading] = useState(false);
   const [proctoringActive, setProctoringActive] = useState(false);
+  const [fullscreenRequired, setFullscreenRequired] = useState(false);
   const [isDesktopExamLayout, setIsDesktopExamLayout] = useState(false);
   const [highlightEnabled, setHighlightEnabled] = useState(true);
   const [flashcardCreateOpen, setFlashcardCreateOpen] = useState(false);
@@ -935,6 +937,43 @@ export default function MockTestExamPage() {
     query.addEventListener("change", syncLayout);
     return () => query.removeEventListener("change", syncLayout);
   }, []);
+
+  useEffect(() => {
+    if (!officialFullscreenMode || pageState !== "exam") {
+      setFullscreenRequired(false);
+      return;
+    }
+    if (typeof document === "undefined") return;
+
+    const ensureFullscreen = async () => {
+      if (document.fullscreenElement) {
+        setFullscreenRequired(false);
+        return;
+      }
+      try {
+        await document.documentElement.requestFullscreen();
+        setFullscreenRequired(false);
+      } catch {
+        setFullscreenRequired(true);
+      }
+    };
+
+    void ensureFullscreen();
+  }, [officialFullscreenMode, pageState]);
+
+  useEffect(() => {
+    if (!officialFullscreenMode || pageState !== "exam") return;
+    if (typeof document === "undefined") return;
+
+    const onFullscreenChange = () => {
+      const exited = !document.fullscreenElement;
+      setFullscreenRequired(exited);
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, [officialFullscreenMode, pageState]);
 
   useEffect(() => {
     if (!vocabLookupOpen && !vocabTriggerPos) return;
@@ -1060,7 +1099,7 @@ export default function MockTestExamPage() {
   const submittingRef = useRef(false);
   const recoveringResultRef = useRef(false);
   const answersRef = useRef<Record<string, string>>({});
-  const submitRef = useRef<(autoSubmit?: boolean) => void>(() => { });
+  const submitRef = useRef<(autoSubmit?: boolean) => void>(() => {});
   const mediaUrlCacheRef = useRef<Record<string, string>>({});
 
   const clearTimerInterval = useCallback(() => {
@@ -1072,7 +1111,9 @@ export default function MockTestExamPage() {
   }, []);
 
   const handleProctoringViolation = useCallback((violation: any) => {
+    console.log("handleProctoringViolation called:", violation);
     const notice = getProctoringNoticeMessage(violation);
+    console.log("Generated notice:", notice);
     const id = `${notice.action}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     setProctoringNotices((prev) =>
@@ -1599,11 +1640,10 @@ export default function MockTestExamPage() {
   };
 
   const displayedQuestions = useMemo(() => {
-    const rawQuestions =
-      isLongListPart
-        ? currentSection?.questions ?? []
-        : isCurrentGroupedPart && (currentGroup?.questions.length ?? 0) > 1
-        ? currentGroup?.questions ?? []
+    const rawQuestions = isLongListPart
+      ? (currentSection?.questions ?? [])
+      : isCurrentGroupedPart && (currentGroup?.questions.length ?? 0) > 1
+        ? (currentGroup?.questions ?? [])
         : currentQuestion
           ? [currentQuestion]
           : [];
@@ -1629,7 +1669,8 @@ export default function MockTestExamPage() {
     displayedQuestions.length > 0
       ? allQuestions.findIndex(
           (question) =>
-            question.id === displayedQuestions[displayedQuestions.length - 1]?.id,
+            question.id ===
+            displayedQuestions[displayedQuestions.length - 1]?.id,
         )
       : currentIdx;
 
@@ -1871,12 +1912,13 @@ export default function MockTestExamPage() {
               onClick={() => toggleReviewFlag(question.id)}
               aria-pressed={isFlagged}
               title={isFlagged ? "Bỏ đánh dấu review" : "Đánh dấu review"}
-              className={`relative mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold transition ${isAnswered
+              className={`relative mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold transition ${
+                isAnswered
                   ? "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
                   : isFlagged
                     ? "bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-500/20 dark:text-rose-100 dark:hover:bg-rose-500/30"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/15"
-                }`}
+              }`}
             >
               {question.displayNumber}
             </button>
@@ -1899,12 +1941,13 @@ export default function MockTestExamPage() {
             onClick={() => toggleReviewFlag(question.id)}
             aria-pressed={isFlagged}
             title={isFlagged ? "Bỏ đánh dấu review" : "Đánh dấu review"}
-            className={`relative mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold transition ${isAnswered
+            className={`relative mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold transition ${
+              isAnswered
                 ? "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
                 : isFlagged
                   ? "bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-500/20 dark:text-rose-100 dark:hover:bg-rose-500/30"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/15"
-              }`}
+            }`}
           >
             {question.displayNumber}
           </button>
@@ -1939,14 +1982,17 @@ export default function MockTestExamPage() {
                     key={option.key}
                     onClick={() => handleAnswer(question.id, option.key)}
                     className={`flex w-full items-start gap-3 rounded-2xl px-1 py-1 text-left ${
-                      selected ? "text-amber-800 dark:text-amber-200" : "text-slate-800 dark:text-slate-100"
+                      selected
+                        ? "text-amber-800 dark:text-amber-200"
+                        : "text-slate-800 dark:text-slate-100"
                     }`}
                   >
                     <span
-                      className={`mt-1 inline-flex h-5 w-5 shrink-0 rounded-full border ${selected
+                      className={`mt-1 inline-flex h-5 w-5 shrink-0 rounded-full border ${
+                        selected
                           ? "border-amber-500 bg-amber-500 shadow-[inset_0_0_0_3px_white]"
                           : "border-slate-400 bg-white dark:border-slate-500/70 dark:bg-transparent"
-                        }`}
+                      }`}
                     />
                     <span className="flex-1 text-[17px] leading-8">
                       <span className="font-medium">{option.key}.</span>
@@ -2031,10 +2077,11 @@ export default function MockTestExamPage() {
       >
         <div className="flex items-start gap-4">
           <span
-            className={`mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold ${question.isCorrect
+            className={`mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold ${
+              question.isCorrect
                 ? "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
                 : "bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200"
-              }`}
+            }`}
           >
             {question.questionNo}
           </span>
@@ -2061,12 +2108,13 @@ export default function MockTestExamPage() {
                   return (
                     <div
                       key={`${question.id}-${option.optionKey}`}
-                      className={`rounded-2xl border px-4 py-3 ${isCorrect
+                      className={`rounded-2xl border px-4 py-3 ${
+                        isCorrect
                           ? "border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10"
                           : isSelected
                             ? "border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10"
                             : "border-slate-200 bg-slate-50 dark:border-slate-600/40 dark:bg-white/5"
-                        }`}
+                      }`}
                     >
                       <div className="flex flex-wrap items-start gap-2">
                         <span className="font-semibold text-slate-900 dark:text-slate-100">
@@ -2416,8 +2464,8 @@ export default function MockTestExamPage() {
                           <td className="px-4 py-3 text-slate-600 dark:text-slate-200">
                             {formatAttemptDate(
                               historyItem.gradedAt ??
-                              historyItem.submittedAt ??
-                              historyItem.startedAt,
+                                historyItem.submittedAt ??
+                                historyItem.startedAt,
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -2526,6 +2574,30 @@ export default function MockTestExamPage() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-transparent dark:text-slate-100">
+      {officialFullscreenMode && fullscreenRequired ? (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-950/80 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 text-center text-white shadow-2xl">
+            <h3 className="text-xl font-bold">Yeu cau toan man hinh</h3>
+            <p className="mt-2 text-sm text-slate-200">
+              De thi chinh thuc can che do toan man hinh. Vui long bat lai fullscreen de tiep tuc.
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await document.documentElement.requestFullscreen();
+                  setFullscreenRequired(false);
+                } catch {
+                  setFullscreenRequired(true);
+                }
+              }}
+              className="mt-5 inline-flex items-center justify-center rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-amber-300"
+            >
+              Bat toan man hinh
+            </button>
+          </div>
+        </div>
+      ) : null}
       {highlightEnabled && vocabTriggerPos && !vocabLookupOpen ? (
         <div
           className="fixed z-[96] flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-1 py-1 shadow-xl dark:border-slate-600/40 dark:bg-slate-900"
@@ -2698,10 +2770,11 @@ export default function MockTestExamPage() {
           {proctoringNotices.map((notice) => (
             <div
               key={notice.id}
-              className={`rounded-xl border px-4 py-3 shadow-lg backdrop-blur ${notice.severity >= 4
+              className={`rounded-xl border px-4 py-3 shadow-lg backdrop-blur ${
+                notice.severity >= 4
                   ? "border-red-200 bg-red-50/95 text-red-900 dark:border-red-500/30 dark:bg-red-950/90 dark:text-red-100"
                   : "border-amber-200 bg-amber-50/95 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/90 dark:text-amber-100"
-                }`}
+              }`}
             >
               <div className="flex items-start gap-3">
                 <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -2812,7 +2885,7 @@ export default function MockTestExamPage() {
                   !isLongListPart
                     ? "mt-4 border-t border-slate-100 pt-4 dark:border-slate-600/30"
                     : ""
-                  }`}
+                }`}
               >
                 {sectionsWithQuestions.map((section) => {
                   const isActive = section.id === currentSection?.id;
@@ -2820,10 +2893,11 @@ export default function MockTestExamPage() {
                     <button
                       key={section.id}
                       onClick={() => jumpToSection(section.id)}
-                      className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-transparent ${isActive
+                      className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-transparent ${
+                        isActive
                           ? "bg-amber-500 text-slate-900"
                           : "bg-white text-slate-700 hover:bg-amber-50 hover:text-amber-900 dark:bg-transparent dark:text-slate-200 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
-                        }`}
+                      }`}
                     >
                       {PART_TAB_LABEL[section.part ?? ""] ?? section.name}
                     </button>
@@ -2836,10 +2910,11 @@ export default function MockTestExamPage() {
               <div className="flex items-center justify-between gap-3">
                 {timeLeft !== null && (
                   <div
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2 font-mono text-sm font-bold ${timeLeft < 300
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 font-mono text-sm font-bold ${
+                      timeLeft < 300
                         ? "bg-red-50 text-red-600 dark:bg-rose-500/10 dark:text-rose-200"
                         : "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200"
-                      }`}
+                    }`}
                   >
                     <Clock className="h-4 w-4" />
                     {formatTime(timeLeft)}
@@ -2869,6 +2944,7 @@ export default function MockTestExamPage() {
                     </span>
                   </div>
                   <ProctoringCamera
+                    key={`proctoring-${user.id}-${attempt.id}`}
                     userId={user.id}
                     examId={attempt.id}
                     examAttemptId={attempt.id}
@@ -2902,12 +2978,15 @@ export default function MockTestExamPage() {
                       aria-checked={highlightEnabled}
                       onClick={() => setHighlightEnabled((v) => !v)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-                        highlightEnabled ? "bg-amber-500" : "bg-slate-300 dark:bg-white/15"
+                        highlightEnabled
+                          ? "bg-amber-500"
+                          : "bg-slate-300 dark:bg-white/15"
                       }`}
                     >
                       <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${highlightEnabled ? "translate-x-5" : "translate-x-1"
-                          }`}
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                          highlightEnabled ? "translate-x-5" : "translate-x-1"
+                        }`}
                       />
                     </button>
                     <span className="text-sm italic text-slate-700 dark:text-slate-200">
@@ -2959,22 +3038,24 @@ export default function MockTestExamPage() {
 
             {!isLongListPart && (
               <div className="flex items-center justify-between gap-3">
-              <button
-                onClick={() => previousIndex >= 0 && setCurrentIdx(previousIndex)}
-                disabled={previousIndex < 0}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                {displayedQuestions.length > 1 ? "Nhóm trước" : "Câu trước"}
-              </button>
-              <button
-                onClick={() => nextIndex >= 0 && setCurrentIdx(nextIndex)}
-                disabled={nextIndex < 0}
-                className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-amber-500 dark:text-slate-900 dark:hover:bg-amber-400"
-              >
-                {displayedQuestions.length > 1 ? "Nhóm tiếp" : "Câu tiếp"}
-                <ChevronRight className="h-4 w-4" />
-              </button>
+                <button
+                  onClick={() =>
+                    previousIndex >= 0 && setCurrentIdx(previousIndex)
+                  }
+                  disabled={previousIndex < 0}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {displayedQuestions.length > 1 ? "Nhóm trước" : "Câu trước"}
+                </button>
+                <button
+                  onClick={() => nextIndex >= 0 && setCurrentIdx(nextIndex)}
+                  disabled={nextIndex < 0}
+                  className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-amber-500 dark:text-slate-900 dark:hover:bg-amber-400"
+                >
+                  {displayedQuestions.length > 1 ? "Nhóm tiếp" : "Câu tiếp"}
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
             )}
           </div>
@@ -2989,7 +3070,9 @@ export default function MockTestExamPage() {
                     </p>
                     <p
                       className={`mt-1 font-mono text-3xl font-bold leading-none ${
-                        timeLeft < 300 ? "text-red-600 dark:text-rose-200" : "text-slate-900 dark:text-slate-100"
+                        timeLeft < 300
+                          ? "text-red-600 dark:text-rose-200"
+                          : "text-slate-900 dark:text-slate-100"
                       }`}
                     >
                       {formatTime(timeLeft)}
@@ -3011,6 +3094,7 @@ export default function MockTestExamPage() {
                       </span>
                     </div>
                     <ProctoringCamera
+                      key={`proctoring-${user.id}-${attempt.id}`}
                       userId={user.id}
                       examId={attempt.id}
                       examAttemptId={attempt.id}
@@ -3093,12 +3177,13 @@ export default function MockTestExamPage() {
                                 jumpToQuestion(question.id);
                               }}
                               aria-pressed={flagged}
-                              className={`relative h-8 rounded border text-[11px] font-semibold transition ${answered
+                              className={`relative h-8 rounded border text-[11px] font-semibold transition ${
+                                answered
                                   ? "border-slate-900 bg-slate-900 text-white dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
                                   : flagged
                                     ? "border-rose-700 bg-rose-600 text-white hover:bg-rose-700 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-100 dark:hover:bg-rose-500/30"
                                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
-                                }`}
+                              }`}
                             >
                               {question.displayNumber}
                             </button>

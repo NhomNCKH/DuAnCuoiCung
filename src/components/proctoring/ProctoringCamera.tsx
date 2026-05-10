@@ -4,12 +4,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiClient } from "@/lib/api-client";
-import html2canvas from 'html2canvas';
+import html2canvas from "html2canvas";
 
-const FRAME_CAPTURE_INTERVAL_MS = 1000;
+const FRAME_CAPTURE_INTERVAL_MS = 2000; // Increased from 1000ms to 2000ms to reduce spam
 const FACE_VERIFICATION_INITIAL_DELAY_MS = 2500;
 const FACE_VERIFICATION_INTERVAL_MS = 5 * 60 * 1000;
 const BROWSER_VIOLATION_COOLDOWN_MS = 4000;
+const YOLO_VIOLATION_COOLDOWN_MS = 5000; // 5 seconds cooldown for YOLO violations
 const SPLIT_SCREEN_GRACE_MS = 1500;
 const MIN_DESKTOP_WIDTH_FOR_SPLIT_CHECK = 1024;
 const MIN_WINDOW_SCREEN_RATIO = 0.82;
@@ -45,24 +46,40 @@ export const ProctoringCamera = ({
   onBlocked,
   className = "",
 }: ProctoringCameraProps) => {
+  console.log("ProctoringCamera rendered:", {
+    userId,
+    examId,
+    enableFaceVerification,
+    timestamp: Date.now(),
+  });
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const faceVerificationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const faceVerificationIntervalRef = useRef<ReturnType<
+    typeof setInterval
+  > | null>(null);
   const isConnectedRef = useRef(false);
   const stoppedRef = useRef(false);
   const cameraRequestRef = useRef(0);
   const faceVerificationInFlightRef = useRef(false);
   const lastFrameDataUrlRef = useRef<string>("");
   const lastBrowserViolationAtRef = useRef<Record<string, number>>({});
-  const splitScreenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastYoloViolationAtRef = useRef<Record<string, number>>({});
+  const yoloViolationResetTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const splitScreenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [warningCount, setWarningCount] = useState(0);
   const [isReporting, setIsReporting] = useState(false);
   const [isVerifyingIdentity, setIsVerifyingIdentity] = useState(false);
-  const [lastIdentitySimilarity, setLastIdentitySimilarity] = useState<number | null>(null);
+  const [lastIdentitySimilarity, setLastIdentitySimilarity] = useState<
+    number | null
+  >(null);
   const debugLogsEnabled =
     process.env.NEXT_PUBLIC_PROCTORING_DEBUG_LOGS !== "false";
 
@@ -77,7 +94,8 @@ export const ProctoringCamera = ({
 
   useEffect(() => {
     isConnectedRef.current = isConnected;
-  }, [isConnected]);
+    console.log("ProctoringCamera WebSocket status:", { wsUrl, isConnected });
+  }, [isConnected, wsUrl]);
 
   const logDebugEvent = useCallback(
     async (
@@ -109,8 +127,48 @@ export const ProctoringCamera = ({
   );
 
   const reportViolations = useCallback(
-    async (violations: ProctoringViolationPayload[]) => {
+    async (
+      violations: ProctoringViolationPayload[],
+      options?: { skipCooldown?: boolean },
+    ) => {
       if (violations.length === 0) return;
+
+      // Apply cooldown for YOLO violations to prevent spam
+      if (!options?.skipCooldown) {
+        const now = Date.now();
+        const filteredViolations = violations.filter((violation) => {
+          const action = violation.action || "unknown";
+          const last = lastYoloViolationAtRef.current[action] ?? 0;
+          if (now - last < YOLO_VIOLATION_COOLDOWN_MS) {
+            console.log(
+              `YOLO violation "${action}" skipped due to cooldown (${YOLO_VIOLATION_COOLDOWN_MS}ms)`,
+            );
+            return false; // Skip this violation due to cooldown
+          }
+          lastYoloViolationAtRef.current[action] = now;
+
+          // Reset cooldown after 30 seconds of no violations for this action
+          if (yoloViolationResetTimerRef.current) {
+            clearTimeout(yoloViolationResetTimerRef.current);
+          }
+          yoloViolationResetTimerRef.current = setTimeout(() => {
+            delete lastYoloViolationAtRef.current[action];
+            console.log(`YOLO violation cooldown reset for "${action}"`);
+          }, 30000); // 30 seconds
+
+          return true;
+        });
+
+        if (filteredViolations.length === 0) {
+          console.log(
+            "YOLO violations skipped due to cooldown:",
+            violations.map((v) => v.action),
+          );
+          return;
+        }
+
+        violations = filteredViolations;
+      }
 
       setIsReporting(true);
       try {
@@ -124,8 +182,13 @@ export const ProctoringCamera = ({
             severity: v.severity || 1,
             confidence: v.confidence || 0,
             timestamp: v.timestamp || new Date().toISOString(),
-            snapshotImage: v.snapshotImage || lastFrameDataUrlRef.current || undefined,
-            screenshotUrl: v.screenshotUrl || v.snapshotImage || lastFrameDataUrlRef.current || undefined,
+            snapshotImage:
+              v.snapshotImage || lastFrameDataUrlRef.current || undefined,
+            screenshotUrl:
+              v.screenshotUrl ||
+              v.snapshotImage ||
+              lastFrameDataUrlRef.current ||
+              undefined,
           })),
           timestamp: new Date().toISOString(),
         });
@@ -140,6 +203,10 @@ export const ProctoringCamera = ({
         });
 
         violations.forEach((violation) => onViolation?.(violation));
+        console.log(
+          "ProctoringCamera YOLO violations reported after cooldown:",
+          violations.map((v) => v.action),
+        );
       } catch (error) {
         console.error("Failed to report violations to backend:", error);
         void logDebugEvent("violation_report_failed", {
@@ -162,7 +229,8 @@ export const ProctoringCamera = ({
 
   const captureCurrentFrame = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return "";
-    if (!videoRef.current.videoWidth || !videoRef.current.videoHeight) return "";
+    if (!videoRef.current.videoWidth || !videoRef.current.videoHeight)
+      return "";
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -213,7 +281,8 @@ export const ProctoringCamera = ({
         },
       });
 
-      const snapshotImage = await captureScreenshot() || lastFrameDataUrlRef.current || undefined;
+      const snapshotImage =
+        (await captureScreenshot()) || lastFrameDataUrlRef.current || undefined;
       await reportViolations([
         {
           ...violation,
@@ -232,7 +301,8 @@ export const ProctoringCamera = ({
       if (faceVerificationInFlightRef.current) return;
       if (!examAttemptId && !faceVerificationExamTemplateId) return;
 
-      const webcamImageBase64 = captureCurrentFrame() || lastFrameDataUrlRef.current;
+      const webcamImageBase64 =
+        captureCurrentFrame() || lastFrameDataUrlRef.current;
       if (!webcamImageBase64) return;
 
       faceVerificationInFlightRef.current = true;
@@ -281,9 +351,13 @@ export const ProctoringCamera = ({
         if (result && !result.verified) {
           const violation = {
             action: "face_mismatch",
-            message: "Webcam face does not match the official registration image.",
+            message:
+              "Webcam face does not match the official registration image.",
             severity: 5,
-            confidence: Math.max(0, Math.min(1, 1 - Number(result.similarity ?? 0))),
+            confidence: Math.max(
+              0,
+              Math.min(1, 1 - Number(result.similarity ?? 0)),
+            ),
             timestamp: result.checkedAt || new Date().toISOString(),
             snapshotImage: webcamImageBase64,
             screenshotUrl: webcamImageBase64,
@@ -344,7 +418,9 @@ export const ProctoringCamera = ({
               violationCount: data.violations.length,
               warningCount: Number(data.warning_count) || 0,
               blocked: Boolean(data.is_blocked),
-              actions: data.violations.map((item: any) => item?.action || "unknown"),
+              actions: data.violations.map(
+                (item: any) => item?.action || "unknown",
+              ),
             },
           });
           await reportViolations(data.violations);
@@ -447,14 +523,17 @@ export const ProctoringCamera = ({
           level: "error",
           message: "Camera API is not available in this browser",
         });
-        await reportViolations([
-          {
-            action: "camera_unavailable",
-            message: "Camera API is not available in this browser.",
-            severity: 4,
-            confidence: 1,
-          },
-        ]);
+        await reportViolations(
+          [
+            {
+              action: "camera_unavailable",
+              message: "Camera API is not available in this browser.",
+              severity: 4,
+              confidence: 1,
+            },
+          ],
+          { skipCooldown: true },
+        );
         return;
       }
 
@@ -462,7 +541,11 @@ export const ProctoringCamera = ({
         video: { width: { ideal: 640 }, height: { ideal: 480 } },
       });
 
-      if (stoppedRef.current || requestId !== cameraRequestRef.current || !videoRef.current) {
+      if (
+        stoppedRef.current ||
+        requestId !== cameraRequestRef.current ||
+        !videoRef.current
+      ) {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
@@ -505,14 +588,17 @@ export const ProctoringCamera = ({
           error: error instanceof Error ? error.message : String(error),
         },
       });
-      await reportViolations([
-        {
-          action: "camera_permission_denied",
-          message: "Cannot access camera. Please grant camera permission.",
-          severity: 5,
-          confidence: 1,
-        },
-      ]);
+      await reportViolations(
+        [
+          {
+            action: "camera_permission_denied",
+            message: "Cannot access camera. Please grant camera permission.",
+            severity: 5,
+            confidence: 1,
+          },
+        ],
+        { skipCooldown: true },
+      );
       onBlocked?.();
     }
   }, [logDebugEvent, onBlocked, reportViolations, startCapturing]);
@@ -596,7 +682,8 @@ export const ProctoringCamera = ({
     const reportForbiddenKey = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
       const isClipboardShortcut =
-        (event.ctrlKey || event.metaKey) && ["c", "v", "x", "a", "s", "p"].includes(key);
+        (event.ctrlKey || event.metaKey) &&
+        ["c", "v", "x", "a", "s", "p"].includes(key);
       const isForbiddenKey = event.key === "PrintScreen" || event.key === "F12";
 
       if (!isClipboardShortcut && !isForbiddenKey) return;
@@ -611,12 +698,18 @@ export const ProctoringCamera = ({
     };
 
     const isSplitScreenLikely = () => {
-      if (window.screen.availWidth < MIN_DESKTOP_WIDTH_FOR_SPLIT_CHECK) return false;
+      if (window.screen.availWidth < MIN_DESKTOP_WIDTH_FOR_SPLIT_CHECK)
+        return false;
       if (document.fullscreenElement) return false;
 
       const screenWidth = window.screen.availWidth || window.screen.width;
-      const visibleWidth = Math.max(window.outerWidth || 0, window.innerWidth || 0);
-      return visibleWidth > 0 && visibleWidth / screenWidth < MIN_WINDOW_SCREEN_RATIO;
+      const visibleWidth = Math.max(
+        window.outerWidth || 0,
+        window.innerWidth || 0,
+      );
+      return (
+        visibleWidth > 0 && visibleWidth / screenWidth < MIN_WINDOW_SCREEN_RATIO
+      );
     };
 
     const checkSplitScreen = () => {
@@ -636,7 +729,8 @@ export const ProctoringCamera = ({
 
         void reportBrowserViolation({
           action: "split_screen",
-          message: "Phát hiện cửa sổ bài thi đang bị chia đôi hoặc thu nhỏ bất thường.",
+          message:
+            "Phát hiện cửa sổ bài thi đang bị chia đôi hoặc thu nhỏ bất thường.",
           severity: 4,
           confidence: 0.85,
         });
@@ -666,6 +760,11 @@ export const ProctoringCamera = ({
         clearTimeout(splitScreenTimerRef.current);
         splitScreenTimerRef.current = null;
       }
+
+      if (yoloViolationResetTimerRef.current) {
+        clearTimeout(yoloViolationResetTimerRef.current);
+        yoloViolationResetTimerRef.current = null;
+      }
     };
   }, [reportBrowserViolation]);
 
@@ -684,10 +783,16 @@ export const ProctoringCamera = ({
           className="w-full h-full object-cover"
         />
 
-        <div className="absolute top-1 left-1 px-2 py-0.5 bg-green-500 text-white text-xs rounded flex items-center gap-1">
+        <div
+          className={`absolute top-1 left-1 px-2 py-0.5 text-white text-xs rounded flex items-center gap-1 ${isConnected ? "bg-green-500" : "bg-red-500"}`}
+        >
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            <span
+              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isConnected ? "bg-green-400" : "bg-red-400"}`}
+            ></span>
+            <span
+              className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? "bg-green-500" : "bg-red-500"}`}
+            ></span>
           </span>
           {isConnected ? "Monitoring" : "Disconnected"}
         </div>
