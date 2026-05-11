@@ -15,6 +15,7 @@ const UI_VIOLATION_COOLDOWN_MS = 3000;
 const SPLIT_SCREEN_GRACE_MS = 1500;
 const MIN_DESKTOP_WIDTH_FOR_SPLIT_CHECK = 1024;
 const MIN_WINDOW_SCREEN_RATIO = 0.82;
+const REENTRY_FACE_VERIFICATION_DELAY_MS = 1200;
 
 interface ProctoringCameraProps {
   userId: string;
@@ -72,6 +73,10 @@ export const ProctoringCamera = ({
     typeof setTimeout
   > | null>(null);
   const splitScreenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const pendingReentryCheckRef = useRef(false);
+  const reentryCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
 
@@ -409,23 +414,49 @@ export const ProctoringCamera = ({
     const reportViolationsToBackend = async () => {
       try {
         const data = JSON.parse(lastMessage);
+        const rawViolations = Array.isArray(data.violations) ? data.violations : [];
+        const hasFrameRelatedViolation = rawViolations.some((item: any) =>
+          ["leaving_frame", "multiple_faces", "face_occluded"].includes(
+            String(item?.action || ""),
+          ),
+        );
+
+        if (hasFrameRelatedViolation) {
+          pendingReentryCheckRef.current = true;
+          if (reentryCheckTimerRef.current) {
+            clearTimeout(reentryCheckTimerRef.current);
+            reentryCheckTimerRef.current = null;
+          }
+        } else if (
+          pendingReentryCheckRef.current &&
+          enableFaceVerification &&
+          isMonitoring
+        ) {
+          if (reentryCheckTimerRef.current) {
+            clearTimeout(reentryCheckTimerRef.current);
+          }
+          reentryCheckTimerRef.current = setTimeout(() => {
+            pendingReentryCheckRef.current = false;
+            void verifyFaceIdentity("reentry_check");
+          }, REENTRY_FACE_VERIFICATION_DELAY_MS);
+        }
 
         // Report violations to backend API
-        if (Array.isArray(data.violations) && data.violations.length > 0) {
+        if (rawViolations.length > 0) {
           void logDebugEvent("yolo_violations_received", {
             level: "warn",
             message: "Frontend received YOLO violations from websocket",
             metadata: {
-              violationCount: data.violations.length,
+              violationCount: rawViolations.length,
               warningCount: Number(data.warning_count) || 0,
               blocked: Boolean(data.is_blocked),
-              actions: data.violations.map(
+              actions: rawViolations.map(
                 (item: any) => item?.action || "unknown",
               ),
             },
           });
           const now = Date.now();
-          const violationsForUi = data.violations.filter((item: any) => {
+          const violationsForUi = rawViolations.filter((item: any) => {
             const action = item?.action || "unknown";
             const last = lastUiViolationAtRef.current[action] ?? 0;
             if (now - last < UI_VIOLATION_COOLDOWN_MS) {
@@ -436,7 +467,7 @@ export const ProctoringCamera = ({
           });
 
           violationsForUi.forEach((violation: any) => onViolation?.(violation));
-          await reportViolations(data.violations);
+          await reportViolations(rawViolations);
         }
 
         // Update local warning count
@@ -466,7 +497,21 @@ export const ProctoringCamera = ({
     };
 
     reportViolationsToBackend();
-  }, [lastMessage, logDebugEvent, onBlocked, reportViolations]);
+    return () => {
+      if (reentryCheckTimerRef.current) {
+        clearTimeout(reentryCheckTimerRef.current);
+        reentryCheckTimerRef.current = null;
+      }
+    };
+  }, [
+    enableFaceVerification,
+    isMonitoring,
+    lastMessage,
+    logDebugEvent,
+    onBlocked,
+    reportViolations,
+    verifyFaceIdentity,
+  ]);
 
   const stopMonitoring = useCallback(() => {
     stoppedRef.current = true;
@@ -777,6 +822,11 @@ export const ProctoringCamera = ({
       if (yoloViolationResetTimerRef.current) {
         clearTimeout(yoloViolationResetTimerRef.current);
         yoloViolationResetTimerRef.current = null;
+      }
+
+      if (reentryCheckTimerRef.current) {
+        clearTimeout(reentryCheckTimerRef.current);
+        reentryCheckTimerRef.current = null;
       }
     };
   }, [reportBrowserViolation]);
