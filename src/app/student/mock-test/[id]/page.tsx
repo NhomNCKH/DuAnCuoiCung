@@ -2576,11 +2576,23 @@ export default function MockTestExamPage() {
     <div className="min-h-screen bg-white text-slate-900 dark:bg-transparent dark:text-slate-100">
       {officialFullscreenMode && fullscreenRequired ? (
         <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-950/80 p-6 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 text-center text-white shadow-2xl">
-            <h3 className="text-xl font-bold">Yeu cau toan man hinh</h3>
-            <p className="mt-2 text-sm text-slate-200">
-              De thi chinh thuc can che do toan man hinh. Vui long bat lai fullscreen de tiep tuc.
-            </p>
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-cyan-200 bg-cyan-50 text-slate-900 shadow-[0_30px_80px_-30px_rgba(14,116,144,0.45)]">
+            <div className="bg-gradient-to-r from-cyan-100 via-sky-50 to-blue-100 px-6 py-5">
+              <div className="mx-auto mb-3 h-11 w-11 rounded-2xl bg-cyan-200 text-cyan-800 grid place-items-center text-lg font-black">
+                !
+              </div>
+              <h3 className="text-center text-2xl font-extrabold tracking-tight">
+                Yêu cầu toàn màn hình
+              </h3>
+              <p className="mt-2 text-center text-sm leading-6 text-slate-600">
+                Đề thi chính thức yêu cầu chế độ toàn màn hình để đảm bảo giám sát.
+                Vui lòng bật lại fullscreen để tiếp tục làm bài.
+              </p>
+            </div>
+            <div className="border-t border-cyan-200 px-6 py-5">
+              <div className="rounded-xl border border-cyan-300 bg-cyan-100/70 px-3 py-2 text-xs font-semibold text-cyan-900">
+                Lưu ý: nếu thoát toàn màn hình nhiều lần, hệ thống có thể ghi nhận vi phạm.
+              </div>
             <button
               type="button"
               onClick={async () => {
@@ -2591,10 +2603,11 @@ export default function MockTestExamPage() {
                   setFullscreenRequired(true);
                 }
               }}
-              className="mt-5 inline-flex items-center justify-center rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-amber-300"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-cyan-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-cyan-800"
             >
-              Bat toan man hinh
+              Bật toàn màn hình
             </button>
+            </div>
           </div>
         </div>
       ) : null}
