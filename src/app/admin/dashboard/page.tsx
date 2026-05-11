@@ -17,19 +17,22 @@ import {
   cn,
   formatDateTime,
   formatNumber,
+  formatScore,
   primaryButtonClass,
   secondaryButtonClass,
 } from "./dashboard-helpers";
 import {
   ActivityPanel,
-  DistributionCard,
+  DonutDistributionCard,
   ErrorState,
+  HeroInsight,
   LoadingState,
   PageShell,
   RecentAttemptsTable,
   RecentCredentialsCard,
   RecentUsersCard,
   StatCard,
+  TrendBarsCard,
 } from "./dashboard-ui";
 
 async function fetchDashboardSummaryFallback(): Promise<AdminDashboardData> {
@@ -88,6 +91,9 @@ function DashboardHeader({
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
             Dashboard
           </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Quản trị dữ liệu vận hành, chất lượng đề thi và hiệu suất người học.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -199,26 +205,46 @@ export default function AdminDashboard() {
 
       {error ? <ErrorState message={error} onRetry={fetchDashboardData} /> : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {overviewCards.map((card) => (
-          <StatCard key={card.label} {...card} />
+      <HeroInsight
+        totalAttempts={formatNumber(summary?.totalAttempts)}
+        gradedAttempts={formatNumber(summary?.gradedAttempts)}
+        inProgressAttempts={formatNumber(summary?.inProgressAttempts)}
+        averageScore={formatScore(summary?.averageTotalScore)}
+      />
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [--stagger-step:70ms]">
+        {overviewCards.map((card, index) => (
+          <div
+            key={card.label}
+            className="dashboard-fade-up"
+            style={{ animationDelay: `calc(var(--stagger-step) * ${index})` }}
+          >
+            <StatCard {...card} />
+          </div>
         ))}
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {metricCards.map((card) => (
-          <StatCard key={card.label} {...card} />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [--stagger-step:70ms]">
+        {metricCards.map((card, index) => (
+          <div
+            key={card.label}
+            className="dashboard-fade-up"
+            style={{ animationDelay: `calc(var(--stagger-step) * ${index})` }}
+          >
+            <StatCard {...card} />
+          </div>
         ))}
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-[0.95fr_1fr_1fr]">
+      <section className="grid gap-3 xl:grid-cols-[1fr_1fr_1.1fr]">
+        <DonutDistributionCard title="Phân bố trạng thái lượt thi" rows={attemptStatusRows} />
+        <DonutDistributionCard title="Phân bố loại đề thi" rows={templateModeRows} />
         <ActivityPanel cards={activityCards} />
-        <DistributionCard title="Đề thi" rows={templateModeRows} tone="blue" />
-        <DistributionCard
-          title="Câu hỏi"
-          rows={questionCoverageRows}
-          tone="emerald"
-        />
+      </section>
+
+      <section className="grid gap-3 xl:grid-cols-2">
+        <TrendBarsCard title="Mức độ phủ câu hỏi theo Part" rows={questionCoverageRows} />
+        <TrendBarsCard title="Khối lượng lượt thi theo trạng thái" rows={attemptStatusRows} />
       </section>
 
       <section className="grid gap-3 xl:grid-cols-[1.55fr_0.95fr]">

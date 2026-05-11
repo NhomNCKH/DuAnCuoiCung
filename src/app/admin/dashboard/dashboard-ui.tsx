@@ -1,6 +1,6 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
+import { Loader2, RefreshCw, TrendingUp } from "lucide-react";
 import type {
   AdminDashboardRecentAttempt,
   AdminDashboardRecentCredential,
@@ -58,7 +58,7 @@ type StatCardProps = StatCardItem & {
 
 export function PageShell({ children }: { children: ReactNode }) {
   return (
-    <div className="admin-dashboard-page min-h-screen bg-slate-50/80">
+    <div className="admin-dashboard-page min-h-screen bg-gradient-to-b from-slate-100/80 via-slate-50 to-slate-100/60">
       <div className="mx-auto max-w-7xl space-y-4">{children}</div>
     </div>
   );
@@ -71,7 +71,7 @@ export function Panel({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn(panelClass, className)}>{children}</div>;
+  return <div className={cn(panelClass, "rounded-2xl", className)}>{children}</div>;
 }
 
 export function SectionHeader({
@@ -116,6 +116,56 @@ function StatusBadge({
   return <span className={cn(pillClass, tone)}>{label}</span>;
 }
 
+export function HeroInsight({
+  totalAttempts,
+  gradedAttempts,
+  inProgressAttempts,
+  averageScore,
+}: {
+  totalAttempts: string;
+  gradedAttempts: string;
+  inProgressAttempts: string;
+  averageScore: string;
+}) {
+  return (
+    <Panel className="dashboard-pop-in dashboard-hero-card relative overflow-hidden border-blue-200/80 bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 p-5 text-white shadow-blue-300/40">
+      <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
+      <div className="absolute -bottom-10 left-24 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
+      <div className="relative grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-100">
+            Performance Snapshot
+          </p>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight">
+            Tổng quan vận hành kỳ thi
+          </h2>
+          <p className="mt-2 text-sm text-blue-100/95">
+            Theo dõi tiến độ chấm điểm, trạng thái bài thi và chất lượng đầu ra trong cùng một màn hình.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5 text-sm">
+          <div className="rounded-xl border border-white/20 bg-white/10 p-3">
+            <p className="text-blue-100">Lượt thi</p>
+            <p className="mt-1 text-xl font-semibold">{totalAttempts}</p>
+          </div>
+          <div className="rounded-xl border border-white/20 bg-white/10 p-3">
+            <p className="text-blue-100">Đã chấm</p>
+            <p className="mt-1 text-xl font-semibold">{gradedAttempts}</p>
+          </div>
+          <div className="rounded-xl border border-white/20 bg-white/10 p-3">
+            <p className="text-blue-100">Đang làm</p>
+            <p className="mt-1 text-xl font-semibold">{inProgressAttempts}</p>
+          </div>
+          <div className="rounded-xl border border-white/20 bg-white/10 p-3">
+            <p className="text-blue-100">Điểm TB</p>
+            <p className="mt-1 text-xl font-semibold">{averageScore}</p>
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 export function StatCard({
   label,
   value,
@@ -128,7 +178,7 @@ export function StatCard({
   const isSmall = size === "small";
 
   return (
-    <Panel className={cn(isSmall ? "p-3.5" : "p-4")}>
+    <Panel className={cn("border-slate-200/90", isSmall ? "p-3.5" : "p-4")}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
@@ -154,6 +204,126 @@ export function StatCard({
   );
 }
 
+export function TrendBarsCard({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: DistributionRow[];
+}) {
+  const maxValue = Math.max(...rows.map((row) => row.value), 1);
+
+  return (
+    <Panel className="dashboard-fade-up p-4">
+      <SectionHeader
+        eyebrow="Trend"
+        title={title}
+        description="So sánh nhanh theo nhóm dữ liệu"
+      />
+
+      {rows.length === 0 ? (
+        <EmptyState message="Chưa có dữ liệu để hiển thị." />
+      ) : (
+        <div className="space-y-3">
+          {rows.map((row) => (
+            <div key={row.label}>
+              <div className="mb-1.5 flex items-center justify-between text-xs text-slate-600">
+                <span className="font-medium">{row.label}</span>
+                <span className="font-semibold text-slate-900">{formatNumber(row.value)}</span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-100">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500"
+                  style={{ width: `${(row.value / maxValue) * 100}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+export function DonutDistributionCard({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: DistributionRow[];
+}) {
+  const total = rows.reduce((acc, row) => acc + row.value, 0);
+  const palette = ["#2563eb", "#0ea5e9", "#10b981", "#f59e0b", "#f43f5e", "#64748b"];
+  const colorByLabel = new Map(rows.map((row, idx) => [row.label, palette[idx % palette.length]]));
+
+  const gradientStops =
+    total === 0
+      ? "#cbd5e1 0 100%"
+      : rows
+          .filter((row) => row.value > 0)
+          .reduce<{ color: string; from: number; to: number }[]>((acc, row) => {
+            const previous = acc.length === 0 ? 0 : acc[acc.length - 1].to;
+            const next = previous + (row.value / total) * 100;
+            acc.push({
+              color: colorByLabel.get(row.label) ?? palette[0],
+              from: previous,
+              to: next,
+            });
+            return acc;
+          }, [])
+          .map((stop) => `${stop.color} ${stop.from}% ${stop.to}%`)
+          .join(", ");
+
+  return (
+    <Panel className="dashboard-fade-up p-4">
+      <SectionHeader title={title} description="Tỷ trọng dữ liệu theo phần trăm" />
+      {rows.length === 0 ? (
+        <EmptyState message="Chưa có dữ liệu để hiển thị." />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
+          <div
+            className="dashboard-donut-ring mx-auto h-40 w-40 rounded-full p-4"
+            style={
+              {
+                background: `conic-gradient(${gradientStops})`,
+                "--dashboard-donut-gradient": `conic-gradient(${gradientStops})`,
+              } as CSSProperties
+            }
+          >
+            <div className="dashboard-donut-core flex h-full w-full items-center justify-center rounded-full bg-white text-center">
+              <div>
+                <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Tổng</p>
+                <p className="text-2xl font-semibold text-slate-900">{formatNumber(total)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {rows.map((row, idx) => {
+              const ratio = total > 0 ? (row.value / total) * 100 : 0;
+              return (
+                <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: colorByLabel.get(row.label) ?? palette[idx % palette.length] }}
+                    />
+                    <span className="text-sm font-medium text-slate-700">{row.label}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-slate-900">{formatNumber(row.value)}</p>
+                    <p className="text-xs text-slate-500">{ratio.toFixed(1)}%</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 export function DistributionCard({
   title,
   subtitle,
@@ -165,7 +335,7 @@ export function DistributionCard({
   const maxValue = Math.max(...rows.map((row) => row.value), 1);
 
   return (
-    <Panel className="p-4">
+    <Panel className="dashboard-fade-up p-4">
       <SectionHeader title={title} description={subtitle} />
 
       {rows.length === 0 ? (
@@ -199,8 +369,8 @@ export function DistributionCard({
 
 export function ActivityPanel({ cards }: { cards: StatCardItem[] }) {
   return (
-    <Panel className="p-4">
-      <SectionHeader title="Hoạt động" />
+    <Panel className="dashboard-fade-up p-4">
+      <SectionHeader title="Hoạt động" action={<TrendingUp className="h-4 w-4 text-blue-600" />} />
       <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
         {cards.map((card) => (
           <StatCard key={card.label} {...card} size="small" />
@@ -218,7 +388,7 @@ export function RecentAttemptsTable({
   statusRows: DistributionRow[];
 }) {
   return (
-    <Panel className="p-4">
+    <Panel className="dashboard-fade-up p-4">
       <SectionHeader
         title="Lượt thi gần nhất"
         action={
@@ -235,7 +405,7 @@ export function RecentAttemptsTable({
         }
       />
 
-      <div className="overflow-hidden rounded-lg border border-slate-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200">
         <div className="overflow-x-auto">
           <div
             className={cn(
@@ -280,12 +450,10 @@ export function RecentAttemptsTable({
                       {attempt.template?.name ?? "Không xác định"}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      {getModeLabel(attempt.template?.mode ?? "")} · Lần{" "}
-                      {attempt.attemptNo}
+                      {getModeLabel(attempt.template?.mode ?? "")} · Lần {attempt.attemptNo}
                     </p>
                     <p className="mt-2 text-xs text-slate-400">
-                      {attempt.correctCount}/{attempt.totalQuestions} đúng ·{" "}
-                      {formatDuration(attempt.durationSec)}
+                      {attempt.correctCount}/{attempt.totalQuestions} đúng · {formatDuration(attempt.durationSec)}
                     </p>
                   </div>
 

@@ -18,6 +18,7 @@ import {
   Dumbbell,
   FileCheck2,
   FileText,
+  Headphones,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -133,6 +134,20 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
         label: "Từ vựng",
         href: "/admin/practice/vocabulary",
         permission: "vocabulary.manage",
+      },
+      {
+        id: "practice-shadowing",
+        icon: Headphones,
+        label: "Luyện Shadowing",
+        href: "/admin/practice/shadowing",
+        permission: "dashboard.view",
+      },
+      {
+        id: "practice-daily-dictation",
+        icon: FileText,
+        label: "Luyện DailyDictation",
+        href: "/admin/practice/daily-dictation",
+        permission: "dashboard.view",
       },
       {
         id: "practice-speaking",
@@ -272,6 +287,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ "user-management": true });
+  const [unreadViolationCount, setUnreadViolationCount] = useState(0);
+  const [latestViolationTotal, setLatestViolationTotal] = useState(0);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const loadHeaderAvatar = useCallback(async () => {
@@ -332,17 +349,112 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   const menuItems = useMemo(() => buildVisibleMenuItems(user), [user]);
+  const violationReadStorageKey = useMemo(
+    () => `admin:proctoring:last-read-total:${user?.id ?? "anonymous"}`,
+    [user?.id],
+  );
+
+  const markProctoringAsRead = useCallback(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(violationReadStorageKey, String(latestViolationTotal));
+    setUnreadViolationCount(0);
+  }, [latestViolationTotal, violationReadStorageKey]);
+
+  const syncViolationUnreadCount = useCallback(async () => {
+    if (!isAuthenticated || !isAdminRole(user?.role)) return;
+    try {
+      const response = await apiClient.admin.proctoring.listViolations({
+        limit: 1,
+        offset: 0,
+      });
+      const total = Number(response?.data?.total ?? 0);
+      setLatestViolationTotal(total);
+
+      if (typeof window === "undefined") return;
+      const storedRaw = window.localStorage.getItem(violationReadStorageKey);
+      const lastReadTotal = Number(storedRaw ?? 0);
+      const safeLastRead = Number.isFinite(lastReadTotal) ? lastReadTotal : 0;
+      const unreadRecords = Math.max(total - safeLastRead, 0);
+      if (unreadRecords <= 0) {
+        setUnreadViolationCount(0);
+        return;
+      }
+
+      const pageSize = 100;
+      const maxScan = 2000; // avoid heavy request bursts on very old unread backlog
+      const target = Math.min(unreadRecords, maxScan);
+      const userIds = new Set<string>();
+      let offset = 0;
+
+      while (offset < target) {
+        const chunkLimit = Math.min(pageSize, target - offset);
+        const chunkRes = await apiClient.admin.proctoring.listViolations({
+          limit: chunkLimit,
+          offset,
+        });
+        const rows = Array.isArray((chunkRes?.data as any)?.data)
+          ? ((chunkRes?.data as any).data as Array<{ userId?: string }>)
+          : [];
+        for (const row of rows) {
+          if (row?.userId) {
+            userIds.add(String(row.userId));
+          }
+        }
+        if (rows.length < chunkLimit) break;
+        offset += rows.length;
+      }
+
+      setUnreadViolationCount(userIds.size);
+    } catch {
+      // ignore polling errors to avoid blocking layout
+    }
+  }, [isAuthenticated, user?.role, violationReadStorageKey]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAdminRole(user?.role)) return;
+    void syncViolationUnreadCount();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void syncViolationUnreadCount();
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    const timerId = window.setInterval(() => {
+      void syncViolationUnreadCount();
+    }, 5000);
+    return () => {
+      window.clearInterval(timerId);
+      window.removeEventListener("focus", handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isAuthenticated, user?.role, syncViolationUnreadCount]);
+
+  useEffect(() => {
+    if (!pathname) return;
+    if (pathname.startsWith("/admin/proctoring")) {
+      markProctoringAsRead();
+    }
+  }, [pathname, markProctoringAsRead]);
 
   const isHrefActive = (href?: string) => {
     if (!href) return false;
     const [targetPath, queryString] = href.split("?");
     const path = pathname ?? "";
     const qs = searchParams ?? new URLSearchParams();
-    /** Trang chi tiết bộ từ: /admin/practice/vocabulary/[id] vẫn coi là mục «Từ vựng» active */
-    if (targetPath === "/admin/practice/vocabulary") {
-      const onVocab =
-        path === targetPath || path.startsWith(`${targetPath}/`);
-      if (!onVocab) return false;
+    const allowNestedChildren = new Set([
+      "/admin/practice/vocabulary",
+      "/admin/practice/shadowing",
+      "/admin/practice/daily-dictation",
+      "/admin/practice/speaking",
+      "/admin/practice/writing",
+    ]);
+    if (allowNestedChildren.has(targetPath)) {
+      const onSection = path === targetPath || path.startsWith(`${targetPath}/`);
+      if (!onSection) return false;
       if (!queryString) return true;
       const expectedParams = new URLSearchParams(queryString);
       return Array.from(expectedParams.entries()).every(
@@ -527,7 +639,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   key={item.id}
                   href={item.href || "#"}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (item.id === "proctoring") {
+                      markProctoringAsRead();
+                    }
+                  }}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors ${isActive
                       ? theme === "dark"
                         ? "bg-slate-800 text-slate-100"
@@ -539,6 +656,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
                   {!sidebarCollapsed && <span className="truncate font-medium">{item.label}</span>}
+                  {item.id === "proctoring" && unreadViolationCount > 0 ? (
+                    <span
+                      className={`ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                        theme === "dark" ? "bg-red-500/90 text-white" : "bg-red-500 text-white"
+                      }`}
+                    >
+                      {unreadViolationCount > 99 ? "99+" : unreadViolationCount}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}

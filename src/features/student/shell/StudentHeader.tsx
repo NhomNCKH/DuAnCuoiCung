@@ -9,10 +9,10 @@ import {
   BookOpen,
   PenTool,
   Mic,
+  Headphones,
   Menu,
   X,
   Bell,
-  Search,
   Moon,
   Sun,
   Settings,
@@ -57,7 +57,8 @@ export function StudentHeader({
   const [practiceMenuOpen, setPracticeMenuOpen] = useState(false);
   const practiceActive =
     pathname === "/student/speaking" ||
-    pathname === "/student/writing";
+    pathname === "/student/writing" ||
+    pathname === "/student/daily-dictation";
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-blue-100 bg-white/90 backdrop-blur">
@@ -165,6 +166,21 @@ export function StudentHeader({
                     >
                       <PenTool className="h-4 w-4" />
                       <span className="font-medium">Luyện Viết</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        router.push("/student/daily-dictation");
+                        setPracticeMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                        pathname === "/student/daily-dictation"
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-700 hover:bg-amber-50 hover:text-amber-900 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
+                      }`}
+                    >
+                      <Headphones className="h-4 w-4" />
+                      <span className="font-medium">Luyện DailyDictation</span>
                     </button>
                   </div>
                 </>
