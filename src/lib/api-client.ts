@@ -1919,6 +1919,111 @@ class ApiClient {
       getDetail: (id: string): Promise<ApiResponse> =>
         this.request(`/learner/shadowing/${encodeURIComponent(id)}`, { method: 'GET' }),
     },
+
+    timi: {
+      createSession: (data?: {
+        persona?: "casual" | "interview" | "travel" | "toeic_part2";
+        title?: string;
+      }): Promise<
+        ApiResponse<{
+          sessionId: string;
+          persona: string;
+          title: string | null;
+          startedAt: string;
+          greeting: {
+            turnId: string;
+            text: string;
+            audioBase64: string;
+            audioMime: string;
+            voiceId: string;
+          };
+        }>
+      > =>
+        this.request("/learner/timi/sessions", {
+          method: "POST",
+          body: JSON.stringify(data ?? {}),
+        }),
+
+      listTurns: (
+        sessionId: string,
+      ): Promise<
+        ApiResponse<{
+          sessionId: string;
+          persona: string;
+          items: Array<{
+            id: string;
+            role: "user" | "bot" | "system";
+            transcript: string;
+            nextPrompt: string | null;
+            microCorrection: { wrong: string; right: string; tip: string } | null;
+            createdAt: string;
+          }>;
+        }>
+      > =>
+        this.request(
+          `/learner/timi/sessions/${encodeURIComponent(sessionId)}/turns`,
+          { method: "GET" },
+        ),
+
+      closeSession: (
+        sessionId: string,
+      ): Promise<ApiResponse<{ sessionId: string; closed: boolean }>> =>
+        this.request(
+          `/learner/timi/sessions/${encodeURIComponent(sessionId)}`,
+          { method: "DELETE" },
+        ),
+
+      submitTextTurn: (
+        sessionId: string,
+        text: string,
+      ): Promise<ApiResponse<TimiTurnResponseData>> =>
+        this.request(
+          `/learner/timi/sessions/${encodeURIComponent(sessionId)}/turns/text`,
+          { method: "POST", body: JSON.stringify({ text }) },
+        ),
+
+      submitAudioTurn: async (
+        sessionId: string,
+        audio: Blob,
+        filename = "speech.webm",
+      ): Promise<ApiResponse<TimiTurnResponseData>> => {
+        const token = getStoredAccessToken();
+        const formData = new FormData();
+        formData.append("file", audio, filename);
+        const res = await fetch(
+          `${this.baseURL}/learner/timi/sessions/${encodeURIComponent(sessionId)}/turns/audio`,
+          {
+            method: "POST",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData,
+          },
+        );
+        const data = await res.json();
+        if (!res.ok) {
+          throw {
+            statusCode: res.status,
+            message: data?.message || "Timi audio upload failed",
+            ...data,
+          };
+        }
+        return data as ApiResponse<TimiTurnResponseData>;
+      },
+    },
+  };
+}
+
+export interface TimiTurnResponseData {
+  turnId: string;
+  userTranscript: string;
+  reply: {
+    text: string;
+    nextPrompt: string | null;
+    microCorrection: { wrong: string; right: string; tip: string } | null;
+    audioBase64: string;
+    audioMime: string;
+    voiceId: string;
+    modelId: string;
+    latencyMs: number;
   };
 }
 

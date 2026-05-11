@@ -94,6 +94,7 @@ export default function VocabularyPracticePage() {
 
   const [typing, setTyping] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const feedbackAudioCtxRef = useRef<AudioContext | null>(null);
   const [startedAt] = useState(() => Date.now());
   const [flashFlipped, setFlashFlipped] = useState(false);
 
@@ -261,6 +262,48 @@ export default function VocabularyPracticePage() {
     [notify, resolveEnglishVoice, speakSupport],
   );
 
+  const playFeedbackSound = useCallback((ok: boolean) => {
+    if (typeof window === "undefined") return;
+    const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+
+    if (!feedbackAudioCtxRef.current) {
+      feedbackAudioCtxRef.current = new Ctx();
+    }
+    const ctx = feedbackAudioCtxRef.current;
+    if (!ctx) return;
+
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+
+    const steps = ok
+      ? [
+          { freq: 880, duration: 0.09, wave: "triangle" as OscillatorType },
+          { freq: 1175, duration: 0.11, wave: "triangle" as OscillatorType },
+        ]
+      : [
+          { freq: 220, duration: 0.12, wave: "sawtooth" as OscillatorType },
+          { freq: 165, duration: 0.15, wave: "sawtooth" as OscillatorType },
+        ];
+
+    let cursor = ctx.currentTime + 0.01;
+    for (const step of steps) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = step.wave;
+      osc.frequency.setValueAtTime(step.freq, cursor);
+      gain.gain.setValueAtTime(0.0001, cursor);
+      gain.gain.exponentialRampToValueAtTime(ok ? 0.045 : 0.04, cursor + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, cursor + step.duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(cursor);
+      osc.stop(cursor + step.duration + 0.02);
+      cursor += step.duration + 0.03;
+    }
+  }, []);
+
   const mcq = useMemo(() => {
     if (!current) return null;
     const distractors = sampleDistinct(
@@ -311,9 +354,11 @@ export default function VocabularyPracticePage() {
       setCorrect((x) => x + 1);
       setStreak((x) => x + 1);
       setReveal({ ok: true, message: "Chuẩn!" });
+      playFeedbackSound(true);
     } else {
       setStreak(0);
       setReveal({ ok: false, message: `Sai — đáp án: ${current.meaning}` });
+      playFeedbackSound(false);
     }
   };
 
@@ -325,9 +370,11 @@ export default function VocabularyPracticePage() {
       setCorrect((x) => x + 1);
       setStreak((x) => x + 1);
       setReveal({ ok: true, message: "Đúng" });
+      playFeedbackSound(true);
     } else {
       setStreak(0);
       setReveal({ ok: false, message: "Sai" });
+      playFeedbackSound(false);
     }
   };
 
@@ -339,9 +386,11 @@ export default function VocabularyPracticePage() {
       setCorrect((x) => x + 1);
       setStreak((x) => x + 1);
       setReveal({ ok: true, message: "Chuẩn!" });
+      playFeedbackSound(true);
     } else {
       setStreak(0);
       setReveal({ ok: false, message: `Chưa đúng — từ đúng: ${current.word}` });
+      playFeedbackSound(false);
     }
   };
 

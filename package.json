@@ -8,15 +8,19 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:flashcards": "rm -rf .tmp-tests && tsc -p tsconfig.test.json && node --test .tmp-tests/*.spec.js && rm -rf .tmp-tests"
+    "test:flashcards": "rm -rf .tmp-tests && tsc -p tsconfig.test.json && node --test .tmp-tests/*.spec.js && rm -rf .tmp-tests",
+    "setup:vad": "node scripts/copy-vad-assets.mjs",
+    "postinstall": "node scripts/copy-vad-assets.mjs"
   },
   "dependencies": {
+    "@ricky0123/vad-web": "^0.0.30",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
     "html2canvas": "^1.4.1",
     "lottie-web": "^5.13.0",
     "lucide-react": "^0.577.0",
     "next": "13.5.11",
+    "onnxruntime-web": "^1.26.0",
     "react": "^18",
     "react-date-range": "^2.0.1",
     "react-dom": "^18"

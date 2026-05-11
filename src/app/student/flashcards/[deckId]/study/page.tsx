@@ -79,6 +79,7 @@ export default function FlashcardStudyPage() {
   const [typing, setTyping] = useState("");
   const typingRef = useRef<HTMLInputElement | null>(null);
   const [flashFlipped, setFlashFlipped] = useState(false);
+  const feedbackAudioCtxRef = useRef<AudioContext | null>(null);
 
   const [startedAt] = useState(() => Date.now());
   const questionStartedAtRef = useRef<number | null>(null);
@@ -185,6 +186,48 @@ export default function FlashcardStudyPage() {
       synth.speak(utter);
     } catch {
       setIsSpeaking(false);
+    }
+  };
+
+  const playFeedbackSound = (ok: boolean) => {
+    if (typeof window === "undefined") return;
+    const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+
+    if (!feedbackAudioCtxRef.current) {
+      feedbackAudioCtxRef.current = new Ctx();
+    }
+    const ctx = feedbackAudioCtxRef.current;
+    if (!ctx) return;
+
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+
+    const steps = ok
+      ? [
+          { freq: 880, duration: 0.09, wave: "triangle" as OscillatorType },
+          { freq: 1175, duration: 0.11, wave: "triangle" as OscillatorType },
+        ]
+      : [
+          { freq: 220, duration: 0.12, wave: "sawtooth" as OscillatorType },
+          { freq: 165, duration: 0.15, wave: "sawtooth" as OscillatorType },
+        ];
+
+    let cursor = ctx.currentTime + 0.01;
+    for (const step of steps) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = step.wave;
+      osc.frequency.setValueAtTime(step.freq, cursor);
+      gain.gain.setValueAtTime(0.0001, cursor);
+      gain.gain.exponentialRampToValueAtTime(ok ? 0.045 : 0.04, cursor + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, cursor + step.duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(cursor);
+      osc.stop(cursor + step.duration + 0.02);
+      cursor += step.duration + 0.03;
     }
   };
 
@@ -443,6 +486,7 @@ export default function FlashcardStudyPage() {
                       if (e.key === "Enter" && !reveal) {
                         const ok = normalizeAnswer(typing) === normalizeAnswer(currentBack);
                         setReveal({ ok, correct: currentBack });
+                        playFeedbackSound(ok);
                       }
                     }}
                     placeholder="Nhập mặt sau…"
@@ -454,6 +498,7 @@ export default function FlashcardStudyPage() {
                     onClick={() => {
                       const ok = normalizeAnswer(typing) === normalizeAnswer(currentBack);
                       setReveal({ ok, correct: currentBack });
+                      playFeedbackSound(ok);
                     }}
                     className="btn-primary shrink-0 rounded-2xl px-4 py-3 disabled:opacity-50"
                   >
@@ -490,6 +535,7 @@ export default function FlashcardStudyPage() {
                         onClick={() => {
                           const ok = opt.id === current.id;
                           setReveal({ ok, correct: currentBack });
+                          playFeedbackSound(ok);
                         }}
                         className={[
                           "rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition",

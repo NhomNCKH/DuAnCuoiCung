@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/components/feedback/ToastProvider";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import ChatbotBubble from "@/components/chatbot/ChatbotBubble";
 
 export const metadata: Metadata = {
   title: "TOEIC MASTER",
@@ -46,7 +47,10 @@ export default function RootLayout({
           {" "}
           {/* ThemeProvider phải ở ngoài cùng */}
           <ToastProvider>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              {children}
+              <ChatbotBubble />
+            </AuthProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>
