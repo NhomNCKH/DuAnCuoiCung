@@ -12,6 +12,10 @@ export default function ChatbotBubbleHost() {
   const hiddenOnRoutes = [
     /^\/student\/mock-test(?:\/|$)/,
     /^\/student\/exam(?:\/|$)/,
+    /^\/admin(?:\/|$)/,
+    /^\/login(?:\/|$)/,
+    /^\/register(?:\/|$)/,
+    /^\/auth(?:\/|$)/,
   ];
 
   if (hiddenOnRoutes.some((pattern) => pattern.test(pathname))) {
