@@ -289,6 +289,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ "user-management": true });
   const [unreadViolationCount, setUnreadViolationCount] = useState(0);
   const [latestViolationTotal, setLatestViolationTotal] = useState(0);
+  const [unreadUserCount, setUnreadUserCount] = useState(0);
+  const [latestUserTotal, setLatestUserTotal] = useState(0);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const loadHeaderAvatar = useCallback(async () => {
@@ -353,12 +355,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     () => `admin:proctoring:last-read-total:${user?.id ?? "anonymous"}`,
     [user?.id],
   );
+  const userReadStorageKey = useMemo(
+    () => `admin:users:last-read-total:${user?.id ?? "anonymous"}`,
+    [user?.id],
+  );
 
   const markProctoringAsRead = useCallback(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(violationReadStorageKey, String(latestViolationTotal));
     setUnreadViolationCount(0);
   }, [latestViolationTotal, violationReadStorageKey]);
+  const markUsersAsRead = useCallback(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(userReadStorageKey, String(latestUserTotal));
+    setUnreadUserCount(0);
+  }, [latestUserTotal, userReadStorageKey]);
 
   const syncViolationUnreadCount = useCallback(async () => {
     if (!isAuthenticated || !isAdminRole(user?.role)) return;
@@ -409,14 +420,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // ignore polling errors to avoid blocking layout
     }
   }, [isAuthenticated, user?.role, violationReadStorageKey]);
+  const syncUserUnreadCount = useCallback(async () => {
+    if (!isAuthenticated || !isAdminRole(user?.role)) return;
+    try {
+      const response = await apiClient.admin.rbac.listUsers({
+        page: 1,
+        limit: 1,
+      });
+      const payload = response?.data as any;
+      const total =
+        Number(payload?.meta?.total) ||
+        Number(payload?.total) ||
+        Number(payload?.data?.meta?.total) ||
+        Number(payload?.data?.total) ||
+        (Array.isArray(payload?.items) ? payload.items.length : 0) ||
+        (Array.isArray(payload?.data?.items) ? payload.data.items.length : 0);
+
+      const safeTotal = Number.isFinite(total) ? total : 0;
+      setLatestUserTotal(safeTotal);
+
+      if (typeof window === "undefined") return;
+      const storedRaw = window.localStorage.getItem(userReadStorageKey);
+      const lastReadTotal = Number(storedRaw ?? 0);
+      const safeLastRead = Number.isFinite(lastReadTotal) ? lastReadTotal : 0;
+      setUnreadUserCount(Math.max(safeTotal - safeLastRead, 0));
+    } catch {
+      // ignore polling errors to avoid blocking layout
+    }
+  }, [isAuthenticated, user?.role, userReadStorageKey]);
 
   useEffect(() => {
     if (!isAuthenticated || !isAdminRole(user?.role)) return;
     void syncViolationUnreadCount();
+    void syncUserUnreadCount();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         void syncViolationUnreadCount();
+        void syncUserUnreadCount();
       }
     };
 
@@ -425,20 +466,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const timerId = window.setInterval(() => {
       void syncViolationUnreadCount();
+      void syncUserUnreadCount();
     }, 5000);
     return () => {
       window.clearInterval(timerId);
       window.removeEventListener("focus", handleVisibilityChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isAuthenticated, user?.role, syncViolationUnreadCount]);
+  }, [isAuthenticated, user?.role, syncUserUnreadCount, syncViolationUnreadCount]);
 
   useEffect(() => {
     if (!pathname) return;
     if (pathname.startsWith("/admin/proctoring")) {
       markProctoringAsRead();
     }
-  }, [pathname, markProctoringAsRead]);
+    if (pathname.startsWith("/admin/users")) {
+      markUsersAsRead();
+    }
+  }, [markProctoringAsRead, markUsersAsRead, pathname]);
 
   const isHrefActive = (href?: string) => {
     if (!href) return false;
@@ -587,7 +632,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 return (
                   <div key={item.id} className="space-y-1">
                     <button
-                      onClick={() => setExpandedMenus((prev) => ({ ...prev, [item.id]: !isExpanded }))}
+                      onClick={() => {
+                        setExpandedMenus((prev) => ({ ...prev, [item.id]: !isExpanded }));
+                        if (item.id === "user-management") {
+                          markUsersAsRead();
+                        }
+                      }}
                       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors ${hasActiveChild
                           ? theme === "dark"
                             ? "bg-slate-800 text-slate-100"
@@ -601,6 +651,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       {!sidebarCollapsed && (
                         <>
                           <span className="truncate font-medium">{item.label}</span>
+                          {item.id === "user-management" && unreadUserCount > 0 ? (
+                            <span
+                              className={`inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                                theme === "dark" ? "bg-red-500/90 text-white" : "bg-red-500 text-white"
+                              }`}
+                            >
+                              {unreadUserCount > 99 ? "99+" : unreadUserCount}
+                            </span>
+                          ) : null}
                           <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                         </>
                       )}
@@ -614,7 +673,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <Link
                               key={child.id}
                               href={child.href || "#"}
-                              onClick={() => setMobileMenuOpen(false)}
+                              onClick={() => {
+                                setMobileMenuOpen(false);
+                                if (child.id === "rbac-users") {
+                                  markUsersAsRead();
+                                }
+                              }}
                               className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition-colors ${childActive
                                   ? theme === "dark"
                                     ? "bg-slate-800 text-slate-100"
