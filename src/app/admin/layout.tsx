@@ -291,6 +291,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [latestViolationTotal, setLatestViolationTotal] = useState(0);
   const [unreadUserCount, setUnreadUserCount] = useState(0);
   const [latestUserTotal, setLatestUserTotal] = useState(0);
+  const [readState, setReadState] = useState({ proctoringTotal: 0, userTotal: 0 });
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const loadHeaderAvatar = useCallback(async () => {
@@ -351,25 +352,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   const menuItems = useMemo(() => buildVisibleMenuItems(user), [user]);
-  const violationReadStorageKey = useMemo(
-    () => `admin:proctoring:last-read-total:${user?.id ?? "anonymous"}`,
-    [user?.id],
-  );
-  const userReadStorageKey = useMemo(
-    () => `admin:users:last-read-total:${user?.id ?? "anonymous"}`,
-    [user?.id],
-  );
+  const syncNotificationReadState = useCallback(async () => {
+    if (!isAuthenticated || !isAdminRole(user?.role)) return;
+    try {
+      const res = await apiClient.admin.dashboard.getNotificationReadState();
+      const payload = res?.data as any;
+      setReadState({
+        proctoringTotal: Number(payload?.proctoringTotal) || 0,
+        userTotal: Number(payload?.userTotal) || 0,
+      });
+    } catch {
+      // ignore
+    }
+  }, [isAuthenticated, user?.role]);
 
-  const markProctoringAsRead = useCallback(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(violationReadStorageKey, String(latestViolationTotal));
-    setUnreadViolationCount(0);
-  }, [latestViolationTotal, violationReadStorageKey]);
-  const markUsersAsRead = useCallback(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(userReadStorageKey, String(latestUserTotal));
-    setUnreadUserCount(0);
-  }, [latestUserTotal, userReadStorageKey]);
+  const markProctoringAsRead = useCallback(async () => {
+    try {
+      const res = await apiClient.admin.dashboard.setNotificationReadState({
+        proctoringTotal: latestViolationTotal,
+      });
+      const payload = res?.data as any;
+      setReadState((prev) => ({
+        ...prev,
+        proctoringTotal: Number(payload?.proctoringTotal) || latestViolationTotal,
+      }));
+    } catch {
+      // ignore
+    } finally {
+      setUnreadViolationCount(0);
+    }
+  }, [latestViolationTotal]);
+  const markUsersAsRead = useCallback(async () => {
+    try {
+      const res = await apiClient.admin.dashboard.setNotificationReadState({
+        userTotal: latestUserTotal,
+      });
+      const payload = res?.data as any;
+      setReadState((prev) => ({
+        ...prev,
+        userTotal: Number(payload?.userTotal) || latestUserTotal,
+      }));
+    } catch {
+      // ignore
+    } finally {
+      setUnreadUserCount(0);
+    }
+  }, [latestUserTotal]);
 
   const syncViolationUnreadCount = useCallback(async () => {
     if (!isAuthenticated || !isAdminRole(user?.role)) return;
@@ -381,11 +409,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const total = Number(response?.data?.total ?? 0);
       setLatestViolationTotal(total);
 
-      if (typeof window === "undefined") return;
-      const storedRaw = window.localStorage.getItem(violationReadStorageKey);
-      const lastReadTotal = Number(storedRaw ?? 0);
-      const safeLastRead = Number.isFinite(lastReadTotal) ? lastReadTotal : 0;
-      const unreadRecords = Math.max(total - safeLastRead, 0);
+      const unreadRecords = Math.max(total - readState.proctoringTotal, 0);
       if (unreadRecords <= 0) {
         setUnreadViolationCount(0);
         return;
@@ -419,7 +443,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     } catch {
       // ignore polling errors to avoid blocking layout
     }
-  }, [isAuthenticated, user?.role, violationReadStorageKey]);
+  }, [isAuthenticated, readState.proctoringTotal, user?.role]);
   const syncUserUnreadCount = useCallback(async () => {
     if (!isAuthenticated || !isAdminRole(user?.role)) return;
     try {
@@ -439,23 +463,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const safeTotal = Number.isFinite(total) ? total : 0;
       setLatestUserTotal(safeTotal);
 
-      if (typeof window === "undefined") return;
-      const storedRaw = window.localStorage.getItem(userReadStorageKey);
-      const lastReadTotal = Number(storedRaw ?? 0);
-      const safeLastRead = Number.isFinite(lastReadTotal) ? lastReadTotal : 0;
-      setUnreadUserCount(Math.max(safeTotal - safeLastRead, 0));
+      setUnreadUserCount(Math.max(safeTotal - readState.userTotal, 0));
     } catch {
       // ignore polling errors to avoid blocking layout
     }
-  }, [isAuthenticated, user?.role, userReadStorageKey]);
+  }, [isAuthenticated, readState.userTotal, user?.role]);
 
   useEffect(() => {
     if (!isAuthenticated || !isAdminRole(user?.role)) return;
+    void syncNotificationReadState();
     void syncViolationUnreadCount();
     void syncUserUnreadCount();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
+        void syncNotificationReadState();
         void syncViolationUnreadCount();
         void syncUserUnreadCount();
       }
@@ -465,6 +487,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const timerId = window.setInterval(() => {
+      void syncNotificationReadState();
       void syncViolationUnreadCount();
       void syncUserUnreadCount();
     }, 5000);
@@ -473,7 +496,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       window.removeEventListener("focus", handleVisibilityChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isAuthenticated, user?.role, syncUserUnreadCount, syncViolationUnreadCount]);
+  }, [isAuthenticated, user?.role, syncNotificationReadState, syncUserUnreadCount, syncViolationUnreadCount]);
 
   useEffect(() => {
     if (!pathname) return;

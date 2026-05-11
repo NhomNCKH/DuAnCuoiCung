@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Loader2, RefreshCw, TrendingUp } from "lucide-react";
 import type {
@@ -116,6 +117,41 @@ function StatusBadge({
   return <span className={cn(pillClass, tone)}>{label}</span>;
 }
 
+function HoverCountNumber({
+  value,
+  active,
+  durationMs = 600,
+  formatter = formatNumber,
+}: {
+  value: number;
+  active: boolean;
+  durationMs?: number;
+  formatter?: (value: number) => string;
+}) {
+  const [displayValue, setDisplayValue] = useState(value);
+
+  useEffect(() => {
+    if (!active) {
+      setDisplayValue(value);
+      return;
+    }
+
+    let frameId = 0;
+    const startedAt = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min((now - startedAt) / durationMs, 1);
+      setDisplayValue(Math.round(value * progress));
+      if (progress < 1) frameId = requestAnimationFrame(tick);
+    };
+
+    setDisplayValue(0);
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+  }, [active, durationMs, value]);
+
+  return <>{formatter(displayValue)}</>;
+}
+
 export function HeroInsight({
   totalAttempts,
   gradedAttempts,
@@ -211,10 +247,12 @@ export function TrendBarsCard({
   title: string;
   rows: DistributionRow[];
 }) {
+  const [isHovered, setIsHovered] = useState(false);
   const maxValue = Math.max(...rows.map((row) => row.value), 1);
 
   return (
-    <Panel className="dashboard-fade-up p-4">
+    <div onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+      <Panel className="dashboard-fade-up p-4">
       <SectionHeader
         eyebrow="Trend"
         title={title}
@@ -229,7 +267,9 @@ export function TrendBarsCard({
             <div key={row.label}>
               <div className="mb-1.5 flex items-center justify-between text-xs text-slate-600">
                 <span className="font-medium">{row.label}</span>
-                <span className="font-semibold text-slate-900">{formatNumber(row.value)}</span>
+                <span className="font-semibold text-slate-900">
+                  <HoverCountNumber value={row.value} active={isHovered} />
+                </span>
               </div>
               <div className="h-2 rounded-full bg-slate-100">
                 <div
@@ -241,7 +281,8 @@ export function TrendBarsCard({
           ))}
         </div>
       )}
-    </Panel>
+      </Panel>
+    </div>
   );
 }
 
@@ -252,6 +293,7 @@ export function DonutDistributionCard({
   title: string;
   rows: DistributionRow[];
 }) {
+  const [isHovered, setIsHovered] = useState(false);
   const total = rows.reduce((acc, row) => acc + row.value, 0);
   const palette = ["#2563eb", "#0ea5e9", "#10b981", "#f59e0b", "#f43f5e", "#64748b"];
   const colorByLabel = new Map(rows.map((row, idx) => [row.label, palette[idx % palette.length]]));
@@ -275,7 +317,8 @@ export function DonutDistributionCard({
           .join(", ");
 
   return (
-    <Panel className="dashboard-fade-up p-4">
+    <div onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+      <Panel className="dashboard-fade-up p-4">
       <SectionHeader title={title} description="Tỷ trọng dữ liệu theo phần trăm" />
       {rows.length === 0 ? (
         <EmptyState message="Chưa có dữ liệu để hiển thị." />
@@ -293,7 +336,9 @@ export function DonutDistributionCard({
             <div className="dashboard-donut-core flex h-full w-full items-center justify-center rounded-full bg-white text-center">
               <div>
                 <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Tổng</p>
-                <p className="text-2xl font-semibold text-slate-900">{formatNumber(total)}</p>
+                <p className="text-2xl font-semibold text-slate-900">
+                  <HoverCountNumber value={total} active={isHovered} />
+                </p>
               </div>
             </div>
           </div>
@@ -311,7 +356,9 @@ export function DonutDistributionCard({
                     <span className="text-sm font-medium text-slate-700">{row.label}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-900">{formatNumber(row.value)}</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      <HoverCountNumber value={row.value} active={isHovered} />
+                    </p>
                     <p className="text-xs text-slate-500">{ratio.toFixed(1)}%</p>
                   </div>
                 </div>
@@ -320,7 +367,8 @@ export function DonutDistributionCard({
           </div>
         </div>
       )}
-    </Panel>
+      </Panel>
+    </div>
   );
 }
 
@@ -331,11 +379,13 @@ export function DistributionCard({
   tone = "blue",
   valueLabel,
 }: DistributionCardProps) {
+  const [isHovered, setIsHovered] = useState(false);
   const toneStyle = toneStyles[tone];
   const maxValue = Math.max(...rows.map((row) => row.value), 1);
 
   return (
-    <Panel className="dashboard-fade-up p-4">
+    <div onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+      <Panel className="dashboard-fade-up p-4">
       <SectionHeader title={title} description={subtitle} />
 
       {rows.length === 0 ? (
@@ -347,7 +397,7 @@ export function DistributionCard({
               <div className="flex items-center justify-between gap-4 text-sm">
                 <span className="font-medium text-slate-600">{row.label}</span>
                 <span className="font-semibold text-slate-900">
-                  {valueLabel ? valueLabel(row.value) : formatNumber(row.value)}
+                  {valueLabel ? valueLabel(row.value) : <HoverCountNumber value={row.value} active={isHovered} />}
                 </span>
               </div>
               <div className="h-1.5 rounded-full bg-slate-100">
@@ -363,7 +413,8 @@ export function DistributionCard({
           ))}
         </div>
       )}
-    </Panel>
+      </Panel>
+    </div>
   );
 }
 
