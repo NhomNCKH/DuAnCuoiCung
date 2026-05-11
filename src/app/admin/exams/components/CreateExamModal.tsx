@@ -182,11 +182,25 @@ export function CreateExamModal({ onClose, onSuccess }: Props) {
               <input
                 type="date"
                 value={form.examDate}
+                min={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setForm({ ...form, examDate: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
-                style={{ colorScheme: "dark" }}
+                onClick={(e) => {
+                  // Một số Chromium yêu cầu showPicker() để mở date picker khi
+                  // user click ra ngoài vùng icon nhỏ ở góc phải.
+                  const target = e.currentTarget as HTMLInputElement & {
+                    showPicker?: () => void;
+                  };
+                  target.showPicker?.();
+                }}
+                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:border-slate-600/40 dark:bg-transparent dark:text-slate-100 dark:focus:border-amber-400/40 dark:focus:ring-amber-500/20"
+                // Đồng bộ color scheme của picker với theme thực tế của trang
+                // (trước đây ép "dark" làm icon mở picker gần như invisible
+                // trên nền trắng → tưởng input bị chết).
+                style={{ colorScheme: "light dark" }}
               />
-              <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Chỉ áp dụng cho Official Exam.</p>
+              <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                Chỉ áp dụng cho Official Exam. Click vào ô để mở lịch chọn ngày (ngày thi phải từ hôm nay trở đi).
+              </p>
             </div>
           )}
 
