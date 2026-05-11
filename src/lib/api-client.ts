@@ -337,6 +337,29 @@ class ApiClient {
       getSummary: (): Promise<ApiResponse<AdminDashboardData>> =>
         this.request("/admin/dashboard/summary", { method: "GET" }),
 
+      getNotificationReadState: (): Promise<
+        ApiResponse<{
+          proctoringTotal: number;
+          userTotal: number;
+          updatedAt: string | null;
+        }>
+      > => this.request("/admin/dashboard/notifications/read-state", { method: "GET" }),
+
+      setNotificationReadState: (data: {
+        proctoringTotal?: number;
+        userTotal?: number;
+      }): Promise<
+        ApiResponse<{
+          proctoringTotal: number;
+          userTotal: number;
+          updatedAt: string;
+        }>
+      > =>
+        this.request("/admin/dashboard/notifications/read-state", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+
       listOfficialResults: (params?: {
         page?: number;
         limit?: number;
