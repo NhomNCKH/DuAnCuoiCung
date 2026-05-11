@@ -79,7 +79,9 @@ class ApiClient {
   readonly baseURL = getBaseURL();
   private healthURL = getHealthURL();
   private refreshPromise: Promise<boolean> | null = null;
-  private requestTimeoutMs = 20000;
+  // Đồng bộ với proxy timeout (60s). Một số endpoint admin batch (auto-fill,
+  // bulk import…) có thể tốn vài chục giây trên BE.
+  private requestTimeoutMs = 60000;
 
   private getAuthHeaders(): Record<string, string> {
     const token = getStoredAccessToken();

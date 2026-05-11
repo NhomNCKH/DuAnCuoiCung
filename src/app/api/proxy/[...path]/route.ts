@@ -55,7 +55,9 @@ async function proxyRequest(
         : Buffer.from(await request.arrayBuffer());
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort('Proxy timeout'), 20000);
+    // Một số tác vụ admin (auto-fill exam template, bulk import…) có thể chạy
+    // vài chục giây trên BE. Để 60s default cho proxy đủ rộng rãi.
+    const timeout = setTimeout(() => controller.abort('Proxy timeout'), 60000);
     const response = await fetch(url, {
       method,
       headers: buildProxyHeaders(request),
@@ -85,7 +87,16 @@ async function proxyRequest(
     });
   } catch (error) {
     console.error('Proxy error:', error);
-    if ((error as any)?.name === 'AbortError') {
+    // AbortController.abort() trong fetch của Node 18+/undici có thể bắn ra
+    // DOMException với name = 'AbortError' HOẶC TypeError có code 'ABORT_ERR'
+    // tuỳ runtime → kiểm tra cả 2 để chắc chắn trả 504.
+    const errAny = error as { name?: string; code?: string; cause?: { name?: string; code?: string } };
+    const isAbort =
+      errAny?.name === 'AbortError' ||
+      errAny?.code === 'ABORT_ERR' ||
+      errAny?.cause?.name === 'AbortError' ||
+      errAny?.cause?.code === 'ABORT_ERR';
+    if (isAbort) {
       return NextResponse.json(
         { error: 'Gateway timeout', message: 'Backend response timeout' },
         { status: 504 },
