@@ -231,6 +231,8 @@ export default function ExamPage() {
       <ProctoringCamera
         userId={user?.id || "test-user"}
         examId={examId}
+        examAttemptId={examId}
+        enableFaceVerification={true}
         onViolation={handleViolation}
         onBlocked={handleBlocked}
       />

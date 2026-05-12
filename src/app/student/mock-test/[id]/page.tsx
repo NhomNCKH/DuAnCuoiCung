@@ -847,6 +847,12 @@ export default function MockTestExamPage() {
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [attempt, setAttempt] = useState<MockExamAttemptView | null>(null);
+  const isOfficialSession = useMemo(
+    () =>
+      officialFullscreenMode ||
+      attempt?.templateMode === "official_exam",
+    [officialFullscreenMode, attempt?.templateMode],
+  );
   const [result, setResult] = useState<MockExamResultView | null>(null);
   const [resultPayload, setResultPayload] =
     useState<LearnerAttemptResultData | null>(null);
@@ -1299,7 +1305,10 @@ export default function MockTestExamPage() {
           ),
         );
 
-        setProctoringActive(true);
+        setProctoringActive(
+          officialFullscreenMode ||
+            mapped.attemptData.templateMode === "official_exam",
+        );
         setPageState("exam");
       } catch (err: any) {
         setProctoringActive(false);
@@ -2962,9 +2971,7 @@ export default function MockTestExamPage() {
                     examId={attempt.id}
                     examAttemptId={attempt.id}
                     faceVerificationExamTemplateId={attempt.examTemplateId}
-                    enableFaceVerification={
-                      attempt.templateMode === "official_exam"
-                    }
+                    enableFaceVerification={isOfficialSession}
                     onViolation={handleProctoringViolation}
                     onBlocked={handleProctoringBlocked}
                   />
@@ -3112,9 +3119,7 @@ export default function MockTestExamPage() {
                       examId={attempt.id}
                       examAttemptId={attempt.id}
                       faceVerificationExamTemplateId={attempt.examTemplateId}
-                      enableFaceVerification={
-                        attempt.templateMode === "official_exam"
-                      }
+                      enableFaceVerification={isOfficialSession}
                       onViolation={handleProctoringViolation}
                       onBlocked={handleProctoringBlocked}
                     />

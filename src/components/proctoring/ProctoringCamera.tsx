@@ -7,7 +7,7 @@ import { apiClient } from "@/lib/api-client";
 import html2canvas from "html2canvas";
 
 const FRAME_CAPTURE_INTERVAL_MS = 1000;
-const FACE_VERIFICATION_INITIAL_DELAY_MS = 2500;
+const FACE_VERIFICATION_INITIAL_DELAY_MS = 1500;
 const FACE_VERIFICATION_INTERVAL_MS = 5 * 60 * 1000;
 const BROWSER_VIOLATION_COOLDOWN_MS = 4000;
 const YOLO_VIOLATION_COOLDOWN_MS = 2500;
@@ -15,7 +15,8 @@ const UI_VIOLATION_COOLDOWN_MS = 3000;
 const SPLIT_SCREEN_GRACE_MS = 1500;
 const MIN_DESKTOP_WIDTH_FOR_SPLIT_CHECK = 1024;
 const MIN_WINDOW_SCREEN_RATIO = 0.82;
-const REENTRY_FACE_VERIFICATION_DELAY_MS = 1200;
+const REENTRY_FACE_VERIFICATION_DELAY_MS = 600;
+const REENTRY_FACE_VERIFICATION_COOLDOWN_MS = 4000;
 
 interface ProctoringCameraProps {
   userId: string;
@@ -79,6 +80,7 @@ export const ProctoringCamera = ({
   const reentryCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const lastReentryVerificationAtRef = useRef(0);
 
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [warningCount, setWarningCount] = useState(0);
@@ -407,6 +409,31 @@ export const ProctoringCamera = ({
     ],
   );
 
+  const scheduleReentryFaceVerification = useCallback(
+    (checkpoint: string = "reentry_check") => {
+      if (!enableFaceVerification || !isMonitoring) return;
+      if (document.hidden) return;
+
+      const now = Date.now();
+      if (
+        now - lastReentryVerificationAtRef.current <
+        REENTRY_FACE_VERIFICATION_COOLDOWN_MS
+      ) {
+        return;
+      }
+
+      if (reentryCheckTimerRef.current) {
+        clearTimeout(reentryCheckTimerRef.current);
+      }
+
+      reentryCheckTimerRef.current = setTimeout(() => {
+        lastReentryVerificationAtRef.current = Date.now();
+        void verifyFaceIdentity(checkpoint);
+      }, REENTRY_FACE_VERIFICATION_DELAY_MS);
+    },
+    [enableFaceVerification, isMonitoring, verifyFaceIdentity],
+  );
+
   // Handle violations from YOLO service and report to backend
   useEffect(() => {
     if (!lastMessage) return;
@@ -420,8 +447,15 @@ export const ProctoringCamera = ({
             String(item?.action || ""),
           ),
         );
+        const diagnosticsRaw = (data as any)?.diagnostics?.raw ?? {};
+        const hasFrameRiskFromDiagnostics =
+          Boolean(diagnosticsRaw?.leaving_frame) ||
+          Boolean(diagnosticsRaw?.face_occluded) ||
+          Number((data as any)?.diagnostics?.person_count ?? 0) > 1;
+        const hasFrameIssue =
+          hasFrameRelatedViolation || hasFrameRiskFromDiagnostics;
 
-        if (hasFrameRelatedViolation) {
+        if (hasFrameIssue) {
           pendingReentryCheckRef.current = true;
           if (reentryCheckTimerRef.current) {
             clearTimeout(reentryCheckTimerRef.current);
@@ -432,13 +466,8 @@ export const ProctoringCamera = ({
           enableFaceVerification &&
           isMonitoring
         ) {
-          if (reentryCheckTimerRef.current) {
-            clearTimeout(reentryCheckTimerRef.current);
-          }
-          reentryCheckTimerRef.current = setTimeout(() => {
-            pendingReentryCheckRef.current = false;
-            void verifyFaceIdentity("reentry_check");
-          }, REENTRY_FACE_VERIFICATION_DELAY_MS);
+          pendingReentryCheckRef.current = false;
+          scheduleReentryFaceVerification("reentry_check");
         }
 
         // Report violations to backend API
@@ -497,12 +526,6 @@ export const ProctoringCamera = ({
     };
 
     reportViolationsToBackend();
-    return () => {
-      if (reentryCheckTimerRef.current) {
-        clearTimeout(reentryCheckTimerRef.current);
-        reentryCheckTimerRef.current = null;
-      }
-    };
   }, [
     enableFaceVerification,
     isMonitoring,
@@ -510,7 +533,7 @@ export const ProctoringCamera = ({
     logDebugEvent,
     onBlocked,
     reportViolations,
-    verifyFaceIdentity,
+    scheduleReentryFaceVerification,
   ]);
 
   const stopMonitoring = useCallback(() => {
@@ -697,6 +720,11 @@ export const ProctoringCamera = ({
       });
     };
 
+    const reportTabVisible = () => {
+      if (document.hidden) return;
+      scheduleReentryFaceVerification("reentry_check");
+    };
+
     const reportWindowBlur = () => {
       if (document.hidden) return;
       void reportBrowserViolation({
@@ -707,6 +735,11 @@ export const ProctoringCamera = ({
       });
     };
 
+    const reportWindowFocus = () => {
+      if (document.hidden) return;
+      scheduleReentryFaceVerification("reentry_check");
+    };
+
     const reportFullscreenExit = () => {
       if (!document.fullscreenElement) {
         void reportBrowserViolation({
@@ -715,7 +748,9 @@ export const ProctoringCamera = ({
           severity: 4,
           confidence: 1,
         });
+        return;
       }
+      scheduleReentryFaceVerification("reentry_check");
     };
 
     const reportPageHide = () => {
@@ -796,7 +831,9 @@ export const ProctoringCamera = ({
     };
 
     document.addEventListener("visibilitychange", reportTabHidden);
+    document.addEventListener("visibilitychange", reportTabVisible);
     window.addEventListener("blur", reportWindowBlur);
+    window.addEventListener("focus", reportWindowFocus);
     document.addEventListener("fullscreenchange", reportFullscreenExit);
     window.addEventListener("pagehide", reportPageHide);
     document.addEventListener("contextmenu", reportContextMenu);
@@ -807,7 +844,9 @@ export const ProctoringCamera = ({
 
     return () => {
       document.removeEventListener("visibilitychange", reportTabHidden);
+      document.removeEventListener("visibilitychange", reportTabVisible);
       window.removeEventListener("blur", reportWindowBlur);
+      window.removeEventListener("focus", reportWindowFocus);
       document.removeEventListener("fullscreenchange", reportFullscreenExit);
       window.removeEventListener("pagehide", reportPageHide);
       document.removeEventListener("contextmenu", reportContextMenu);
@@ -829,7 +868,7 @@ export const ProctoringCamera = ({
         reentryCheckTimerRef.current = null;
       }
     };
-  }, [reportBrowserViolation]);
+  }, [reportBrowserViolation, scheduleReentryFaceVerification]);
 
   return (
     <>
