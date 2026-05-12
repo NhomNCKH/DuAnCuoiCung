@@ -331,6 +331,26 @@ class ApiClient {
         method: "POST",
         body: JSON.stringify(data),
       }),
+
+    /**
+     * POST /media/data-url
+     * BE doc object S3 va tra ve base64 dataURL.
+     * Dung cho FE inline anh vao DOM khi render html2canvas, tranh CORS/403.
+     */
+    getMediaDataUrl: (data: {
+      s3Key: string;
+    }): Promise<
+      ApiResponse<{
+        s3Key: string;
+        contentType: string;
+        byteSize: number;
+        dataUrl: string;
+      }>
+    > =>
+      this.request("/media/data-url", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   };
 
   // ---- Admin: Question Bank (/admin/question-groups, /admin/tags) ----
@@ -409,20 +429,18 @@ class ApiClient {
 
       issueOfficialResultCertificate: (
         attemptId: string,
-      ): Promise<
-        ApiResponse<{
-          issued: boolean;
-          alreadyIssued: boolean;
-          credentialId?: string | null;
-          serialNumber?: string;
-          ipfsCid?: string | null;
-          storageUri?: string | null;
-          issueStatus: "issued" | "not_issued";
-        }>
-      > =>
+      ): Promise<ApiResponse<IssueCertificateResponseData>> =>
         this.request(
           `/admin/dashboard/official-results/${encodeURIComponent(attemptId)}/issue`,
           { method: "POST" },
+        ),
+
+      getOfficialResultCredential: (
+        attemptId: string,
+      ): Promise<ApiResponse<IssuedCredentialInfoData | null>> =>
+        this.request(
+          `/admin/dashboard/official-results/${encodeURIComponent(attemptId)}/credential`,
+          { method: "GET" },
         ),
     },
 
@@ -2135,6 +2153,127 @@ class ApiClient {
         return data as ApiResponse<TimiTurnResponseData>;
       },
     },
+  };
+
+  // ---- Public endpoints (no auth required) ----
+  public_ = {
+    credential: {
+      /**
+       * GET /credentials/verify/:token
+       * Xac thuc cong khai chung chi theo qrToken (khong can dang nhap).
+       */
+      verify: (token: string): Promise<VerifyCredentialResponseData> => {
+        return fetch(
+          `${this.baseURL}/credentials/verify/${encodeURIComponent(token)}`,
+          { method: "GET", headers: { "Content-Type": "application/json" } },
+        ).then(async (res) => {
+          const json = await res.json();
+          if (!res.ok) {
+            throw {
+              statusCode: res.status,
+              message: json?.message || "Verify failed",
+              ...json,
+            };
+          }
+          // BE response interceptor wrap: { statusCode, message, data: {...}, timestamp }
+          // Unwrap them 1 lop de FE doc dung field `authentic`, `credential`...
+          // Fallback ve json (flat) phong khi BE thay doi shape.
+          const raw =
+            json && typeof json === "object" && "data" in json
+              ? (json as { data: unknown }).data
+              : json;
+          return raw as VerifyCredentialResponseData;
+        });
+      },
+    },
+  };
+}
+
+export interface IssueCertificateResponseData {
+  issued: boolean;
+  alreadyIssued: boolean;
+  credentialId?: string | null;
+  serialNumber?: string | null;
+  ipfsCid?: string | null;
+  storageUri?: string | null;
+  ipfsGatewayUrl?: string | null;
+  qrToken?: string | null;
+  qrUrl?: string | null;
+  qrImageUrl?: string | null;
+  qrImageS3Key?: string | null;
+  payloadHash?: string;
+  chainHash?: string;
+  issueStatus: "issued" | "not_issued";
+}
+
+export interface IssuedCredentialInfoData {
+  credentialId: string;
+  serialNumber: string;
+  status: string;
+  issuedAt: string;
+  expiresAt: string | null;
+  ipfsCid: string | null;
+  storageUri: string | null;
+  ipfsGatewayUrl: string | null;
+  qrToken: string;
+  qrUrl: string | null;
+  qrImageUrl: string | null;
+  qrImageS3Key: string | null;
+  payloadHash: string | null;
+  chainHash: string | null;
+  issueStatus: "issued";
+}
+
+export interface VerifyCredentialResponseData {
+  authentic: boolean;
+  message: string;
+  reason?: string;
+  credential?: {
+    id: string;
+    serialNumber: string;
+    status: string;
+    issuedAt: string;
+    expiresAt: string | null;
+    revokedAt: string | null;
+    revocationReason: string | null;
+    issuer: { name: string; did: string | null };
+    subject: {
+      userId: string;
+      did: string | null;
+      name: string;
+      email: string;
+    };
+    score: {
+      total: number;
+      passThreshold: number;
+      listening: number | null;
+      reading: number | null;
+      passed: boolean;
+    };
+    exam: {
+      attemptId: string;
+      templateId: string | null;
+      templateName: string | null;
+      templateCode: string | null;
+    };
+    integrity: {
+      mode: string;
+      hashAlgorithm: string;
+      payloadHash: string;
+      chainHash: string;
+      previousChainHash: string | null;
+      onChainPayloadMatchesDb: boolean | null;
+    };
+    storage: {
+      ipfsCid: string | null;
+      ipfsGatewayUrl: string | null;
+      storageUri: string | null;
+    };
+    qr: {
+      token: string;
+      url: string | null;
+      imageUrl: string | null;
+    };
   };
 }
 

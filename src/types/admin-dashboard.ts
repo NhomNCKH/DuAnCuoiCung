@@ -87,6 +87,16 @@ export interface AdminDashboardData {
   recentAttempts: AdminDashboardRecentAttempt[];
 }
 
+export interface AdminRegistrationProfile {
+  fullName: string | null;
+  identityNumber: string | null;
+  birthday: string | null;
+  phone: string | null;
+  address: string | null;
+  avatarUrl: string | null;
+  avatarS3Key: string | null;
+}
+
 export interface AdminOfficialExamResultItem {
   id: string;
   status: string;
@@ -104,6 +114,9 @@ export interface AdminOfficialExamResultItem {
     id: string;
     name: string;
     email: string;
+    avatarUrl?: string | null;
+    avatarS3Key?: string | null;
+    birthday?: string | null;
   } | null;
   template: {
     id: string;
@@ -111,6 +124,7 @@ export interface AdminOfficialExamResultItem {
     code: string;
     mode: string;
   } | null;
+  registrationProfile?: AdminRegistrationProfile | null;
 }
 
 export interface AdminOfficialExamResultListData {

@@ -1,7 +1,7 @@
 // app/admin/certificates/page.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -10,6 +10,8 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Download,
+  ExternalLink,
   Eye,
   FileCheck2,
   Loader2,
@@ -21,13 +23,20 @@ import {
   XCircle,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import type { IssuedCredentialInfoData } from "@/lib/api-client";
 import type { AdminOfficialExamResultItem, AdminExamRegistrationItem } from "@/types/admin-dashboard";
 import { getSignedMediaUrl } from "@/lib/media-url";
+import { useToast } from "@/hooks/useToast";
 import { AdminCard, AdminEmptyState } from "@/components/admin";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { EnhancedStatCard } from "@/components/ui/EnhancedStatCard";
 import { SharedDropdown } from "@/components/ui/shared-dropdown";
 import { SharedTable, SharedTableBody, SharedTableHead } from "@/components/ui/shared-table";
+import html2canvas from "html2canvas";
+
+// Tem chong hang gia - dat trong /public/icon -> Next.js serve same-origin,
+// khong gay CORS khi html2canvas chup, KHONG can crossOrigin attribute.
+const ANTI_COUNTERFEIT_SEAL_SRC = "/icon/anti-counterfeit-seal.png";
 
 type ActiveTab = "results" | "issuance" | "registrations";
 
@@ -52,6 +61,12 @@ interface OfficialExamResultRow {
   issueStatus: IssueStatus;
   hasViolation: boolean;
   violationCount: number;
+  // Snapshot dang ki + thong tin user de in len chung chi
+  profileFullName: string | null;
+  profileIdentityNumber: string | null;
+  profileBirthday: string | null;
+  profileAvatarUrl: string | null;
+  profileAvatarS3Key: string | null;
 }
 
 interface OfficialExamTemplateOption {
@@ -209,6 +224,42 @@ function formatCertificateCode(attemptId: string) {
   return `TM-${attemptId.slice(0, 8).toUpperCase()}`;
 }
 
+function formatBirthdayYmd(value?: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    const [y, m, d] = trimmed.split("T")[0].split("-");
+    return `${y}/${m}/${d}`;
+  }
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
+    const [d, m, y] = trimmed.split("/");
+    return `${y}/${m.padStart(2, "0")}/${d.padStart(2, "0")}`;
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return trimmed;
+  return `${parsed.getFullYear()}/${String(parsed.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}/${String(parsed.getDate()).padStart(2, "0")}`;
+}
+
+async function urlToDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { mode: "cors", cache: "no-cache" });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 function estimateToeicDomainScores(totalScore: number) {
   const listening = Math.max(5, Math.min(495, Math.round(totalScore * 0.52)));
   const reading = Math.max(5, Math.min(495, totalScore - listening));
@@ -235,6 +286,23 @@ export default function AdminCertificatesPage() {
   const [issuingAttemptId, setIssuingAttemptId] = useState<string | null>(null);
   const [bulkIssuing, setBulkIssuing] = useState(false);
   const [previewRow, setPreviewRow] = useState<OfficialExamResultRow | null>(null);
+  const [confirmIssueRow, setConfirmIssueRow] =
+    useState<OfficialExamResultRow | null>(null);
+  const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
+  const [credentialInfoMap, setCredentialInfoMap] = useState<
+    Record<string, IssuedCredentialInfoData>
+  >({});
+  const [loadingCredentialFor, setLoadingCredentialFor] = useState<string | null>(
+    null,
+  );
+  const [downloadingCert, setDownloadingCert] = useState(false);
+  const [previewAvatarDataUrl, setPreviewAvatarDataUrl] = useState<string | null>(
+    null,
+  );
+  const [previewQrDataUrl, setPreviewQrDataUrl] = useState<string | null>(null);
+  const [previewAssetsLoading, setPreviewAssetsLoading] = useState(false);
+  const certificateNodeRef = useRef<HTMLDivElement | null>(null);
+  const toast = useToast();
 
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [regLoading, setRegLoading] = useState(false);
@@ -260,12 +328,39 @@ export default function AdminCertificatesPage() {
       const totalScore = Number(attempt.totalScore ?? 0);
       const passThreshold = Number(attempt.passThreshold ?? DEFAULT_PASS_THRESHOLD);
       const isEligible = totalScore >= passThreshold;
+      const profile = attempt.registrationProfile ?? null;
+      const profileFullName =
+        profile?.fullName && profile.fullName.trim() !== ""
+          ? profile.fullName.trim()
+          : null;
+      const profileIdentityNumber =
+        profile?.identityNumber && profile.identityNumber.trim() !== ""
+          ? profile.identityNumber.trim()
+          : null;
+      const profileBirthday =
+        profile?.birthday && profile.birthday.trim() !== ""
+          ? profile.birthday.trim()
+          : attempt.user?.birthday ?? null;
+      const profileAvatarUrl =
+        (profile?.avatarUrl && profile.avatarUrl.trim() !== ""
+          ? profile.avatarUrl.trim()
+          : null) ??
+        (attempt.user?.avatarUrl && attempt.user.avatarUrl.trim() !== ""
+          ? attempt.user.avatarUrl.trim()
+          : null);
+      const profileAvatarS3Key =
+        (profile?.avatarS3Key && profile.avatarS3Key.trim() !== ""
+          ? profile.avatarS3Key.trim()
+          : null) ??
+        (attempt.user?.avatarS3Key && attempt.user.avatarS3Key.trim() !== ""
+          ? attempt.user.avatarS3Key.trim()
+          : null);
 
       return {
         id: attempt.id,
         userId: attempt.user?.id ?? "",
         examTemplateId: attempt.template?.id ?? "",
-        studentName: attempt.user?.name ?? "Chưa có tên",
+        studentName: profileFullName ?? attempt.user?.name ?? "Chưa có tên",
         studentEmail: attempt.user?.email ?? "N/A",
         examName: attempt.template?.name ?? "Đề thi chính thức",
         totalScore,
@@ -279,6 +374,11 @@ export default function AdminCertificatesPage() {
         issueStatus: attempt.issueStatus ?? "not_issued",
         hasViolation: Boolean(attempt.hasViolation),
         violationCount: Number(attempt.violationCount ?? 0),
+        profileFullName,
+        profileIdentityNumber,
+        profileBirthday,
+        profileAvatarUrl,
+        profileAvatarS3Key,
       };
     });
   };
@@ -595,7 +695,7 @@ export default function AdminCertificatesPage() {
     );
   }, []);
 
-  const handleIssueCertificate = useCallback(
+  const performIssueCertificate = useCallback(
     async (row: OfficialExamResultRow) => {
       if (row.issueStatus === "issued" || !row.isEligible || issuingAttemptId) {
         return;
@@ -604,18 +704,81 @@ export default function AdminCertificatesPage() {
       setIssuingAttemptId(row.id);
       setError(null);
       try {
-        await apiClient.admin.dashboard.issueOfficialResultCertificate(row.id);
+        const response =
+          await apiClient.admin.dashboard.issueOfficialResultCertificate(row.id);
+        const data: any = response?.data ?? response;
         markRowAsIssued(row.id);
+        if (data?.credentialId) {
+          setCredentialInfoMap((prev) => ({
+            ...prev,
+            [row.id]: {
+              credentialId: data.credentialId,
+              serialNumber: data.serialNumber ?? "",
+              status: "issued",
+              issuedAt: new Date().toISOString(),
+              expiresAt: null,
+              ipfsCid: data.ipfsCid ?? null,
+              storageUri: data.storageUri ?? null,
+              ipfsGatewayUrl: data.ipfsGatewayUrl ?? null,
+              qrToken: data.qrToken ?? "",
+              qrUrl: data.qrUrl ?? null,
+              qrImageUrl: data.qrImageUrl ?? null,
+              qrImageS3Key: data.qrImageS3Key ?? null,
+              payloadHash: data.payloadHash ?? null,
+              chainHash: data.chainHash ?? null,
+              issueStatus: "issued",
+            },
+          }));
+        }
+        toast.notify({
+          variant: "success",
+          title: "Đã cấp chứng chỉ",
+          message: `Cấp thành công chứng chỉ cho ${row.studentName}. Serial: ${
+            data?.serialNumber ?? "(đang đồng bộ)"
+          }`,
+        });
       } catch (err: any) {
-        setError(err?.message ?? "Cấp chứng chỉ thất bại. Vui lòng thử lại.");
+        const msg = err?.message ?? "Cấp chứng chỉ thất bại. Vui lòng thử lại.";
+        setError(msg);
+        toast.notify({
+          variant: "error",
+          title: "Cấp chứng chỉ thất bại",
+          message: msg,
+        });
       } finally {
         setIssuingAttemptId(null);
       }
     },
-    [issuingAttemptId, markRowAsIssued],
+    [issuingAttemptId, markRowAsIssued, toast],
   );
 
-  const handleBulkIssue = useCallback(async () => {
+  const handleIssueCertificate = useCallback(
+    (row: OfficialExamResultRow) => {
+      if (row.issueStatus === "issued" || !row.isEligible || issuingAttemptId) {
+        return;
+      }
+      setConfirmIssueRow(row);
+    },
+    [issuingAttemptId],
+  );
+
+  const handleConfirmIssue = useCallback(async () => {
+    if (!confirmIssueRow) return;
+    const row = confirmIssueRow;
+    setConfirmIssueRow(null);
+    await performIssueCertificate(row);
+  }, [confirmIssueRow, performIssueCertificate]);
+
+  const handleBulkIssue = useCallback(() => {
+    if (bulkIssuing || issuingAttemptId) return;
+    const targets = filteredIssuanceRows.filter(
+      (row) => row.issueStatus === "not_issued" && row.isEligible,
+    );
+    if (targets.length === 0) return;
+    setConfirmBulkOpen(true);
+  }, [bulkIssuing, filteredIssuanceRows, issuingAttemptId]);
+
+  const performBulkIssue = useCallback(async () => {
     if (bulkIssuing || issuingAttemptId) return;
     const targets = filteredIssuanceRows.filter(
       (row) => row.issueStatus === "not_issued" && row.isEligible,
@@ -624,20 +787,286 @@ export default function AdminCertificatesPage() {
 
     setBulkIssuing(true);
     setError(null);
+    let successCount = 0;
+    let failedCount = 0;
     try {
       for (const row of targets) {
-        await apiClient.admin.dashboard.issueOfficialResultCertificate(row.id);
-        markRowAsIssued(row.id);
+        try {
+          const response =
+            await apiClient.admin.dashboard.issueOfficialResultCertificate(
+              row.id,
+            );
+          const data: any = response?.data ?? response;
+          markRowAsIssued(row.id);
+          if (data?.credentialId) {
+            setCredentialInfoMap((prev) => ({
+              ...prev,
+              [row.id]: {
+                credentialId: data.credentialId,
+                serialNumber: data.serialNumber ?? "",
+                status: "issued",
+                issuedAt: new Date().toISOString(),
+                expiresAt: null,
+                ipfsCid: data.ipfsCid ?? null,
+                storageUri: data.storageUri ?? null,
+                ipfsGatewayUrl: data.ipfsGatewayUrl ?? null,
+                qrToken: data.qrToken ?? "",
+                qrUrl: data.qrUrl ?? null,
+                qrImageUrl: data.qrImageUrl ?? null,
+                qrImageS3Key: data.qrImageS3Key ?? null,
+                payloadHash: data.payloadHash ?? null,
+                chainHash: data.chainHash ?? null,
+                issueStatus: "issued",
+              },
+            }));
+          }
+          successCount += 1;
+        } catch (err: any) {
+          failedCount += 1;
+        }
       }
-    } catch (err: any) {
-      setError(
-        err?.message ??
-        "Có lỗi khi cấp hàng loạt. Những học viên đã cấp thành công vẫn được giữ kết quả.",
-      );
+      toast.notify({
+        variant: failedCount === 0 ? "success" : "warning",
+        title: failedCount === 0 ? "Cấp hàng loạt thành công" : "Cấp hàng loạt hoàn tất",
+        message: `Thành công: ${successCount}. Thất bại: ${failedCount}.`,
+      });
     } finally {
       setBulkIssuing(false);
+      setConfirmBulkOpen(false);
     }
-  }, [bulkIssuing, filteredIssuanceRows, issuingAttemptId, markRowAsIssued]);
+  }, [
+    bulkIssuing,
+    filteredIssuanceRows,
+    issuingAttemptId,
+    markRowAsIssued,
+    toast,
+  ]);
+
+  // Phim Esc -> dong modal preview certificate (vi da bo nut X).
+  useEffect(() => {
+    if (!previewRow) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreviewRow(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewRow]);
+
+  // Khi mở modal preview cho row đã cấp -> auto fetch credential info nếu chưa cache.
+  // CHU Y: KHONG dua `loadingCredentialFor` vao deps -> tranh re-run effect khi
+  // ta vua call setLoadingCredentialFor (gay race condition `cancelled = true` truoc
+  // khi promise resolve, dan toi setCredentialInfoMap khong bao gio chay).
+  useEffect(() => {
+    if (!previewRow) return;
+    if (previewRow.issueStatus !== "issued") return;
+    if (credentialInfoMap[previewRow.id]) return;
+
+    const targetId = previewRow.id;
+    let cancelled = false;
+    setLoadingCredentialFor(targetId);
+    apiClient.admin.dashboard
+      .getOfficialResultCredential(targetId)
+      .then((response: any) => {
+        if (cancelled) return;
+        // Phong khi BE tra ve 2 dang: { data: {...} } hoac { data: { data: {...} } }
+        const raw = response?.data ?? response ?? null;
+        const info: IssuedCredentialInfoData | null =
+          raw && typeof raw === "object" && "credentialId" in raw
+            ? raw
+            : raw?.data && typeof raw.data === "object" && "credentialId" in raw.data
+            ? raw.data
+            : null;
+        if (info && info.credentialId) {
+          setCredentialInfoMap((prev) => ({ ...prev, [targetId]: info }));
+        }
+      })
+      .catch(() => {
+        /* swallow - tab dong gay cancel la binh thuong */
+      })
+      .finally(() => {
+        setLoadingCredentialFor((current) =>
+          current === targetId ? null : current,
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewRow?.id, previewRow?.issueStatus]);
+
+  // Pre-load anh QR + anh avatar duoi dang base64 dataURL khi mo modal preview.
+  // Ly do: html2canvas khong ve duoc img cross-origin tu S3 du da co `useCORS`,
+  // nen phai convert truoc thanh dataURL de luc render PNG vat ly van co QR + avatar.
+  useEffect(() => {
+    if (!previewRow) {
+      setPreviewAvatarDataUrl(null);
+      setPreviewQrDataUrl(null);
+      setPreviewAssetsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setPreviewAssetsLoading(true);
+
+    const credInfo = credentialInfoMap[previewRow.id] ?? null;
+    const avatarSourceUrl = previewRow.profileAvatarUrl ?? null;
+    const avatarS3Key = previewRow.profileAvatarS3Key ?? null;
+    const qrSourceUrl = credInfo?.qrImageUrl ?? null;
+    const qrS3Key = credInfo?.qrImageS3Key ?? null;
+
+    // Uu tien proxy qua BE de tranh hoan toan CORS/403 cua S3.
+    // Fallback ve fetch truc tiep neu khong co s3Key (truong hop legacy).
+    const loadViaBackend = async (s3Key: string): Promise<string | null> => {
+      try {
+        const resp = await apiClient.media.getMediaDataUrl({ s3Key });
+        return resp?.data?.dataUrl ?? null;
+      } catch {
+        return null;
+      }
+    };
+
+    const loadAvatar = async (): Promise<string | null> => {
+      if (avatarS3Key) {
+        const viaBackend = await loadViaBackend(avatarS3Key);
+        if (viaBackend) return viaBackend;
+      }
+      if (avatarSourceUrl) {
+        return await urlToDataUrl(avatarSourceUrl);
+      }
+      return null;
+    };
+
+    const loadQr = async (): Promise<string | null> => {
+      if (qrS3Key) {
+        const viaBackend = await loadViaBackend(qrS3Key);
+        if (viaBackend) return viaBackend;
+      }
+      if (qrSourceUrl) {
+        return await urlToDataUrl(qrSourceUrl);
+      }
+      return null;
+    };
+
+    void Promise.all([loadAvatar(), loadQr()])
+      .then(([avatarData, qrData]) => {
+        if (cancelled) return;
+        setPreviewAvatarDataUrl(avatarData);
+        setPreviewQrDataUrl(qrData);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setPreviewAssetsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    previewRow?.id,
+    previewRow?.profileAvatarUrl,
+    previewRow?.profileAvatarS3Key,
+    credentialInfoMap[previewRow?.id ?? ""]?.qrImageUrl,
+    credentialInfoMap[previewRow?.id ?? ""]?.qrImageS3Key,
+  ]);
+
+  const handleDownloadCertificate = useCallback(async () => {
+    if (!certificateNodeRef.current || !previewRow) return;
+    const original = certificateNodeRef.current;
+
+    // Triet ly:
+    // - Giu nguyen ti le tu nhien cua template, KHONG ep vao khung A4 (gay
+    //   nhieu khoang trang xau xi).
+    // - Lock width 1600px (high-DPI), height auto theo content tu nhien.
+    // - Scale x2 -> output PNG ~3200px ngang, du sac net cho moi nhu cau
+    //   (xem online / in chung chi).
+    const RENDER_WIDTH_PX = 1600;
+    const RENDER_SCALE = 2;
+
+    const wrapper = document.createElement("div");
+    wrapper.setAttribute("aria-hidden", "true");
+    wrapper.style.position = "fixed";
+    wrapper.style.left = "-99999px";
+    wrapper.style.top = "0";
+    wrapper.style.width = `${RENDER_WIDTH_PX}px`;
+    wrapper.style.padding = "0";
+    wrapper.style.margin = "0";
+    wrapper.style.background = "#f8f4ea";
+    wrapper.style.pointerEvents = "none";
+
+    const clone = original.cloneNode(true) as HTMLElement;
+    clone.style.width = `${RENDER_WIDTH_PX}px`;
+    clone.style.maxWidth = `${RENDER_WIDTH_PX}px`;
+    clone.style.boxShadow = "none";
+    clone.style.transform = "none";
+
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    try {
+      setDownloadingCert(true);
+
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+
+      const images = Array.from(clone.querySelectorAll("img"));
+      await Promise.all(
+        images.map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              if (img.complete && img.naturalWidth > 0) {
+                resolve();
+                return;
+              }
+              const done = () => {
+                img.removeEventListener("load", done);
+                img.removeEventListener("error", done);
+                resolve();
+              };
+              img.addEventListener("load", done);
+              img.addEventListener("error", done);
+            }),
+        ),
+      );
+
+      const canvas = await html2canvas(clone, {
+        scale: RENDER_SCALE,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: "#f8f4ea",
+        width: RENDER_WIDTH_PX,
+        windowWidth: RENDER_WIDTH_PX,
+        logging: false,
+      });
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      const safeName = previewRow.studentName.replace(/[^A-Za-z0-9_-]+/g, "_");
+      link.href = dataUrl;
+      link.download = `TOEIC-Certificate-${safeName}-${previewRow.id.slice(0, 8)}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.notify({
+        variant: "success",
+        title: "Đã tải xuống chứng chỉ",
+        message: `${link.download} (${canvas.width}×${canvas.height} px)`,
+      });
+    } catch (err: any) {
+      toast.notify({
+        variant: "error",
+        title: "Không thể tải chứng chỉ",
+        message: err?.message ?? "Lỗi không xác định",
+      });
+    } finally {
+      if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+      setDownloadingCert(false);
+    }
+  }, [previewRow, toast]);
 
   return (
     <div className="space-y-6">
@@ -1402,176 +1831,432 @@ export default function AdminCertificatesPage() {
         </div>
       ) : null}
 
-      {previewRow ? (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
-          onClick={() => setPreviewRow(null)}
-        >
+      {previewRow ? (() => {
+        const credInfo = credentialInfoMap[previewRow.id] ?? null;
+        const identificationNumber =
+          previewRow.profileIdentityNumber ??
+          (credInfo?.serialNumber
+            ? credInfo.serialNumber
+            : formatCertificateCode(previewRow.id).replace("TM-", "20"));
+        const birthdayYmd =
+          formatBirthdayYmd(previewRow.profileBirthday) ?? "----/--/--";
+        return (
           <div
-            className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
+            onClick={() => setPreviewRow(null)}
           >
-            <button
-              type="button"
-              onClick={() => setPreviewRow(null)}
-              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:text-slate-700"
-              aria-label="Đóng xem chứng chỉ"
+            <div
+              className="relative my-auto w-full max-w-5xl overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
             >
-              <X className="h-4 w-4" />
-            </button>
-
-            <div className="relative overflow-hidden bg-[#eef4fb] p-5 md:p-7">
-              <div className="relative overflow-hidden rounded-xl border-[3px] border-[#cf9f47] bg-[#f8f4ea] shadow-[0_18px_36px_rgba(15,23,42,0.16)]">
-                <div className="border-b-2 border-[#d6b16f] px-4 py-2.5">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src="/logo/logo_website.svg"
-                      alt="TOEIC MASTER logo"
-                      className="h-14 w-auto object-contain"
-                    />
-                    <div className="flex-1 rounded-full bg-[#d0a24d] px-5 py-1 text-center">
-                      <p className="text-[11px] font-extrabold uppercase leading-4 tracking-[0.12em] text-[#1f2a44]">
-                        Listening and Reading
-                      </p>
-                      <p className="text-[17px] font-black uppercase leading-6 tracking-[0.06em] text-[#1f2a44]">
-                        Official Score Certificate
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 border-y-2 border-[#d6b16f] md:grid-cols-[1.55fr_1fr_160px]">
-                  <div className="grid grid-cols-[116px_1fr] border-r-2 border-[#3f3f3f] p-3">
-                    <div className="flex h-[170px] items-center justify-center border border-[#3f3f3f] bg-[#d6d6d6]">
-                      <div className="h-[126px] w-[86px] rounded-full bg-white/95" />
-                    </div>
-
-                    <div className="ml-3 border border-[#3f3f3f]">
-                      <div className="border-b border-[#3f3f3f] px-3 py-1.5">
-                        <p className="text-[22px] font-semibold leading-7 text-black">
-                          {previewRow.studentName}
+              <div className="relative overflow-hidden bg-[#eef4fb] p-5 md:p-7">
+                <div
+                  ref={certificateNodeRef}
+                  className="relative overflow-hidden rounded-xl border-[3px] border-[#cf9f47] shadow-[0_18px_36px_rgba(15,23,42,0.16)]"
+                  style={{
+                    backgroundColor: "#f8f4ea",
+                    // Watermark "TOEIC MASTER" cheo xeo theo phong cach Word.
+                    // Dung inline SVG -> html2canvas render duoc chinh xac, khong phu
+                    // thuoc stacking context hay z-index.
+                    backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(
+                      `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid meet"><g transform="translate(640 360) rotate(-22)"><text x="0" y="0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="110" font-weight="900" letter-spacing="8" fill="rgba(207,159,71,0.13)" stroke="rgba(207,159,71,0.06)" stroke-width="1">TOEIC MASTER</text><text x="0" y="70" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="14" fill="rgba(207,159,71,0.10)">OFFICIAL CERTIFICATE</text></g></svg>`,
+                    )}")`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "center",
+                    backgroundSize: "70% auto",
+                  }}
+                >
+                  <div className="border-b-2 border-[#d6b16f] px-4 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src="/logo/logo_website.svg"
+                        alt="TOEIC MASTER logo"
+                        className="h-14 w-auto object-contain"
+                        crossOrigin="anonymous"
+                      />
+                      <div className="flex-1 rounded-full bg-[#d0a24d] px-5 py-1 text-center">
+                        <p className="text-[11px] font-extrabold uppercase leading-4 tracking-[0.12em] text-[#1f2a44]">
+                          Listening and Reading
                         </p>
-                        <p className="text-[12px] text-black/85">Name</p>
-                      </div>
-
-                      <div className="grid grid-cols-2 border-b border-[#3f3f3f]">
-                        <div className="border-r border-[#3f3f3f] px-3 py-1.5">
-                          <p className="text-[22px] font-semibold leading-7 text-black">
-                            {formatCertificateCode(previewRow.id).replace("TM-", "20")}
-                          </p>
-                          <p className="text-[12px] leading-4 text-black/85">
-                            Identification
-                            <br />
-                            Number
-                          </p>
-                        </div>
-                        <div className="px-3 py-1.5">
-                          <p className="text-[22px] font-semibold leading-7 text-black">2000/01/01</p>
-                          <p className="text-[12px] leading-4 text-black/85">
-                            Date of Birth
-                            <br />
-                            (yyyy/mm/dd)
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2">
-                        <div className="border-r border-[#3f3f3f] px-3 py-1.5">
-                          <p className="text-[22px] font-semibold leading-7 text-black">
-                            {formatDateYmd(previewRow.submittedAt)}
-                          </p>
-                          <p className="text-[12px] leading-4 text-black/85">
-                            Test Date
-                            <br />
-                            (yyyy/mm/dd)
-                          </p>
-                        </div>
-                        <div className="px-3 py-1.5">
-                          <p className="text-[22px] font-semibold leading-7 text-black">
-                            {addYearsToYmd(previewRow.submittedAt, 2)}
-                          </p>
-                          <p className="text-[12px] leading-4 text-black/85">
-                            Valid Until
-                            <br />
-                            (yyyy/mm/dd)
-                          </p>
-                        </div>
+                        <p className="text-[17px] font-black uppercase leading-6 tracking-[0.06em] text-[#1f2a44]">
+                          Official Score Certificate
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-r-2 border-[#3f3f3f]">
-                    {(() => {
-                      const domain = estimateToeicDomainScores(previewRow.totalScore);
-                      const listeningScore =
-                        previewRow.listeningScore > 0
-                          ? previewRow.listeningScore
-                          : domain.listening;
-                      const readingScore =
-                        previewRow.readingScore > 0 ? previewRow.readingScore : domain.reading;
-                      const renderDomain = (
-                        title: "LISTENING" | "READING",
-                        value: number,
-                        withBottomBorder: boolean,
-                      ) => (
-                        <div
-                          className={`px-4 py-3 ${withBottomBorder ? "border-b border-[#3f3f3f]" : ""}`}
-                        >
-                          <div className="inline-block bg-[#d0a24d] px-3 py-0.5 text-[22px] font-black leading-7 tracking-[0.04em] text-[#1f2a44]">
-                            {title}
-                          </div>
-                          <div className="mt-3 flex items-end justify-between">
-                            <p className="text-[24px] font-semibold leading-8 text-black">Your score</p>
-                            <div className="flex h-[58px] w-[58px] items-center justify-center rounded-full border-[3px] border-black bg-white text-[30px] font-black leading-none text-black">
-                              {value}
+                  <div className="grid grid-cols-[1.55fr_1fr_160px] border-y-2 border-[#d6b16f]">
+                    <div className="grid grid-cols-[116px_1fr] border-r-2 border-[#3f3f3f] p-3">
+                      <div className="flex flex-col items-stretch gap-2">
+                        <div className="flex h-[170px] items-center justify-center overflow-hidden border border-[#3f3f3f] bg-[#d6d6d6]">
+                          {previewAvatarDataUrl || previewRow.profileAvatarUrl ? (
+                            <img
+                              src={previewAvatarDataUrl ?? previewRow.profileAvatarUrl ?? ""}
+                              alt={`${previewRow.studentName} avatar`}
+                              className="h-full w-full object-cover"
+                              crossOrigin="anonymous"
+                            />
+                          ) : (
+                            <div className="flex h-[126px] w-[86px] items-center justify-center rounded-full bg-white/95 text-[10px] font-semibold uppercase tracking-wider text-[#5f5850]">
+                              {previewAssetsLoading ? "..." : "No photo"}
                             </div>
+                          )}
+                        </div>
+                        <div className="-mx-2 flex flex-1 items-center justify-center pt-1">
+                          <img
+                            src={ANTI_COUNTERFEIT_SEAL_SRC}
+                            alt="Anti-counterfeit security seal"
+                            className="h-[140px] w-[140px] select-none object-contain"
+                            draggable={false}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="ml-3 border border-[#3f3f3f]">
+                        <div className="border-b border-[#3f3f3f] px-3 py-1.5">
+                          <p className="text-[22px] font-semibold leading-7 text-black">
+                            {previewRow.studentName}
+                          </p>
+                          <p className="text-[12px] text-black/85">Name</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 border-b border-[#3f3f3f]">
+                          <div className="border-r border-[#3f3f3f] px-3 py-1.5">
+                            <p className="break-all text-[14px] font-semibold leading-5 text-black">
+                              {identificationNumber}
+                            </p>
+                            <p className="text-[12px] leading-4 text-black/85">
+                              Identification
+                              <br />
+                              Number
+                            </p>
                           </div>
-                          <div className="mt-1 flex items-center gap-2">
-                            <span className="text-[24px] font-semibold text-black">5</span>
-                            <div className="h-3 flex-1 rounded-[2px] bg-[#d8d8d8]">
-                              <div
-                                className="h-3 rounded-[2px] bg-[#232629]"
-                                style={{ width: `${Math.max(1, Math.min(100, (value / 495) * 100))}%` }}
-                              />
-                            </div>
-                            <span className="text-[24px] font-semibold text-black">495</span>
+                          <div className="px-3 py-1.5">
+                            <p className="text-[22px] font-semibold leading-7 text-black">
+                              {birthdayYmd}
+                            </p>
+                            <p className="text-[12px] leading-4 text-black/85">
+                              Date of Birth
+                              <br />
+                              (yyyy/mm/dd)
+                            </p>
                           </div>
                         </div>
-                      );
 
-                      return (
-                        <>
-                          {renderDomain("LISTENING", listeningScore, true)}
-                          {renderDomain("READING", readingScore, false)}
-                        </>
-                      );
-                    })()}
+                        <div className="grid grid-cols-2">
+                          <div className="border-r border-[#3f3f3f] px-3 py-1.5">
+                            <p className="text-[22px] font-semibold leading-7 text-black">
+                              {formatDateYmd(previewRow.submittedAt)}
+                            </p>
+                            <p className="text-[12px] leading-4 text-black/85">
+                              Test Date
+                              <br />
+                              (yyyy/mm/dd)
+                            </p>
+                          </div>
+                          <div className="px-3 py-1.5">
+                            <p className="text-[22px] font-semibold leading-7 text-black">
+                              {addYearsToYmd(previewRow.submittedAt, 2)}
+                            </p>
+                            <p className="text-[12px] leading-4 text-black/85">
+                              Valid Until
+                              <br />
+                              (yyyy/mm/dd)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-r-2 border-[#3f3f3f]">
+                      {(() => {
+                        const domain = estimateToeicDomainScores(previewRow.totalScore);
+                        const listeningScore =
+                          previewRow.listeningScore > 0
+                            ? previewRow.listeningScore
+                            : domain.listening;
+                        const readingScore =
+                          previewRow.readingScore > 0 ? previewRow.readingScore : domain.reading;
+                        const renderDomain = (
+                          title: "LISTENING" | "READING",
+                          value: number,
+                          withBottomBorder: boolean,
+                        ) => (
+                          <div
+                            className={`px-4 py-3 ${withBottomBorder ? "border-b border-[#3f3f3f]" : ""}`}
+                          >
+                            <div className="inline-block bg-[#d0a24d] px-3 py-0.5 text-[22px] font-black leading-7 tracking-[0.04em] text-[#1f2a44]">
+                              {title}
+                            </div>
+                            <div className="mt-3 flex items-end justify-between">
+                              <p className="text-[24px] font-semibold leading-8 text-black">Your score</p>
+                              <div className="flex h-[58px] w-[58px] items-center justify-center rounded-full border-[3px] border-black bg-white text-[30px] font-black leading-none text-black">
+                                {value}
+                              </div>
+                            </div>
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="text-[24px] font-semibold text-black">5</span>
+                              <div className="h-3 flex-1 rounded-[2px] bg-[#d8d8d8]">
+                                <div
+                                  className="h-3 rounded-[2px] bg-[#232629]"
+                                  style={{ width: `${Math.max(1, Math.min(100, (value / 495) * 100))}%` }}
+                                />
+                              </div>
+                              <span className="text-[24px] font-semibold text-black">495</span>
+                            </div>
+                          </div>
+                        );
+
+                        return (
+                          <>
+                            {renderDomain("LISTENING", listeningScore, true)}
+                            {renderDomain("READING", readingScore, false)}
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="flex flex-col items-center justify-between p-3 text-center">
+                      <div className="inline-block bg-[#d0a24d] px-3 py-0.5 text-[22px] font-black leading-7 tracking-[0.04em] text-[#1f2a44]">
+                        TOTAL
+                        <br />
+                        SCORE
+                      </div>
+                      <div className="mt-2 flex h-[84px] w-[84px] items-center justify-center rounded-full border-[4px] border-black bg-white">
+                        <span className="text-[34px] font-black leading-none text-black">
+                          {formatNumber(previewRow.totalScore)}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex flex-col items-center gap-1">
+                        {previewQrDataUrl || credInfo?.qrImageUrl ? (
+                          <img
+                            src={previewQrDataUrl ?? credInfo?.qrImageUrl ?? ""}
+                            alt="QR xác thực chứng chỉ"
+                            className="h-[90px] w-[90px] rounded-md border border-[#3f3f3f] bg-white object-contain p-1"
+                            crossOrigin="anonymous"
+                          />
+                        ) : (
+                          <div className="flex h-[90px] w-[90px] items-center justify-center rounded-md border border-dashed border-[#3f3f3f] bg-white/70 text-center text-[9px] font-semibold uppercase tracking-wider text-[#5f5850]">
+                            {previewRow.issueStatus === "issued"
+                              ? loadingCredentialFor === previewRow.id ||
+                                previewAssetsLoading
+                                ? "Loading QR..."
+                                : "QR chưa sẵn sàng"
+                              : "QR sẽ có sau khi cấp"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="p-3 text-center">
-                    <div className="mx-auto mt-1 inline-block bg-[#d0a24d] px-3 py-0.5 text-[22px] font-black leading-7 tracking-[0.04em] text-[#1f2a44]">
-                      TOTAL
-                      <br />
-                      SCORE
-                    </div>
-                    <div className="mx-auto mt-8 flex h-[98px] w-[98px] items-center justify-center rounded-full border-[4px] border-black bg-white">
-                      <span className="text-[40px] font-black leading-none text-black">
-                        {formatNumber(previewRow.totalScore)}
+                  <div className="relative overflow-hidden px-4 py-2">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_8px_8px,_rgba(199,140,39,0.35)_2px,transparent_2.5px)] [background-size:16px_16px] opacity-45" />
+                    <div className="relative flex items-center justify-between text-[11px] font-medium text-[#5f5850]">
+                      <span>
+                        Official Representatives of TOEIC MASTER · Vietnam · Lao · Cambodia · Myanmar
                       </span>
+                      <span>{credInfo?.serialNumber ?? "VN2001"}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="relative overflow-hidden px-4 py-2">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_8px_8px,_rgba(199,140,39,0.35)_2px,transparent_2.5px)] [background-size:16px_16px] opacity-45" />
-                  <div className="relative flex items-center justify-between text-[11px] font-medium text-[#5f5850]">
-                    <span>
-                      Official Representatives of TOEIC MASTER · Vietnam · Lao · Cambodia · Myanmar
-                    </span>
-                    <span>VN2001</span>
+                <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0 space-y-1 text-xs text-slate-600">
+                    <p>
+                      <span className="font-bold text-slate-800">Serial:</span>{" "}
+                      <span className="break-all font-mono">
+                        {credInfo?.serialNumber ?? "(chưa cấp)"}
+                      </span>
+                    </p>
+                    {credInfo?.ipfsCid ? (
+                      <p>
+                        <span className="font-bold text-slate-800">IPFS:</span>{" "}
+                        <span className="break-all font-mono text-[11px]">
+                          {credInfo.ipfsCid}
+                        </span>
+                      </p>
+                    ) : null}
+                    {credInfo?.qrUrl ? (
+                      <p>
+                        <span className="font-bold text-slate-800">Verify URL:</span>{" "}
+                        <a
+                          href={credInfo.qrUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="break-all text-blue-600 underline"
+                        >
+                          {credInfo.qrUrl}
+                        </a>
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {credInfo?.ipfsGatewayUrl ? (
+                      <a
+                        href={credInfo.ipfsGatewayUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary text-xs"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Xem trên IPFS
+                      </a>
+                    ) : null}
+                    {credInfo?.qrUrl ? (
+                      <a
+                        href={credInfo.qrUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary text-xs"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        Mở trang verify
+                      </a>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void handleDownloadCertificate()}
+                      disabled={downloadingCert}
+                      className="btn-primary text-xs"
+                    >
+                      {downloadingCert ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      {downloadingCert ? "Đang tải..." : "Tải xuống PNG"}
+                    </button>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        );
+      })() : null}
+
+      {confirmIssueRow ? (
+        <div
+          className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
+          onClick={() => setConfirmIssueRow(null)}
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  Xác nhận cấp chứng chỉ
+                </h3>
+              </div>
+            </div>
+            <div className="space-y-3 px-5 py-4 text-sm text-slate-700">
+              <p>Bạn có chắc chắn muốn cấp chứng chỉ cho học viên này?</p>
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p>
+                  <span className="font-bold">Học viên:</span>{" "}
+                  {confirmIssueRow.studentName}
+                </p>
+                <p>
+                  <span className="font-bold">Email:</span>{" "}
+                  {confirmIssueRow.studentEmail}
+                </p>
+                <p>
+                  <span className="font-bold">Đề thi:</span>{" "}
+                  {confirmIssueRow.examName}
+                </p>
+                <p>
+                  <span className="font-bold">Điểm:</span>{" "}
+                  <span className="text-emerald-700">
+                    {formatNumber(confirmIssueRow.totalScore)}
+                  </span>
+                </p>
+              </div>
+              <p className="text-xs italic text-slate-500">
+                Khi cấp: hệ thống sẽ tạo W3C Verifiable Credential, hash SHA-256,
+                pin payload lên IPFS (Pinata), sinh ảnh QR (chứa URL verify công khai)
+                và lưu trên S3. Thao tác này không thể hoàn tác.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setConfirmIssueRow(null)}
+                className="btn-secondary text-sm"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmIssue()}
+                className="btn-primary text-sm"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Xác nhận cấp
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmBulkOpen ? (
+        <div
+          className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
+          onClick={() => setConfirmBulkOpen(false)}
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Send className="h-5 w-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  Cấp chứng chỉ hàng loạt
+                </h3>
+              </div>
+            </div>
+            <div className="space-y-3 px-5 py-4 text-sm text-slate-700">
+              <p>
+                Sẽ cấp chứng chỉ cho{" "}
+                <span className="font-bold text-blue-700">
+                  {
+                    filteredIssuanceRows.filter(
+                      (r) => r.issueStatus === "not_issued" && r.isEligible,
+                    ).length
+                  }
+                </span>{" "}
+                học viên đủ điều kiện. Mỗi học viên sẽ được tạo W3C VC + pin IPFS
+                + sinh QR (có thể mất vài giây mỗi người).
+              </p>
+              <p className="text-xs italic text-slate-500">
+                Thao tác không thể hoàn tác. Nếu có lỗi giữa chừng, những chứng chỉ
+                đã cấp thành công vẫn được giữ.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setConfirmBulkOpen(false)}
+                className="btn-secondary text-sm"
+                disabled={bulkIssuing}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => void performBulkIssue()}
+                className="btn-primary text-sm"
+                disabled={bulkIssuing}
+              >
+                {bulkIssuing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                {bulkIssuing ? "Đang cấp..." : "Xác nhận cấp hàng loạt"}
+              </button>
             </div>
           </div>
         </div>

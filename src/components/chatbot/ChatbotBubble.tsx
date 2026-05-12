@@ -119,6 +119,9 @@ export default function ChatbotBubble() {
   const [listenMode, setListenMode] = useState<ListenMode>("off");
   const [speaking, setSpeaking] = useState(false);
   const [voiceMuted, setVoiceMuted] = useState(false);
+  // Cờ "Timi đang nói" — dùng để tạm pause VAD, tránh barge-in / feedback
+  // (mic thu chính tiếng loa Timi rồi gửi STT vòng lặp).
+  const [audioPlaying, setAudioPlaying] = useState(false);
 
   const bubbleRef = useRef<HTMLDivElement>(null);
   const lottieContainerRef = useRef<HTMLDivElement>(null);
@@ -209,6 +212,20 @@ export default function ChatbotBubble() {
     sendingRef.current = sending;
   }, [sending]);
 
+  // Single source of truth cho trạng thái "Timi đang/sắp nói": dựa vào
+  // audio element thực tế thay vì React state/ref (vốn bị lag 1-2 frame
+  // so với VAD callback). Logic:
+  //   - ref == null      → không có audio nào → false.
+  //   - audio.ended      → đã chạy xong       → false.
+  //   - các case còn lại → đang play HOẶC vừa được gán chuẩn bị play
+  //                        → true (an toàn, ưu tiên không cắt Timi).
+  // stopAudio() và play().catch() cùng có trách nhiệm clear ref về null
+  // để function này không kẹt trạng thái true vĩnh viễn.
+  const isBotSpeakingNow = useCallback((): boolean => {
+    const a = audioPlayerRef.current;
+    return !!a && !a.ended;
+  }, []);
+
   useEffect(() => {
     if (!mounted) return;
     if (open || dragging) {
@@ -237,12 +254,49 @@ export default function ChatbotBubble() {
         }
         const audio = new Audio(dataUrlFromBase64(base64, mime));
         audio.volume = 1.0;
-        audio.play().catch(() => {
-          /* user gesture có thể bị chặn lần đầu */
-        });
+        // QUAN TRỌNG: gán audioPlayerRef SYNC trước mọi thứ khác để
+        // isBotSpeakingNow() trả về true ngay lập tức (kể cả callback
+        // VAD đang fire ở frame này). Đây là chìa khoá chống race.
         audioPlayerRef.current = audio;
+        // Đồng thời pause VAD ngay (không qua effect/setState) để bus
+        // worklet ngừng đẩy frame mới. Frame đã trong buffer sẽ được
+        // guard bởi isBotSpeakingNow() trong callbacks.
+        const vad = vadRef.current;
+        if (vad?.isListening()) {
+          void vad.pause();
+        }
+        setAudioPlaying(true);
+
+        const clearPlaying = () => {
+          // Clear ref TRƯỚC khi resume VAD để isBotSpeakingNow() trả về
+          // false ngay tại frame VAD callback fire sau khi resume.
+          if (audioPlayerRef.current === audio) {
+            audioPlayerRef.current = null;
+          }
+          setAudioPlaying(false);
+          // Resume VAD SYNC ngay khi audio kết thúc, không đợi effect.
+          const v = vadRef.current;
+          if (
+            listenModeRef.current === "active" &&
+            !sendingRef.current &&
+            v &&
+            !v.isListening()
+          ) {
+            void v.start();
+          }
+        };
+        audio.addEventListener("ended", clearPlaying, { once: true });
+        audio.addEventListener("error", clearPlaying, { once: true });
+        // Lưu ý: không listen "pause" — pause có thể do code chủ động
+        // (vd. stopAudio khi user đóng dialog) — clearPlaying sẽ được
+        // gọi riêng trong stopAudio.
+        audio.play().catch(() => {
+          // Browser block autoplay hoặc lỗi load → coi như không phát.
+          clearPlaying();
+        });
       } catch {
-        /* ignore */
+        audioPlayerRef.current = null;
+        setAudioPlaying(false);
       }
     },
     [voiceMuted],
@@ -253,22 +307,7 @@ export default function ChatbotBubble() {
       audioPlayerRef.current.pause();
       audioPlayerRef.current = null;
     }
-  }, []);
-
-  // Audio ducking: tạm hạ volume Timi xuống thấp (không pause) khi VAD
-  // phát hiện có giọng tentative. Nếu đó là noise (misfire) → restore.
-  const duckAudio = useCallback(() => {
-    const audio = audioPlayerRef.current;
-    if (audio && !audio.paused) {
-      audio.volume = 0.2;
-    }
-  }, []);
-
-  const restoreAudio = useCallback(() => {
-    const audio = audioPlayerRef.current;
-    if (audio && !audio.paused) {
-      audio.volume = 1.0;
-    }
+    setAudioPlaying(false);
   }, []);
 
   const ensureSession = useCallback(async (): Promise<string | null> => {
@@ -390,6 +429,10 @@ export default function ChatbotBubble() {
 
   const handleAudioBlob = useCallback(
     async (blob: Blob) => {
+      // Last-line-of-defence: nếu Timi vẫn đang nói lúc flushPendingSegments
+      // chạy (vd. user dừng nói rất sớm rồi Timi mới reply đến), DISCARD
+      // segment để tránh feedback loop "mic ăn tiếng Timi → gửi STT".
+      if (isBotSpeakingNow()) return;
       const id = await ensureSession();
       if (!id) return;
       setSending(true);
@@ -408,7 +451,7 @@ export default function ChatbotBubble() {
         setSending(false);
       }
     },
-    [ensureSession, appendTurnFromResponse],
+    [ensureSession, appendTurnFromResponse, isBotSpeakingNow],
   );
 
   const handleAudioBlobRef = useRef(handleAudioBlob);
@@ -420,7 +463,10 @@ export default function ChatbotBubble() {
   // Khi VAD bắn onSpeechEnd, ta KHÔNG gửi ngay mà chờ POST_END_DELAY_MS;
   // nếu user nói tiếp trong khoảng đó, hai segment được nối lại với
   // 1 đoạn silence ngắn để giữ nhịp tự nhiên rồi mới gửi như 1 lượt.
-  const POST_END_DELAY_MS = 1500;
+  // VAD đã có `redemptionMs: 1500` ở `timi-vad.ts` đảm bảo silence thực
+  // sự 1.5s trước khi bắn onSpeechEnd; cộng thêm 800ms ở đây là vừa đủ
+  // an toàn (~2.3s tolerance pause) mà vẫn cho Timi phản hồi sớm 700ms.
+  const POST_END_DELAY_MS = 800;
   const SEGMENT_GAP_SAMPLES = 8000; // ~0.5s @ 16 kHz
   const pendingSegmentsRef = useRef<Float32Array[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -437,6 +483,10 @@ export default function ChatbotBubble() {
     const segments = pendingSegmentsRef.current;
     pendingSegmentsRef.current = [];
     if (!segments.length) return;
+    // Nếu Timi bắt đầu nói trong khoảng POST_END_DELAY_MS (vd. response BE
+    // về kịp), DISCARD luôn segment — chắc chắn không gửi câu thu trong
+    // lúc loa đang phát Timi.
+    if (isBotSpeakingNow()) return;
 
     let total = 0;
     for (let i = 0; i < segments.length; i++) {
@@ -455,7 +505,7 @@ export default function ChatbotBubble() {
     if (blob.size > 0) {
       void handleAudioBlobRef.current(blob);
     }
-  }, []);
+  }, [isBotSpeakingNow]);
 
   const ensureVad = useCallback(async (): Promise<TimiVadInstance | null> => {
     if (vadRef.current) return vadRef.current;
@@ -474,27 +524,24 @@ export default function ChatbotBubble() {
         minSpeechMs: 500,
         // Pad nhiều hơn để không cắt mất phụ âm đầu (P/T/K) khi user mới nói.
         preSpeechPadMs: 300,
+        // === Half-duplex (KHÔNG có barge-in) ===
+        // Guard dùng isBotSpeakingNow() — đọc thẳng audio element thực tế,
+        // KHÔNG dùng React state/ref (vốn bị lag 1-2 frame so với callback
+        // VAD). Đây là điểm fix triệt để cho 2 bug:
+        //   - Timi bị cắt giữa câu khi user thở (race ref/state)
+        //   - Echo loop (mic ăn tiếng Timi rồi gửi đi)
         onSpeechStart: () => {
-          if (sendingRef.current) return;
-          // TENTATIVE: vừa nghe có giọng nhưng chưa biết có thật sự là user
-          // nói câu hay chỉ là noise (ho/cười/click). Chỉ ducking để KHÔNG
-          // ngắt Timi nếu hóa ra là false alarm. Cũng chưa hủy flush timer
-          // vì chưa chắc đây là segment mới của user.
-          duckAudio();
+          if (sendingRef.current || isBotSpeakingNow()) return;
         },
         onRealSpeechStart: () => {
-          if (sendingRef.current) return;
-          // CONFIRMED: đã vượt minSpeechMs → user thực sự đang nói câu.
-          // Lúc này mới pause hẳn Timi (true barge-in) và bật UI lắng nghe.
-          stopAudio();
+          if (sendingRef.current || isBotSpeakingNow()) return;
           setSpeaking(true);
-          // User nói tiếp trước khi flush timer chạy → hủy timer,
-          // segment mới sẽ được nối với segment cũ trong onSpeechEnd.
           cancelFlushTimer();
         },
         onSpeechEnd: (audio) => {
           setSpeaking(false);
-          if (sendingRef.current) return;
+          // 3 lớp phòng vệ: sending, bot đang nói, segment rỗng.
+          if (sendingRef.current || isBotSpeakingNow()) return;
           if (!audio?.length) return;
           pendingSegmentsRef.current.push(audio);
           cancelFlushTimer();
@@ -504,9 +551,7 @@ export default function ChatbotBubble() {
           );
         },
         onMisfire: () => {
-          // Hóa ra chỉ là noise — KHÔNG cắt Timi, restore volume như cũ.
           setSpeaking(false);
-          restoreAudio();
         },
         onError: (err) =>
           setError(err?.message ?? "Không khởi tạo được trình nhận giọng nói"),
@@ -516,7 +561,7 @@ export default function ChatbotBubble() {
     } catch {
       return null;
     }
-  }, [stopAudio, duckAudio, restoreAudio, cancelFlushTimer, flushPendingSegments]);
+  }, [cancelFlushTimer, flushPendingSegments, isBotSpeakingNow]);
 
   const startListening = useCallback(async () => {
     if (listenModeRef.current !== "off") return;
@@ -564,21 +609,25 @@ export default function ChatbotBubble() {
     }
   }, [listenMode, startListening, stopListening]);
 
-  // Khi đang chờ Timi trả lời (sending) hoặc khi vừa đóng dialog,
-  // tạm pause VAD để tránh thu echo / chồng request.
+  // Half-duplex gate (backup layer): điều khiển VAD instance theo trạng
+  // thái React. Lớp pause/resume SYNC chính nằm trong `playAudioBase64`
+  // và `clearPlaying`. Effect này chạy lại khi state đổi, đảm bảo lần
+  // sau kiểm tra vẫn nhất quán.
   useEffect(() => {
     const vad = vadRef.current;
     if (!vad) return;
-    if (sending && vad.isListening()) {
+    const shouldMute = sending || audioPlaying;
+    if (shouldMute && vad.isListening()) {
       void vad.pause();
+      setSpeaking(false);
     } else if (
-      !sending &&
+      !shouldMute &&
       listenMode === "active" &&
       !vad.isListening()
     ) {
       void vad.start();
     }
-  }, [sending, listenMode]);
+  }, [sending, audioPlaying, listenMode]);
 
   // Khi đóng dialog, tự động dừng nghe.
   useEffect(() => {
@@ -902,7 +951,19 @@ export default function ChatbotBubble() {
                           }
                           const audio = new Audio(m.audioDataUrl!);
                           audioPlayerRef.current = audio;
-                          void audio.play().catch(() => undefined);
+                          // Đồng bộ cờ audioPlaying để VAD half-duplex
+                          // gate cũng pause mic trong lúc user "Nghe lại".
+                          setAudioPlaying(true);
+                          const clearPlaying = () => setAudioPlaying(false);
+                          audio.addEventListener("ended", clearPlaying, {
+                            once: true,
+                          });
+                          audio.addEventListener("error", clearPlaying, {
+                            once: true,
+                          });
+                          void audio.play().catch(() => {
+                            setAudioPlaying(false);
+                          });
                         }}
                         className="mt-1 inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline dark:text-blue-300"
                       >

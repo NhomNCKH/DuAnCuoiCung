@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 import { ACCESS_TOKEN_COOKIE, REFRESH_HINT_COOKIE } from '@/lib/auth-session';
 
 const publicRoutes = ['/', '/login', '/register', '/auth'];
-const publicFileRoutes = ['/slides', '/logo', '/icon'];
+const publicFileRoutes = ['/slides', '/logo', '/icon', '/verify'];
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
